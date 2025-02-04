@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools >= 61.2.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eopf-xarray-backend"
+dynamic = ["version", "readme"]
+authors = [
+  {name = "Konstantin Ntokas (Brockmann Consult GmbH)"},
+  {name = "Norman Fomferra (Brockmann Consult GmbH)"}
+]
+description = "A backend implmentation for xarray that allows for analysis-ready reading of ESA EOPF data products."
+keywords = [
+  "copernicus",
+  "esa",
+  "eopf",
+  "sentinel",
+  "xarray",
+  "zarr"
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+  "fsspec",
+  "numpy",
+  "xarray",
+  "zarr"
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development",
+  "Topic :: Scientific/Engineering",
+  "Typing :: Typed",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "eopf_xarray.__version__"}
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.setuptools.packages.find]
+exclude = [
+  "tests",
+  "docs"
+]
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+# There is a problem with ruff when linting imports
+exclude = ["**/*.ipynb"]
+
+#[project.scripts]
+#eopfxr = "eopf_xarray.cli:main"
+
+[project.entry-points."xarray.backends"]
+esa-eopf = "eopf_xarray.backend:EopfBackend"
+
+[project.optional-dependencies]
+dev = [
+  # Build tools
+  "build",
+  "hatch",
+  "twine",
+  # Code Style / QA
+  "black",
+  "isort",
+  "ruff",
+  # Testing
+  "pytest",
+  "pytest-cov",
+  # Notebooks / Visualisation
+  "jupyterlab",
+  "matplotlib",
+]
+doc = [
+  "mkdocs",
+  "mkdocs-autorefs",
+  "mkdocs-material",
+  "mkdocstrings",
+  "mkdocstrings-python"
+]
+
+[project.urls]
+Documentation = "https://eopf-sample-service.github.io/eopf-xarray-backend"
+Repository = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend"
+Changelog = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend/blob/main/CHANGES.md"
+Issues = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend/issues"

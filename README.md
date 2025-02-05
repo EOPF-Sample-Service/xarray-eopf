@@ -24,7 +24,7 @@ pip install -ve .
 ### Install the library locally and test
 
 ```shell
-conda activate eopf-xr
+mamba activate eopf-xr
 pip install -ve .
 pytest
 ```

@@ -34,7 +34,7 @@ checklist are addressed in your PR.
 
 ## Code style
 
-The code style of XRLint equals the default settings 
+The code style of eopf-xarray-backend equals the default settings 
 of [black](https://black.readthedocs.io/). Since black is 
 un-opinionated regarding the order of imports, we group and 
 sort imports statements according to the default settings of 

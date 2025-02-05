@@ -34,7 +34,7 @@ pytest
 ### Setting up a documentation environment
 
 ```shell
-conda activate eopf-xr
+mamba activate eopf-xr
 pip install .[doc]
 ```
 

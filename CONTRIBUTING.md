@@ -1,6 +1,6 @@
 # How to contribute
 
-The XRLint project welcomes contributions of any form
+The eopf-xarray-backend welcomes contributions of any form
 as long as you respect our [code of conduct](CODE_OF_CONDUCT.md) and stay 
 in line with the following instructions and guidelines.
 

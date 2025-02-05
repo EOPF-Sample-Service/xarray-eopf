@@ -1,0 +1,57 @@
+site_name: EOPF xarray backend
+repo_url: https://github.com/EOPF-Sample-Service/eopf-xarray-backend
+repo_name: EOPF-Sample-Service/eopf-xarray-backend
+
+copyright: Copyright &copy; 2025 EOPF Sample Service Team
+
+nav:
+  - Overview: index.md
+
+theme:
+  name: material
+  # logo: assets/logo.png
+  # favicon: assets/logo-small.png
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: blue grey
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/EOPF-Sample-Service/eopf-xarray-backend
+    #- icon: fontawesome/brands/python
+    #  link: https://pypi.org/project/eopf-xarray-backend/
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_toc_entry: true
+            show_root_heading: true
+            show_source: true
+            heading_level: 2
+            annotations_path: brief
+            members_order: source

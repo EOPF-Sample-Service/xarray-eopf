@@ -1,0 +1,20 @@
+name: eopf-xr
+channels:
+- conda-forge
+dependencies:
+  - python >=3.10
+  # Library Dependencies
+  - fsspec
+  - numpy
+  - pandas
+  - xarray
+  - zarr
+  # Development Dependencies - Tools
+  - black
+  - isort
+  - pytest
+  - pytest-cov
+  - ruff
+  # Development Dependencies - Demos
+  - jupyterlab
+  - matplotlib

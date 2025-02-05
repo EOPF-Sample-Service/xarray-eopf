@@ -17,7 +17,7 @@ conda, mamba, and their dependencies.
 git clone https://github.com/EOPF-Sample-Service/eopf-xarray-backend.git
 cd eopf-xarray-backend
 mamba env create
-conda activate eopf-xr
+mamba activate eopf-xr
 pip install -ve .
 ```
 

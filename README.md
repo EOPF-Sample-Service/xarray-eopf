@@ -40,7 +40,7 @@ pip install .[doc]
 
 ### Testing documentation changes
 
-```python
+```shell
 mkdocs serve
 ```
 

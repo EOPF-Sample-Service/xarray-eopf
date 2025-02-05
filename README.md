@@ -33,7 +33,7 @@ pytest
 
 ### Setting up a documentation environment
 
-```python
+```shell
 conda activate eopf-xr
 pip install .[doc]
 ```

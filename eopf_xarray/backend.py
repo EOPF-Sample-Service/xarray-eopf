@@ -46,7 +46,7 @@ class EopfBackend(BackendEntrypoint):
 
         Args:
             filename_or_obj: File path, or URL, or path-like string.
-            drop_variables: variable name or iterable of variable names
+            drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file.
 
         Returns:

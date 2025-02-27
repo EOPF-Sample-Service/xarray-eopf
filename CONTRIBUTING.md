@@ -1,16 +1,16 @@
 # How to contribute
 
-The eopf-xarray-backend welcomes contributions of any form
+The xarray-eopf welcomes contributions of any form
 as long as you respect our [code of conduct](CODE_OF_CONDUCT.md) and stay 
 in line with the following instructions and guidelines.
 
 If you have suggestions, ideas, feature requests, or if you have identified
 a malfunction or error, then please 
-[post an issue](https://github.com/EOPF-Sample-Service/eopf-xarray-backend/issues). 
+[post an issue](https://github.com/EOPF-Sample-Service/xarray-eopf/issues). 
 
 If you'd like to submit code or documentation changes, we ask you to provide a 
 pull request (PR) 
-[here](https://github.com/EOPF-Sample-Service/eopf-xarray-backend/pulls). 
+[here](https://github.com/EOPF-Sample-Service/xarray-eopf/pulls). 
 For code and configuration changes, your PR must be linked to a 
 corresponding issue. 
 
@@ -34,7 +34,7 @@ checklist are addressed in your PR.
 
 ## Code style
 
-The code style of eopf-xarray-backend equals the default settings 
+The code style of xarray-eopf equals the default settings 
 of [black](https://black.readthedocs.io/). Since black is 
 un-opinionated regarding the order of imports, we group and 
 sort imports statements according to the default settings of 

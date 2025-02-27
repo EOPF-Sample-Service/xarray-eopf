@@ -1,4 +1,4 @@
-# eopf-xarray-backend
+# xarray-eopf
 
 A backend implementation for [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) 
 that allows for analysis-ready reading of ESA EOPF data products from local and remote 
@@ -14,8 +14,8 @@ The recommended Python distribution for development is
 conda, mamba, and their dependencies.
 
 ```shell
-git clone https://github.com/EOPF-Sample-Service/eopf-xarray-backend.git
-cd eopf-xarray-backend
+git clone https://github.com/EOPF-Sample-Service/xarray-eopf.git
+cd xarray-eopf
 mamba env create
 mamba activate eopf-xr
 pip install -ve .

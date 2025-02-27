@@ -3,7 +3,7 @@ requires = ["setuptools >= 61.2.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eopf-xarray-backend"
+name = "xarray-eopf"
 dynamic = ["version", "readme"]
 authors = [
   {name = "Konstantin Ntokas (Brockmann Consult GmbH)"},
@@ -46,7 +46,7 @@ classifiers = [
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "eopf_xarray.__version__"}
+version = {attr = "xarray_eopf.__version__"}
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [tool.setuptools.packages.find]
@@ -66,10 +66,10 @@ profile = "black"
 exclude = ["**/*.ipynb"]
 
 #[project.scripts]
-#eopfxr = "eopf_xarray.cli:main"
+#eopfxr = "xarray_eopf.cli:main"
 
 [project.entry-points."xarray.backends"]
-esa-eopf = "eopf_xarray.backend:EopfBackend"
+eopf-zarr = "xarray_eopf.backend:EopfBackend"
 
 [project.optional-dependencies]
 dev = [
@@ -97,7 +97,7 @@ doc = [
 ]
 
 [project.urls]
-Documentation = "https://eopf-sample-service.github.io/eopf-xarray-backend"
-Repository = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend"
-Changelog = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend/blob/main/CHANGES.md"
-Issues = "https://github.com/EOPF-Sample-Service/eopf-xarray-backend/issues"
+Documentation = "https://eopf-sample-service.github.io/xarray-eopf"
+Repository = "https://github.com/EOPF-Sample-Service/xarray-eopf"
+Changelog = "https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/CHANGES.md"
+Issues = "https://github.com/EOPF-Sample-Service/xarray-eopf/issues"

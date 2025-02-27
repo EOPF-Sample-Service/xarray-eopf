@@ -23,7 +23,7 @@ requires-python = ">=3.10"
 dependencies = [
   "fsspec",
   "numpy",
-  "xarray",
+  "xarray>=2024.10",
   "zarr"
 ]
 classifiers = [

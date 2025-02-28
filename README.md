@@ -46,6 +46,6 @@ mkdocs serve
 
 ### Deploying documentation changes
 
-```python
+```shell
 mkdocs gh-deploy
 ```

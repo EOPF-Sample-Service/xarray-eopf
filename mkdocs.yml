@@ -1,6 +1,6 @@
 site_name: EOPF xarray backend
-repo_url: https://github.com/EOPF-Sample-Service/eopf-xarray-backend
-repo_name: EOPF-Sample-Service/eopf-xarray-backend
+repo_url: https://github.com/EOPF-Sample-Service/xarray-eopf
+repo_name: EOPF-Sample-Service/xarray-eopf
 
 copyright: Copyright &copy; 2025 EOPF Sample Service Team
 
@@ -37,9 +37,9 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/EOPF-Sample-Service/eopf-xarray-backend
+      link: https://github.com/EOPF-Sample-Service/xarray-eopf
     #- icon: fontawesome/brands/python
-    #  link: https://pypi.org/project/eopf-xarray-backend/
+    #  link: https://pypi.org/project/xarray-eopf/
 
 plugins:
   - search

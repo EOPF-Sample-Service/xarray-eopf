@@ -6,7 +6,6 @@ dependencies:
   # Library Dependencies
   - fsspec
   - numpy
-  - pandas
   - xarray >=2024.10
   - zarr
   # Development Dependencies - Tools

@@ -29,13 +29,11 @@ jobs:
       run: |
         python -m build
 
-    - name: Check package before publishing
-      run: twine check dist/*
-
     - name: Publish to PyPI
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         pip install twine
+        twine check dist/*
         python -m twine upload dist/*

@@ -28,6 +28,11 @@ mamba activate eopf-xr
 pip install -ve .
 pytest
 ```
+By default, this will run all unit and integration tests. To run only the unit test
+suite, use:  
+```shell
+pytest tests/unit
+```
 
 ### Documentation
 

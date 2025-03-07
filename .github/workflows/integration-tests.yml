@@ -1,0 +1,33 @@
+name: Daily Integration Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MicroMamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: environment.yml
+
+# this will be setup once we have the final s3
+#      - name: Configure AWS Credentials
+#        uses: aws-actions/configure-aws-credentials@v2
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: eu-central-1  # if needed
+#
+#      - name: Verify AWS Credentials (optional)
+#        run: aws s3 ls
+
+      - name: Run integration tests
+        run: pytest tests/integration/

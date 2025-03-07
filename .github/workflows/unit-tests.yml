@@ -21,7 +21,7 @@ jobs:
       - name: Run unit tests
         shell: bash -l {0}
         run: |
-          pytest tests/unit --cov=xarray_eopf --cov-report=xml
+          pytest --cov=xarray_eopf --cov-report=xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

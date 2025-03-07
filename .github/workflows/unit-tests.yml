@@ -18,6 +18,10 @@ jobs:
         with:
           environment-file: environment.yml
 
+      - name: Install the package
+        shell: bash -l {0}
+        run: pip install --no-deps .
+
       - name: Run unit tests
         shell: bash -l {0}
         run: pytest tests/unit/ --cov=xarray_eopf --cov-report=xml

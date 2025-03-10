@@ -36,4 +36,4 @@ jobs:
 
       - name: Run integration tests
         shell: bash -l {0}
-        run: pytest tests/integration/
+        run: pytest integration/

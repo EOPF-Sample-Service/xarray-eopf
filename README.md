@@ -7,9 +7,8 @@
 
 # xarray-eopf
 
-A backend implementation for [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) 
-that allows for analysis-ready reading of ESA EOPF data products from local and remote 
-filesystems.
+An [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) backend implementation
+for ESA EOPF data products in Zarr format.
 
 
 ## Development
@@ -38,7 +37,7 @@ pytest
 By default, this will run all unit and integration tests. To run only the unit test
 suite, use:  
 ```shell
-pytest tests/unit
+pytest tests/
 ```
 
 ### Documentation

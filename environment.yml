@@ -10,7 +10,7 @@ dependencies:
   - numpy
   - requests
   - xarray >=2024.10
-  - zarr
+  - zarr <3.0
   # Development Dependencies - Tools
   - black
   - isort

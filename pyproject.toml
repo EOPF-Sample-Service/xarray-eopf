@@ -27,7 +27,7 @@ dependencies = [
   "numpy",
   "requests",
   "xarray>=2024.10",
-  "zarr"
+  "zarr<3.0"
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",

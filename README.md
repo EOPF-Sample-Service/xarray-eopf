@@ -1,3 +1,10 @@
+[![Build Status](https://github.com/EOPF-Sample-Service/xarray-eopf/actions/workflows/unit-tests.yml/badge.svg?branch=main)](https://github.com/EOPF-Sample-Service/xarray-eopf/actions)
+[![codecov](https://codecov.io/gh/EOPF-Sample-Service/xarray-eopf/branch/main/graph/badge.svg)](https://codecov.io/gh/EOPF-Sample-Service/xarray-eopf)
+[![PyPI Version](https://img.shields.io/pypi/v/xarray-eopf)](https://pypi.org/project/xarray-eopf/)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/xarray-eopf/badges/version.svg)](https://anaconda.org/conda-forge/xarray-eopf)
+[![License](https://anaconda.org/conda-forge/xarray-eopf/badges/license.svg)](https://anaconda.org/conda-forge/xarray-eopf)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # xarray-eopf
 
 A backend implementation for [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) 

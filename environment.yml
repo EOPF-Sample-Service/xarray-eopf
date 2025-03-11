@@ -14,6 +14,11 @@ dependencies:
   # Development Dependencies - Tools
   - black
   - isort
+  - mkdocs
+  - mkdocs-autorefs
+  - mkdocs-material
+  - mkdocstrings
+  - mkdocstrings-python  
   - pytest
   - pytest-cov
   - ruff

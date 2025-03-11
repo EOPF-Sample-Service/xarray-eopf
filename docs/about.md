@@ -46,7 +46,7 @@ mamba env create
 and code coverage analysis.
 
 ```bash
-pytest --cov=xarray_eopf --cov-report html
+pytest tests/ --cov=xarray_eopf --cov-report html
 ```
 
 ### Code Style

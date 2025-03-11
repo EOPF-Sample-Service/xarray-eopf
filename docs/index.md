@@ -13,7 +13,6 @@ a [`Dataset`](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html) o
 ```python
     dataset = xr.open_dataset(url_or_path_to_product, engine="eopf-zarr")
 ```
-or
 
 and `open_datatree()` that provides a [`DataTree`](https://docs.xarray.dev/en/stable/generated/xarray.DataTree.html) 
 object including groups:
@@ -35,7 +34,7 @@ The backend supports two distinct modes of operation, `"native"` and `"analysis-
   objects try to serve as a 1:1 representation of the actual Zarr product structure and
   content with either none or minimal preprocessing applied.
 
-- `mode="analysis"` - using the _analysis mode_ the returned the returned `Dataset` 
+- `mode="analysis"` - using the _analysis mode_, the returned `Dataset` 
   or `DataTree` objects attempt to be user-friendly and analysis-ready to a maximum
   extend. Certain preprocessing steps will be applied depending on the specific 
   Sentinel product towards an analysis-ready data model and content. For example, 

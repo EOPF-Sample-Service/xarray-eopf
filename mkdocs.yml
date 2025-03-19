@@ -7,6 +7,7 @@ copyright: Copyright &copy; 2025 EOPF Sample Service Team
 nav:
   - Overview: index.md
   - Getting Started: start.md
+  - User Guide: guide.md
   - About: about.md
 
 theme:

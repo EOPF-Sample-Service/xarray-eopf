@@ -9,11 +9,24 @@ import xarray as xr
 from xarray.backends import BackendEntrypoint, AbstractDataStore
 from xarray.core.types import ReadBuffer
 
-MODE_ANALYSIS: Final = "analysis"
-MODE_NATIVE: Final = "native"
-MODES: Final = MODE_ANALYSIS, MODE_NATIVE
+OP_MODE_ANALYSIS: Final = "analysis"
+OP_MODE_NATIVE: Final = "native"
+OP_MODES: Final = OP_MODE_ANALYSIS, OP_MODE_NATIVE
 
-Mode: TypeAlias = Literal["analysis", "native"]
+OpMode: TypeAlias = Literal["analysis", "native"]
+
+# Keywords arguments passed to dataset.merge(other) when flattening
+# data trees.
+MERGE_KWARGS: Final = dict(
+    # skip comparing and pick variable from `dataset`
+    compat="override",
+    # use indexes from `dataset` that are the same size
+    # as those of `other` in that dimension
+    join="override",
+    # skip comparing and copy attrs from `dataset` to
+    # the result.
+    combine_attrs="override",
+)
 
 
 class EopfBackend(BackendEntrypoint):
@@ -23,14 +36,14 @@ class EopfBackend(BackendEntrypoint):
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
-        mode: Mode = "analysis",
+        op_mode: OpMode = "analysis",
         drop_variables: str | Iterable[str] | None = None,
     ) -> xr.DataTree:
         """Backend implementation delegated to by
         [xarray.open_datatree]().
         Args:
             filename_or_obj: File path, or URL, or path-like string.
-            mode: Mode of operation, either "analysis" or "native".
+            op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file.
@@ -38,7 +51,12 @@ class EopfBackend(BackendEntrypoint):
         Returns:
             A new data-tree instance.
         """
-        _assert_valid_mode(mode)
+        _assert_valid_op_mode(op_mode)
+
+        # TODO: remove this block once "analysis" mode is supported
+        if op_mode != OP_MODE_NATIVE:
+            raise ValueError(f"mode {op_mode!r} is not supported yet")
+
         data_tree = xr.open_datatree(
             filename_or_obj,
             drop_variables=drop_variables,
@@ -49,7 +67,8 @@ class EopfBackend(BackendEntrypoint):
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
-        mode: Mode = "analysis",
+        op_mode: OpMode = "analysis",
+        group_sep: str = "_",
         drop_variables: str | Iterable[str] | None = None,
     ) -> xr.Dataset:
         """Backend implementation delegated to by
@@ -57,21 +76,23 @@ class EopfBackend(BackendEntrypoint):
 
         Args:
             filename_or_obj: File path, or URL, or path-like string.
-            mode: Mode of operation, either "analysis" or "native".
+            op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
+            group_sep: Group name separator string.
+                Defaults to the underscore character.
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file.
 
         Returns:
             A new dataset instance.
         """
-        _assert_valid_mode(mode)
-        dataset = xr.open_zarr(
+        _assert_valid_op_mode(op_mode)
+        datatree = self.open_datatree(
             filename_or_obj,
-            consolidated=True,
+            op_mode=op_mode,
             drop_variables=drop_variables,
         )
-        return dataset
+        return _flatten_datatree(datatree, group_sep)
 
     def guess_can_open(
         self,
@@ -89,8 +110,37 @@ class EopfBackend(BackendEntrypoint):
         return False
 
 
-def _assert_valid_mode(mode: Any):
-    if mode not in MODES:
+def _flatten_datatree(
+    datatree: xr.DataTree, group_sep: str, prefix: str = ""
+) -> xr.Dataset:
+
+    prefix_ = f"{prefix}{group_sep}"
+
+    dataset = datatree.to_dataset()
+
+    if datatree.is_leaf:
+        if prefix != "":
+            names = {
+                *dataset.sizes.keys(),
+                *dataset.coords.keys(),
+                *dataset.data_vars.keys(),
+            }
+            dataset = dataset.rename({name: f"{prefix_}{name}" for name in names})
+        return dataset
+
+    for child_name, child_datatree in datatree.children.items():
+        child_dataset = _flatten_datatree(
+            child_datatree,
+            group_sep=group_sep,
+            prefix=f"{prefix_}{child_name}" if prefix else f"{child_name}",
+        )
+        dataset = dataset.merge(child_dataset, **MERGE_KWARGS)
+
+    return dataset
+
+
+def _assert_valid_op_mode(op_mode: Any):
+    if op_mode not in OP_MODES:
         raise ValueError(
-            f"mode argument must be {' or '.join(map(repr, MODES))}, was {mode!r}"
+            f"mode argument must be {' or '.join(map(repr, OP_MODES))}, was {op_mode!r}"
         )

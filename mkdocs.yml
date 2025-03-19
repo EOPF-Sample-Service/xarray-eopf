@@ -8,6 +8,7 @@ nav:
   - Overview: index.md
   - Getting Started: start.md
   - User Guide: guide.md
+  - Python API: api.md
   - About: about.md
 
 theme:

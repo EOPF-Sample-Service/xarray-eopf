@@ -5,6 +5,7 @@
 from unittest import TestCase
 
 import numpy as np
+import pytest
 import xarray as xr
 
 from xarray_eopf.backend import EopfBackend
@@ -15,6 +16,23 @@ class EopfBackendTest(TestCase):
         engines = xr.backends.list_engines()
         self.assertIn("eopf-zarr", engines)
         self.assertIsInstance(engines["eopf-zarr"], EopfBackend)
+
+    # noinspection PyTypeChecker,PyMethodMayBeStatic
+    def test_mode_is_validated(self):
+        with pytest.raises(
+            ValueError,
+            match="mode argument must be 'analysis' or 'native', was 'convenience'",
+        ):
+            xr.open_datatree(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", mode="convenience"
+            )
+        with pytest.raises(
+            ValueError,
+            match="mode argument must be 'analysis' or 'native', was 'sensor'",
+        ):
+            xr.open_dataset(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", mode="sensor"
+            )
 
     def test_open_datatree(self):
         original_dt = make_s2_msi()

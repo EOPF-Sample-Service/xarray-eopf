@@ -36,7 +36,7 @@ class EopfBackend(BackendEntrypoint):
         ) = False,
     ) -> xr.DataTree:
         f"""Backend implementation delegated to by
-        [xarray.open_datatree]({OPEN_DT_URL}).
+        [`xarray.open_datatree()`]({OPEN_DT_URL}).
         Args:
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
@@ -58,6 +58,8 @@ class EopfBackend(BackendEntrypoint):
 
         data_tree = xr.open_datatree(
             filename_or_obj,
+            # preserve the chunking from the Zarr metadata
+            chunks=None,
             # here as it is required for all backends
             drop_variables=drop_variables,
             # here to silence xarray warnings
@@ -77,7 +79,7 @@ class EopfBackend(BackendEntrypoint):
         ) = False,
     ) -> xr.Dataset:
         f"""Backend implementation delegated to by
-        [xarray.open_dataset]({OPEN_DS_URL}).
+        [`xarray.open_dataset()`]({OPEN_DS_URL}).
 
         Args:
             filename_or_obj: File path, or URL, or path-like string.

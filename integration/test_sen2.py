@@ -45,7 +45,7 @@ class Sentinel2Test(TestCase):
 
     def test_open_dataset_sen2_l1c(self):
         path = (
-            "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/"
+            "s3://e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/"
             "cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
         )
         # noinspection PyTypeChecker

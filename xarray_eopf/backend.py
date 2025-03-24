@@ -75,6 +75,7 @@ class EopfBackend(BackendEntrypoint):
 
         data_tree = xr.open_datatree(
             fs_store,
+            engine="zarr",
             # preserve the chunking from the Zarr metadata
             chunks="auto",
             # here as it is required for all backends
@@ -123,10 +124,11 @@ class EopfBackend(BackendEntrypoint):
             A new dataset instance.
         """
         _assert_valid_op_mode(op_mode)
-        fs_store = _open_store(filename_or_obj, protocol, storage_options)
         datatree = self.open_datatree(
-            fs_store,
+            filename_or_obj,
             op_mode=op_mode,
+            protocol=protocol,
+            storage_options=storage_options,
             # here as it is required for all backends
             drop_variables=drop_variables,
             # here to silence xarray warnings
@@ -165,6 +167,12 @@ def _open_store(
     if isinstance(filename_or_obj, str):
         return _open_fs_store(filename_or_obj, protocol, storage_options)
     else:
+        if protocol is not None:
+            raise ValueError("the protocol argument applies only to paths or URLs")
+        if storage_options is not None:
+            raise ValueError(
+                "the storage_options argument applies only to paths or URLs"
+            )
         return filename_or_obj
 
 

@@ -8,12 +8,12 @@ import dask_image.ndinterp as ndinterp
 import numpy as np
 import xarray as xr
 
-from xarray_eopf.util.timeit import timeit
+from xarray_eopf.utils import timeit
 
 
 def get_spatial_vars(
     variables: Mapping[Hashable, xr.DataArray],
-) -> Mapping[Hashable, xr.DataArray]:
+) -> dict[Hashable, xr.DataArray]:
     return {var_name: var for var_name, var in variables.items() if is_spatial_var(var)}
 
 

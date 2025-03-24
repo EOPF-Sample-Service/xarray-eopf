@@ -4,21 +4,38 @@
 
 from unittest import TestCase
 
-import dask.array
 import xarray as xr
 
-from xarray_eopf.util.spatial import get_spatial_vars, rescale_spatial_vars
+from integration.helpers import assert_data_arrays_are_chunked
+from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
+from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
+from xarray_eopf.utils import timeit
+
+bucket = "e05ab01a9d56408d82ac32d69a5aae2a:sample-data"
+path_prefix = "tutorial_data/cpm_v253"
+s3_prefix = f"s3://{bucket}/{path_prefix}"
+https_prefix = f"https://{DEFAULT_ENDPOINT_URL}/{bucket}/{path_prefix}"
+
+allowed_open_time = 5  # seconds
 
 
-class Sentinel2Test(TestCase):
-    def test_open_datatree_sen2_l1c(self):
-        path = (
-            "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:"
-            "sample-data/tutorial_data/cpm_v253/S2B_MSIL1C_20250113T103309_N0511_"
-            "R108_T32TLQ_20250113T122458.zarr"
-        )
+class Sentinel2NativeTest(TestCase):
+    def test_open_datatree_sen2_l1c_s3(self):
+        self._test_open_datatree_sen2_l1c(s3_prefix)
+
+    def test_open_datatree_sen2_l1c_https(self):
+        self._test_open_datatree_sen2_l1c(https_prefix)
+
+    def _test_open_datatree_sen2_l1c(self, url_prefix: str):
         # noinspection PyTypeChecker
-        dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native")
+        url = (
+            f"{url_prefix}/"
+            f"S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
+        )
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native")
+        self.assertTrue(result.time < allowed_open_time)
         self.assertEqual(25, len(dt.groups))
         self.assertIn(
             "/measurements/reflectance/r60m",
@@ -27,14 +44,21 @@ class Sentinel2Test(TestCase):
         ds = dt.measurements.reflectance.r60m
         self.assertEqual({"y": 1830, "x": 1830}, ds.sizes)
 
-    def test_open_datatree_sen2_l2a(self):
-        path = (
-            "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:"
-            "sample-data/tutorial_data/cpm_v253/S2A_MSIL2A_20240101T102431_N0510_"
-            "R065_T32TNT_20240101T144052.zarr"
+    def test_open_datatree_sen2_l2a_s3(self):
+        self._test_open_datatree_sen2_l2a(s3_prefix)
+
+    def test_open_datatree_sen2_l2a_https(self):
+        self._test_open_datatree_sen2_l2a(https_prefix)
+
+    def _test_open_datatree_sen2_l2a(self, url_prefix: str):
+        url = (
+            f"{url_prefix}/"
+            "S2A_MSIL2A_20240101T102431_N0510_R065_T32TNT_20240101T144052.zarr"
         )
-        # noinspection PyTypeChecker
-        dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native")
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native")
+        self.assertTrue(result.time < allowed_open_time)
         self.assertEqual(36, len(dt.groups))
         self.assertIn(
             "/measurements/reflectance/r60m",
@@ -43,15 +67,57 @@ class Sentinel2Test(TestCase):
         ds = dt.measurements.reflectance.r60m
         self.assertEqual({"y": 1830, "x": 1830}, ds.sizes)
 
-    def test_open_dataset_sen2_l1c(self):
-        path = (
-            "s3://e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/"
-            "cpm_v253/S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
-        )
-        # noinspection PyTypeChecker
-        ds = xr.open_dataset(path, engine="eopf-zarr", op_mode="native")
+    def test_open_dataset_sen2_l1c_s3(self):
+        self._test_open_dataset_sen2_l1c(s3_prefix)
 
-        spatial_vars = get_spatial_vars(ds.data_vars)
+    def test_open_dataset_sen2_l1c_https(self):
+        self._test_open_dataset_sen2_l1c(https_prefix)
+
+    def _test_open_dataset_sen2_l1c(self, url_prefix: str):
+        url = (
+            f"{url_prefix}/"
+            "S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
+        )
+        with timeit(url) as result:
+            # noinspection PyTypeChecker
+            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native")
+        self.assertTrue(result.time < allowed_open_time)
+        self.assertEqual(62, len(ds.data_vars))
+        self.assertIn(
+            "measurements_r10m_b02",
+            ds.data_vars,
+        )
+        da = ds.measurements_r10m_b02
+        self.assertEqual(
+            {"measurements_r10m_y": 10980, "measurements_r10m_x": 10980}, da.sizes
+        )
+        spatial_vars = get_spatial_vars(ds)
+        self.assertEqual(43, len(spatial_vars))
+        assert_data_arrays_are_chunked(self, spatial_vars)
+
+
+class Sentinel2AnalysisTest(TestCase):
+
+    def test_open_dataset_sen2_l1c_s3(self):
+        self._test_open_dataset_sen2_l1c(s3_prefix)
+
+    def test_open_dataset_sen2_l1c_https(self):
+        self._test_open_dataset_sen2_l1c(https_prefix)
+
+    def _test_open_dataset_sen2_l1c(self, url_prefix):
+        url = (
+            f"{url_prefix}/"
+            "S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
+        )
+        print("S1")
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native")
+        self.assertTrue(result.time < allowed_open_time)
+
+        print("S2")
+        with timeit("get_spatial_vars"):
+            spatial_vars = get_spatial_vars(ds.data_vars)
         self.assertEqual(
             [
                 "conditions_geometry_sun_angles",
@@ -98,21 +164,22 @@ class Sentinel2Test(TestCase):
                 "quality_mask_r60m_b09",
                 "quality_mask_r60m_b10",
             ],
-            sorted(spatial_vars.keys()),
+            sorted(map(str, spatial_vars.keys())),
         )
-        none_dask_arrays = {
-            k: v
-            for k, v in spatial_vars.items()
-            if not isinstance(v.data, dask.array.Array)
-        }
-        self.assertEqual(
-            0,
-            len(none_dask_arrays),
-            msg=(
-                f"{len(none_dask_arrays)} spatial variable(s) are not using dask arrays:\n"
-                + "\n".join(f"- {k} ({v.shape})" for k, v in none_dask_arrays.items())
-            ),
-        )
-        # rescaled_spatial_vars = rescale_spatial_vars(spatial_vars)
-        # for var_name, var in rescaled_spatial_vars.items():
-        #    self.assertEqual((10980, 10980), var.shape[-2:])
+
+        for k, v in spatial_vars.items():
+            print(f"{k}: s={v.shape}, c={v.chunks}, data={v.data}")
+
+        with timeit("assert_data_arrays_are_chunked"):
+            assert_data_arrays_are_chunked(self, spatial_vars)
+
+        # rescaling of its shape (2, 23, 23) takes 120 seconds!
+        del spatial_vars["conditions_geometry_sun_angles"]
+        # rescaling of its shape (13, 7, 2, 23, 23) takes 140 seconds!
+        del spatial_vars["conditions_geometry_viewing_incidence_angles"]
+
+        with timeit("rescale_spatial_vars"):
+            rescaled_spatial_vars = rescale_spatial_vars(spatial_vars)
+
+        for var_name, var in rescaled_spatial_vars.items():
+            self.assertEqual((10980, 10980), var.shape[-2:])

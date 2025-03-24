@@ -27,4 +27,4 @@ OPEN_DT_URL = "https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.
 OPEN_DS_URL = "https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html"
 FSSPEC_USAGE_URL = "https://filesystem-spec.readthedocs.io/en/latest/usage.html"
 
-DEFAULT_S3_ENDPOINT_URL = "https://objectstore.eodc.eu:2222"
+DEFAULT_ENDPOINT_URL = "https://objectstore.eodc.eu:2222"

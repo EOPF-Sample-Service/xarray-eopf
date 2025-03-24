@@ -5,7 +5,7 @@
 from unittest import TestCase
 
 from tests.helpers import make_s2_msi
-from xarray_eopf.util.flatten import flatten_datatree
+from xarray_eopf.flatten import flatten_datatree
 
 
 class FlattenTest(TestCase):

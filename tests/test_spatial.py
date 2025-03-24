@@ -5,9 +5,8 @@
 from unittest import TestCase
 
 from tests.helpers import make_s2_msi
-from xarray_eopf.util.flatten import flatten_datatree
-
-from xarray_eopf.util.spatial import rescale_spatial_vars
+from xarray_eopf.flatten import flatten_datatree
+from xarray_eopf.spatial import rescale_spatial_vars
 
 
 class SpatialTest(TestCase):

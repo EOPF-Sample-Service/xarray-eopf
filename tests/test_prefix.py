@@ -4,7 +4,7 @@
 
 from unittest import TestCase
 
-from xarray_eopf.util.prefix import (
+from xarray_eopf.prefix import (
     get_common_prefix,
     get_common_string_prefix,
     get_unique_short_sequences,

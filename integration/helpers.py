@@ -1,0 +1,25 @@
+#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Permissions are hereby granted under the terms of the Apache 2.0 License:
+#  https://opensource.org/license/apache-2-0.
+
+from collections.abc import Mapping, Hashable
+from unittest import TestCase
+
+import dask.array
+import xarray as xr
+
+
+def assert_data_arrays_are_chunked(
+    test_case: TestCase, spatial_vars: Mapping[Hashable, xr.DataArray]
+):
+    for k, v in spatial_vars.items():
+        test_case.assertIsInstance(
+            v.data,
+            dask.array.Array,
+            msg=f"{k} with shape {v.shape} should use a dask array",
+        )
+
+    for k, v in spatial_vars.items():
+        test_case.assertIsNotNone(
+            v.chunks, msg=f"{k} with shape {v.shape} should have chunks"
+        )

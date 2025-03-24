@@ -6,6 +6,8 @@ import os
 from collections.abc import Mapping
 from typing import Any, Iterable
 
+import fsspec
+import s3fs
 import xarray as xr
 from xarray.backends import BackendEntrypoint, AbstractDataStore
 from xarray.coding.times import CFTimedeltaCoder
@@ -18,6 +20,8 @@ from .constants import (
     OP_MODES,
     OPEN_DS_URL,
     OPEN_DT_URL,
+    DEFAULT_S3_ENDPOINT_URL,
+    FSSPEC_USAGE_URL,
 )
 from .util.flatten import flatten_datatree
 
@@ -25,11 +29,15 @@ from .util.flatten import flatten_datatree
 class EopfBackend(BackendEntrypoint):
     """Backend for EOPF Data Products using the Zarr format."""
 
+    fs_cache: dict[str, s3fs.S3FileSystem] = {}
+
     def open_datatree(
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
+        protocol: str | None = None,
+        storage_options: Mapping[str, Any] | None = None,
         drop_variables: str | Iterable[str] | None = None,
         decode_timedelta: (
             bool | CFTimedeltaCoder | Mapping[str, bool | CFTimedeltaCoder] | None
@@ -41,6 +49,13 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
+            protocol: If `filename_or_obj` is a file path or URL, 
+                forces using the filesystem protocol.
+                Otherwise the protocol will be derived from the file path or URL. 
+                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+            storage_options: If `filename_or_obj` is a file path or URL,
+                these options specify the source filesystem.
+                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file. See
                 [xarray documentation]({OPEN_DT_URL}).
@@ -56,10 +71,12 @@ class EopfBackend(BackendEntrypoint):
         if op_mode != OP_MODE_NATIVE:
             raise ValueError(f"mode {op_mode!r} is not supported yet")
 
+        fs_store = _open_store(filename_or_obj, protocol, storage_options)
+
         data_tree = xr.open_datatree(
-            filename_or_obj,
+            fs_store,
             # preserve the chunking from the Zarr metadata
-            chunks=None,
+            chunks="auto",
             # here as it is required for all backends
             drop_variables=drop_variables,
             # here to silence xarray warnings
@@ -72,6 +89,8 @@ class EopfBackend(BackendEntrypoint):
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
+        protocol: str | None = None,
+        storage_options: Mapping[str, Any] | None = None,
         group_sep: str = "_",
         drop_variables: str | Iterable[str] | None = None,
         decode_timedelta: (
@@ -87,6 +106,13 @@ class EopfBackend(BackendEntrypoint):
                 Defaults to "analysis".
             group_sep: Group name separator string.
                 Defaults to the underscore character.
+            protocol: If `filename_or_obj` is a file path or URL, 
+                forces using the filesystem protocol.
+                Otherwise the protocol will be derived from the file path or URL. 
+                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+            storage_options: If `filename_or_obj` is a file path or URL,
+                these options specify the source filesystem.
+                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file. See
                 [xarray documentation]({OPEN_DS_URL}).
@@ -97,8 +123,9 @@ class EopfBackend(BackendEntrypoint):
             A new dataset instance.
         """
         _assert_valid_op_mode(op_mode)
+        fs_store = _open_store(filename_or_obj, protocol, storage_options)
         datatree = self.open_datatree(
-            filename_or_obj,
+            fs_store,
             op_mode=op_mode,
             # here as it is required for all backends
             drop_variables=drop_variables,
@@ -128,3 +155,53 @@ def _assert_valid_op_mode(op_mode: Any):
         raise ValueError(
             f"mode argument must be {' or '.join(map(repr, OP_MODES))}, was {op_mode!r}"
         )
+
+
+def _open_store(
+    filename_or_obj: str,
+    protocol: str | None,
+    storage_options: Mapping[str, Any] | None,
+) -> Any:
+    if isinstance(filename_or_obj, str):
+        return _open_fs_store(filename_or_obj, protocol, storage_options)
+    else:
+        return filename_or_obj
+
+
+def _open_fs_store(
+    path_or_url: str, protocol: str | None, storage_options: Mapping[str, Any] | None
+) -> fsspec.FSMap:
+    _protocol, root = fsspec.core.split_protocol(path_or_url)
+    protocol = protocol or _protocol or "file"
+    storage_options = storage_options or {}
+    if protocol == "s3":
+        if (
+            "anon" not in storage_options
+            and "client" not in storage_options
+            and "secret" not in storage_options
+        ):
+            storage_options["anon"] = True
+        if (
+            "endpoint_url" not in storage_options
+            and "endpoint_url" not in storage_options.get("client_kwargs", {})
+        ):
+            storage_options["endpoint_url"] = DEFAULT_S3_ENDPOINT_URL
+
+    fs = fsspec.filesystem(protocol, **storage_options)
+    # CEPH uses a non-standard colon to separate tenant name from
+    # the bucket name. We need to convince boto3 to work with that.
+    is_ceph_fs = ":" in root
+    if is_ceph_fs and isinstance(fs, s3fs.S3FileSystem):
+        s3_fs: s3fs.S3FileSystem = fs
+        # unregister handler to make boto3 work with CEPH
+        # noinspection PyProtectedMember
+        handlers = s3_fs.s3.meta.events._emitter._handlers
+        handlers_to_unregister = handlers.prefix_search("before-parameter-build.s3")
+        if len(handlers_to_unregister):
+            handler_to_unregister = handlers_to_unregister[0]
+            # noinspection PyProtectedMember
+            s3_fs.s3.meta.events._emitter.unregister(
+                "before-parameter-build.s3", handler_to_unregister
+            )
+
+    return fs.get_mapper(root=root, create=False, check=False)

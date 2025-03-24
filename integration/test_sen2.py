@@ -109,15 +109,12 @@ class Sentinel2AnalysisTest(TestCase):
             f"{url_prefix}/"
             "S2B_MSIL1C_20250113T103309_N0511_R108_T32TLQ_20250113T122458.zarr"
         )
-        print("S1")
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native")
         self.assertTrue(result.time < allowed_open_time)
 
-        print("S2")
-        with timeit("get_spatial_vars"):
-            spatial_vars = get_spatial_vars(ds.data_vars)
+        spatial_vars = get_spatial_vars(ds.data_vars)
         self.assertEqual(
             [
                 "conditions_geometry_sun_angles",
@@ -168,10 +165,9 @@ class Sentinel2AnalysisTest(TestCase):
         )
 
         for k, v in spatial_vars.items():
-            print(f"{k}: s={v.shape}, c={v.chunks}, data={v.data}")
+            print(f"{k}: s={v.shape}, c={v.chunks}, data={type(v.data)}")
 
-        with timeit("assert_data_arrays_are_chunked"):
-            assert_data_arrays_are_chunked(self, spatial_vars)
+        assert_data_arrays_are_chunked(self, spatial_vars)
 
         # rescaling of its shape (2, 23, 23) takes 120 seconds!
         del spatial_vars["conditions_geometry_sun_angles"]

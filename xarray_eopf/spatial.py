@@ -80,4 +80,6 @@ def rescale_spatial_vars(
                 if enc_name in ref_var.encoding:
                     rescaled_var.encoding[enc_name] = ref_var.encoding[enc_name]
             rescaled_variables[var_name] = rescaled_var
-    return {**variables, **rescaled_variables}
+    all_variables = {**variables, **rescaled_variables}
+    sorted_var_names = sorted(all_variables)
+    return {var_name: all_variables[var_name] for var_name in sorted_var_names}

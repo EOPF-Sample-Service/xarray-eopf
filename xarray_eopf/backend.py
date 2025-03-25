@@ -21,7 +21,7 @@ from .constants import (
     OPEN_DT_URL,
     FSSPEC_USAGE_URL,
 )
-from .flatten import flatten_datatree
+from .flatten import flatten_to_dataset, flatten_to_dataset_dict
 from .store import open_store
 
 
@@ -44,6 +44,7 @@ class EopfBackend(BackendEntrypoint):
     ) -> xr.DataTree:
         f"""Backend implementation delegated to by
         [`xarray.open_datatree()`]({OPEN_DT_URL}).
+        
         Args:
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
@@ -72,17 +73,22 @@ class EopfBackend(BackendEntrypoint):
 
         fs_store = open_store(filename_or_obj, protocol, storage_options)
 
-        data_tree = xr.open_datatree(
+        datatree = xr.open_datatree(
             fs_store,
             engine="zarr",
-            # preserve the chunking from the Zarr metadata
-            chunks="auto",
+            # prefer the chunking from the Zarr metadata
+            chunks={},
             # here as it is required for all backends
             drop_variables=drop_variables,
             # here to silence xarray warnings
             decode_timedelta=decode_timedelta,
         )
-        return data_tree
+
+        for ds_name, ds in flatten_to_dataset_dict(datatree).items():
+            for var_name, var in ds.data_vars.items():
+                assert var.chunks is not None, f"{ds_name}.{var_name}: not chunked!"
+
+        return datatree
 
     def open_dataset(
         self,
@@ -133,7 +139,7 @@ class EopfBackend(BackendEntrypoint):
             # here to silence xarray warnings
             decode_timedelta=decode_timedelta,
         )
-        return flatten_datatree(datatree, group_sep)
+        return flatten_to_dataset(datatree, sep=group_sep)
 
     def guess_can_open(
         self,

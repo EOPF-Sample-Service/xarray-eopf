@@ -21,5 +21,9 @@ def assert_data_arrays_are_chunked(
 
     for k, v in spatial_vars.items():
         test_case.assertIsNotNone(
-            v.chunks, msg=f"{k} with shape {v.shape} should have chunks"
+            v.chunks,
+            msg=(
+                f"{k} with shape {v.shape} should be chunked,"
+                f" but chunk sizes are {v.chunksizes}"
+            ),
         )

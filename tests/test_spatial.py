@@ -5,14 +5,14 @@
 from unittest import TestCase
 
 from tests.helpers import make_s2_msi
-from xarray_eopf.flatten import flatten_datatree
+from xarray_eopf.flatten import flatten_to_dataset
 from xarray_eopf.spatial import rescale_spatial_vars
 
 
 class SpatialTest(TestCase):
     def test_rescale_spatial_vars(self):
         dt = make_s2_msi()
-        ds = flatten_datatree(dt)
+        ds = flatten_to_dataset(dt)
         rescaled_vars = rescale_spatial_vars(ds.data_vars)
         self.assertIsInstance(rescaled_vars, dict)
         self.assertEqual(len(ds.data_vars), len(rescaled_vars))

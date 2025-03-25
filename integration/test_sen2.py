@@ -34,15 +34,20 @@ class Sentinel2NativeTest(TestCase):
         )
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
-            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native")
+            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native", chunks={})
         self.assertTrue(result.time < allowed_open_time)
         self.assertEqual(25, len(dt.groups))
         self.assertIn(
-            "/measurements/reflectance/r60m",
+            "/measurements/reflectance/r10m",
             dt.groups,
         )
-        ds = dt.measurements.reflectance.r60m
-        self.assertEqual({"y": 1830, "x": 1830}, ds.sizes)
+        ds = dt.measurements.reflectance.r10m.ds
+        self.assertEqual({"y": 10980, "x": 10980}, ds.sizes)
+        spatial_vars = get_spatial_vars(ds)
+        self.assertEqual(
+            ["b02", "b03", "b04", "b08"], sorted(map(str, spatial_vars.keys()))
+        )
+        assert_data_arrays_are_chunked(self, spatial_vars)
 
     def test_open_datatree_sen2_l2a_s3(self):
         self._test_open_datatree_sen2_l2a(s3_prefix)
@@ -57,15 +62,20 @@ class Sentinel2NativeTest(TestCase):
         )
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
-            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native")
+            dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native", chunks={})
         self.assertTrue(result.time < allowed_open_time)
         self.assertEqual(36, len(dt.groups))
         self.assertIn(
-            "/measurements/reflectance/r60m",
+            "/measurements/reflectance/r10m",
             dt.groups,
         )
-        ds = dt.measurements.reflectance.r60m
-        self.assertEqual({"y": 1830, "x": 1830}, ds.sizes)
+        ds = dt.measurements.reflectance.r10m.ds
+        self.assertEqual({"y": 10980, "x": 10980}, ds.sizes)
+        spatial_vars = get_spatial_vars(ds)
+        self.assertEqual(
+            ["b02", "b03", "b04", "b08"], sorted(map(str, spatial_vars.keys()))
+        )
+        assert_data_arrays_are_chunked(self, spatial_vars)
 
     def test_open_dataset_sen2_l1c_s3(self):
         self._test_open_dataset_sen2_l1c(s3_prefix)
@@ -80,7 +90,7 @@ class Sentinel2NativeTest(TestCase):
         )
         with timeit(url) as result:
             # noinspection PyTypeChecker
-            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native")
+            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native", chunks={})
         self.assertTrue(result.time < allowed_open_time)
         self.assertEqual(62, len(ds.data_vars))
         self.assertIn(
@@ -97,7 +107,6 @@ class Sentinel2NativeTest(TestCase):
 
 
 class Sentinel2AnalysisTest(TestCase):
-
     def test_open_dataset_sen2_l1c_s3(self):
         self._test_open_dataset_sen2_l1c(s3_prefix)
 
@@ -111,7 +120,7 @@ class Sentinel2AnalysisTest(TestCase):
         )
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
-            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native")
+            ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native", chunks={})
         self.assertTrue(result.time < allowed_open_time)
 
         spatial_vars = get_spatial_vars(ds.data_vars)

@@ -10,16 +10,22 @@ import xarray as xr
 
 
 def assert_data_arrays_are_chunked(
-    test_case: TestCase, spatial_vars: Mapping[Hashable, xr.DataArray]
+    test_case: TestCase,
+    variables: Mapping[Hashable, xr.DataArray],
+    verbose: bool = False,
 ):
-    for k, v in spatial_vars.items():
+    if verbose:
+        for k, v in variables.items():
+            print(f"{k}: s={v.shape}, cs={v.chunksizes}, a={type(v.data)}")
+
+    for k, v in variables.items():
         test_case.assertIsInstance(
             v.data,
             dask.array.Array,
             msg=f"{k} with shape {v.shape} should use a dask array",
         )
 
-    for k, v in spatial_vars.items():
+    for k, v in variables.items():
         test_case.assertIsNotNone(
             v.chunks,
             msg=(

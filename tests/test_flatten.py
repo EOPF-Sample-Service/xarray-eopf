@@ -5,13 +5,13 @@
 from unittest import TestCase
 
 from tests.helpers import make_s2_msi
-from xarray_eopf.flatten import flatten_to_dataset
+from xarray_eopf.flatten import flatten_datatree
 
 
 class FlattenTest(TestCase):
     def test_flatten_datatree(self):
         datatree = make_s2_msi()
-        dataset = flatten_to_dataset(datatree)
+        dataset = flatten_datatree(datatree)
 
         self.assertEqual(
             [

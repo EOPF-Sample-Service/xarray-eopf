@@ -21,8 +21,12 @@ from .constants import (
     OPEN_DT_URL,
     FSSPEC_USAGE_URL,
 )
-from .flatten import flatten_to_dataset, flatten_to_dataset_dict
+from .filter import filter_dataset
+from .flatten import flatten_datatree, flatten_datatree_as_dict
+from .prodtype import ProductType, registry
 from .store import open_store
+
+from .prodtypes import register_product_types
 
 
 class EopfBackend(BackendEntrypoint):
@@ -35,6 +39,7 @@ class EopfBackend(BackendEntrypoint):
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
+        product_name: str | None = None,
         protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         drop_variables: str | Iterable[str] | None = None,
@@ -49,6 +54,10 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
+            product_name: Product type name, such as `"S2B_MSIL1C"`. 
+                Only used if `op_mode="analysis"` and
+                only required if `filename_or_obj` is not a path or URL 
+                that refers to a product path adhering to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL, 
                 forces using the filesystem protocol.
                 Otherwise the protocol will be derived from the file path or URL. 
@@ -67,10 +76,6 @@ class EopfBackend(BackendEntrypoint):
         """
         _assert_valid_op_mode(op_mode)
 
-        # TODO: remove this block once "analysis" mode is supported
-        if op_mode != OP_MODE_NATIVE:
-            raise ValueError(f"mode {op_mode!r} is not supported yet")
-
         fs_store = open_store(filename_or_obj, protocol, storage_options)
 
         datatree = xr.open_datatree(
@@ -84,20 +89,24 @@ class EopfBackend(BackendEntrypoint):
             decode_timedelta=decode_timedelta,
         )
 
-        for ds_name, ds in flatten_to_dataset_dict(datatree).items():
-            for var_name, var in ds.data_vars.items():
-                assert var.chunks is not None, f"{ds_name}.{var_name}: not chunked!"
+        _assert_datatree_is_chunked(datatree)
 
-        return datatree
+        if op_mode == OP_MODE_NATIVE:
+            return datatree
+        else:  # op_mode == OP_MODE_ANALYSIS
+            product_type = _guess_product_type(filename_or_obj, product_name)
+            return product_type.transform_datatree(datatree)
 
     def open_dataset(
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
+        product_name: str | None = None,
         protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         group_sep: str = "_",
+        variables: str | Iterable[str] | None = None,
         drop_variables: str | Iterable[str] | None = None,
         decode_timedelta: (
             bool | CFTimedeltaCoder | Mapping[str, bool | CFTimedeltaCoder] | None
@@ -110,8 +119,10 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            group_sep: Group name separator string.
-                Defaults to the underscore character.
+            product_name: Product type name, such as `"S2B_MSIL1C"`. 
+                Only used if `op_mode="analysis"` and
+                only required if `filename_or_obj` is not a path or URL 
+                that refers to a product path adhering to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL, 
                 forces using the filesystem protocol.
                 Otherwise the protocol will be derived from the file path or URL. 
@@ -119,6 +130,10 @@ class EopfBackend(BackendEntrypoint):
             storage_options: If `filename_or_obj` is a file path or URL,
                 these options specify the source filesystem.
                 Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+            group_sep: Group name separator string.
+                Defaults to the underscore character.
+            variables: Variable name or regex pattern or iterable of 
+                the latter to include in the dataset.
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file. See
                 [xarray documentation]({OPEN_DS_URL}).
@@ -129,9 +144,10 @@ class EopfBackend(BackendEntrypoint):
             A new dataset instance.
         """
         _assert_valid_op_mode(op_mode)
+
         datatree = self.open_datatree(
             filename_or_obj,
-            op_mode=op_mode,
+            op_mode="native",
             protocol=protocol,
             storage_options=storage_options,
             # here as it is required for all backends
@@ -139,7 +155,16 @@ class EopfBackend(BackendEntrypoint):
             # here to silence xarray warnings
             decode_timedelta=decode_timedelta,
         )
-        return flatten_to_dataset(datatree, sep=group_sep)
+
+        _assert_datatree_is_chunked(datatree)
+
+        if op_mode == OP_MODE_NATIVE:
+            dataset = flatten_datatree(datatree, sep=group_sep)
+            dataset = filter_dataset(dataset, variables)
+            return dataset
+        else:  # op_mode == OP_MODE_ANALYSIS
+            product_type = _guess_product_type(filename_or_obj, product_name)
+            return product_type.convert_datatree(datatree, group_sep=group_sep)
 
     def guess_can_open(
         self,
@@ -157,8 +182,39 @@ class EopfBackend(BackendEntrypoint):
         return False
 
 
+def _guess_product_type(filename_or_obj: Any, product_name: str | None) -> ProductType:
+    product_type: ProductType | None = None
+    if product_name:
+        product_type = ProductType.from_name(product_name)
+    if product_type is None:
+        product_type = ProductType.from_path_or_obj(filename_or_obj)
+    if product_type is None:
+        raise ValueError("unable to detect product type")
+    return product_type
+
+
 def _assert_valid_op_mode(op_mode: Any):
     if op_mode not in OP_MODES:
         raise ValueError(
             f"mode argument must be {' or '.join(map(repr, OP_MODES))}, was {op_mode!r}"
         )
+
+
+def _assert_datatree_is_chunked(datatree: xr.DataTree):
+    for ds_name, ds in flatten_datatree_as_dict(datatree).items():
+        _assert_dataset_is_chunked(ds, name=ds_name)
+
+
+def _assert_dataset_is_chunked(dataset: xr.Dataset, name: str | None = None):
+    ds_name = name or "dataset"
+    for var_name, var in dataset.data_vars.items():
+        assert var.chunks is not None, f"{ds_name}.{var_name}: no chunks"
+        # chunk_shape = tuple(
+        #     (max(*c) if len(c) > 1 else c[0]) for c in var.chunks
+        # )
+        # assert var.shape != chunk_shape, (
+        #     f"{ds_name}.{var_name}: shape equals chunking"
+        # )
+
+
+register_product_types()

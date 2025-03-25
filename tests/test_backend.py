@@ -21,14 +21,14 @@ class EopfBackendTest(TestCase):
     def test_mode_is_validated(self):
         with pytest.raises(
             ValueError,
-            match="mode argument must be 'analysis' or 'native', was 'convenience'",
+            match="mode argument must be 'prodtypes' or 'native', was 'convenience'",
         ):
             xr.open_datatree(
                 "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="convenience"
             )
         with pytest.raises(
             ValueError,
-            match="mode argument must be 'analysis' or 'native', was 'sensor'",
+            match="mode argument must be 'prodtypes' or 'native', was 'sensor'",
         ):
             xr.open_dataset(
                 "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="sensor"

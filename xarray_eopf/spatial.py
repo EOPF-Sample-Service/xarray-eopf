@@ -54,7 +54,7 @@ def rescale_spatial_vars(
             scale_x = spatial_shape[1] / ref_spatial_shape[1]
             factors = (var.ndim - 2) * (1,) + (1.0 / scale_y, 1.0 / scale_x)
             matrix = np.diag(factors)
-            with timeit(f"{var_name} affine_transform"):
+            with timeit(f"{var_name} affine_transform", silent=True):
                 rescaled_data = ndinterp.affine_transform(
                     var.data,
                     matrix,
@@ -75,6 +75,9 @@ def rescale_spatial_vars(
                 dims=var.dims[:-2] + ref_var.dims[-2:],
                 name=var.name,
                 attrs=var.attrs,
-            )
+            ).chunk(ref_var.chunks)
+            for enc_name in ("chunks", "preferred_chunks"):
+                if enc_name in ref_var.encoding:
+                    rescaled_var.encoding[enc_name] = ref_var.encoding[enc_name]
             rescaled_variables[var_name] = rescaled_var
     return {**variables, **rescaled_variables}

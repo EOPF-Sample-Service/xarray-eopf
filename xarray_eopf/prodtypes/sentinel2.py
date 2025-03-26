@@ -1,3 +1,7 @@
+#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Permissions are hereby granted under the terms of the Apache 2.0 License:
+#  https://opensource.org/license/apache-2-0.
+
 from abc import ABC
 from typing import Any
 
@@ -7,9 +11,10 @@ from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
 from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
 
 
-class MSI(ProductType, ABC):
-    type_name: str
+# TODO: add MSI tests
 
+
+class MSI(ProductType, ABC):
     def is_applicable(self, path_or_obj: Any) -> bool:
         if not isinstance(path_or_obj, str):
             return False
@@ -31,10 +36,7 @@ class MSI(ProductType, ABC):
         raise NotImplementedError
 
     def convert_datatree(
-        self,
-        datatree: xr.DataTree,
-        spline_order: int = 0,
-        resolution: int = 10
+        self, datatree: xr.DataTree, spline_order: int = 0, resolution: int = 10
     ) -> xr.Dataset:
         # TODO: recognize spline_order
         # TODO: recognize resolution
@@ -58,22 +60,26 @@ class MSI(ProductType, ABC):
         )
 
         rescaled_spatial_vars = rescale_spatial_vars(
-            spatial_vars,
-            ref_var_name="b02",
-            spline_order=spline_order
+            spatial_vars, ref_var_name="b02", spline_order=spline_order
         )
 
         return xr.Dataset(rescaled_spatial_vars, attrs=r10m_ds.attrs)
+
+
+# TODO: add MSIL1C tests
 
 
 class MSIL1C(MSI):
     type_name = "MSIL1C"
 
 
+# TODO: add MSIL2A tests
+
+
 class MSIL2A(MSI):
     type_name = "MSIL2A"
 
 
-def register_s2_product_types(registry: ProductTypeRegistry):
-    registry.register(MSIL1C.type_name, MSIL1C())
-    registry.register(MSIL2A.type_name, MSIL2A())
+def register(registry: ProductTypeRegistry):
+    registry.register(MSIL1C)
+    registry.register(MSIL2A)

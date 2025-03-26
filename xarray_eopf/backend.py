@@ -23,7 +23,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .prodtype import ProductType, registry
+from .prodtype import ProductType
 from .store import open_store
 
 from .prodtypes import register_product_types
@@ -193,7 +193,7 @@ def _guess_product_type(filename_or_obj: Any, product_name: str | None) -> Produ
     if product_name:
         product_type = ProductType.from_name(product_name)
     if product_type is None:
-        product_type = ProductType.from_path_or_obj(filename_or_obj)
+        product_type = ProductType.from_object(filename_or_obj)
     if product_type is None:
         raise ValueError("unable to detect product type")
     return product_type

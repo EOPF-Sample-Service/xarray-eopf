@@ -1,4 +1,5 @@
-from typing import Any, Sequence
+from abc import ABC
+from typing import Any
 
 import xarray as xr
 
@@ -6,20 +7,38 @@ from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
 from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
 
 
-class MSIL1C(ProductType):
+class MSI(ProductType, ABC):
+    type_name: str
+
     def is_applicable(self, path_or_obj: Any) -> bool:
         if not isinstance(path_or_obj, str):
             return False
         path: str = path_or_obj
-        return "S2A_MSIL1C_" in path or "S2B_MSIL1C_" in path
+        return f"S2A_{self.type_name}_" in path or f"S2B_{self.type_name}_" in path
 
-    def validate_params(self, params: dict[str, Any]) -> Sequence[str]:
-        pass
+    def validate_params(self, params: dict[str, Any]):
+        if "resolution" in params:
+            resolution = params["resolution"]
+            if resolution not in (10, 20, 60):
+                raise ValueError("resolution must be one of 10, 20, 60 (meters)")
+
+        if "spline_order" in params:
+            spline_order = params["spline_order"]
+            if spline_order not in (0, 1, 2, 3):
+                raise ValueError("spline_order must be in the range 0 to 3")
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         raise NotImplementedError
 
-    def convert_datatree(self, datatree: xr.DataTree, **params) -> xr.Dataset:
+    def convert_datatree(
+        self,
+        datatree: xr.DataTree,
+        spline_order: int = 0,
+        resolution: int = 10
+    ) -> xr.Dataset:
+        # TODO: recognize spline_order
+        # TODO: recognize resolution
+
         # Note:
         # - rescaling conditions_geometry_sun_angles
         #   with shape (2, 23, 23) takes 120 seconds!
@@ -37,9 +56,24 @@ class MSIL1C(ProductType):
         spatial_vars = get_spatial_vars(
             {**r10m_ds.data_vars, **r20m_ds.data_vars, **r60m_ds.data_vars},
         )
-        rescaled_spatial_vars = rescale_spatial_vars(spatial_vars, ref_var_name="b02")
+
+        rescaled_spatial_vars = rescale_spatial_vars(
+            spatial_vars,
+            ref_var_name="b02",
+            spline_order=spline_order
+        )
+
         return xr.Dataset(rescaled_spatial_vars, attrs=r10m_ds.attrs)
 
 
+class MSIL1C(MSI):
+    type_name = "MSIL1C"
+
+
+class MSIL2A(MSI):
+    type_name = "MSIL2A"
+
+
 def register_s2_product_types(registry: ProductTypeRegistry):
-    registry.register("MSIL1C", MSIL1C())
+    registry.register(MSIL1C.type_name, MSIL1C())
+    registry.register(MSIL2A.type_name, MSIL2A())

@@ -50,3 +50,34 @@ class Sentinel2AnalysisTest(TestCase):
         assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
         for var_name in spatial_vars.keys():
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
+
+    def test_open_dataset_sen2_l2a_s3(self):
+        self._test_open_dataset_sen2_l1c(s3_prefix)
+
+    def test_open_dataset_sen2_l2a_https(self):
+        self._test_open_dataset_sen2_l1c(https_prefix)
+
+    def _test_open_dataset_sen2_l2a(self, url_prefix):
+        url = (
+            f"{url_prefix}/"
+            "S2A_MSIL2A_20240101T102431_N0510_R065_T32TNT_20240101T144052.zarr"
+        )
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            ds = xr.open_dataset(
+                url,
+                engine="eopf-zarr",
+                op_mode="analysis",
+                variables="measurements",
+                chunks={},
+            )
+        self.assertTrue(result.time < allowed_open_time)
+
+        self.assertIn("b03", ds)
+        self.assertIn("b11", ds)
+        self.assertIn("b01", ds)
+
+        spatial_vars = get_spatial_vars(ds.data_vars)
+        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        for var_name in spatial_vars.keys():
+            self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)

@@ -95,7 +95,10 @@ class EopfBackend(BackendEntrypoint):
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
             product_type = _guess_product_type(filename_or_obj, product_name)
-            return product_type.transform_datatree(datatree)
+            # TODO: derive product-type specific params
+            params = {}
+            product_type.validate_params(params)
+            return product_type.transform_datatree(datatree, **params)
 
     def open_dataset(
         self,
@@ -164,7 +167,10 @@ class EopfBackend(BackendEntrypoint):
             return dataset
         else:  # op_mode == OP_MODE_ANALYSIS
             product_type = _guess_product_type(filename_or_obj, product_name)
-            return product_type.convert_datatree(datatree, group_sep=group_sep)
+            # TODO: derive product-type specific params
+            params = {}
+            product_type.validate_params(params)
+            return product_type.convert_datatree(datatree, **params)
 
     def guess_can_open(
         self,

@@ -26,6 +26,7 @@ dependencies = [
   "dask-image",
   "fsspec",
   "numpy",
+  "pyproj",
   "requests",
   "s3fs",
   "xarray>=2024.10",

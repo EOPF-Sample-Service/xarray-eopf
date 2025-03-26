@@ -5,6 +5,7 @@
 from abc import ABC
 from typing import Any
 
+import pyproj.crs
 import xarray as xr
 
 from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
@@ -38,8 +39,7 @@ class MSI(ProductType, ABC):
     def convert_datatree(
         self, datatree: xr.DataTree, spline_order: int = 0, resolution: int = 10
     ) -> xr.Dataset:
-        # TODO: recognize spline_order
-        # TODO: recognize resolution
+        # TODO: use resolution
 
         # Note:
         # - rescaling conditions_geometry_sun_angles
@@ -63,7 +63,20 @@ class MSI(ProductType, ABC):
             spatial_vars, ref_var_name="b02", spline_order=spline_order
         )
 
-        return xr.Dataset(rescaled_spatial_vars, attrs=r10m_ds.attrs)
+        dataset = xr.Dataset(rescaled_spatial_vars, attrs=r10m_ds.attrs)
+        dataset = dataset.rename({"r20m_x": "x", "r20m_y": "y"})
+
+        # TODO: probably not the best method to get the CRS
+        crs_code = datatree.attrs.get("other_metadata", {}).get("horizontal_CRS_code")
+        if crs_code:
+            crs = pyproj.crs.CRS.from_string(crs_code)
+            spatial_ref = xr.DataArray(0, attrs=crs.to_cf())
+            dataset = dataset.assign_coords(spatial_ref=spatial_ref)
+            for var_name, var in dataset.data_vars.items():
+                if var.ndim >= 2 and var.dims[-2:] == ("y", "x"):
+                    var.attrs.update(grid_mapping="spatial_ref")
+
+        return dataset
 
 
 # TODO: add MSIL1C tests

@@ -55,19 +55,33 @@ class MSI(ProductType, ABC):
             {"x": "r20m_x", "y": "r20m_y"}
         )
 
+        # TODO: this is wrong for two reasons:
+        #  - r20m and r60m groups contain down-sampled 10 m bands
+        #  - dicts are ordered, hence r60m_ds takes precedence, not r10m_ds
         spatial_vars = get_spatial_vars(
             {**r10m_ds.data_vars, **r20m_ds.data_vars, **r60m_ds.data_vars},
         )
 
         rescaled_spatial_vars = rescale_spatial_vars(
-            spatial_vars, ref_var_name="b02", spline_order=spline_order
+            spatial_vars,
+            ref_var_name="b02",  # TODO: use resolution param
+            spline_order=spline_order,
         )
 
-        dataset = xr.Dataset(rescaled_spatial_vars, attrs=r10m_ds.attrs)
+        # TODO: process metadata and try adhering to CF conventions
+        metadata = datatree.attrs.get("other_metadata", {})
+        dataset = xr.Dataset(rescaled_spatial_vars, attrs=metadata)
+        # TODO: fix coordinate to be renamed using resolution param
         dataset = dataset.rename({"r20m_x": "x", "r20m_y": "y"})
+        dataset = self.assign_grid_mapping(dataset)
 
-        # TODO: probably not the best method to get the CRS
-        crs_code = datatree.attrs.get("other_metadata", {}).get("horizontal_CRS_code")
+        return dataset
+
+    # noinspection PyMethodMayBeStatic
+    def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
+        # TODO: check if this is the "official" way to detect a
+        #  Sentinel-2 tile's CRS
+        crs_code = dataset.attrs.get("horizontal_CRS_code")
         if crs_code:
             crs = pyproj.crs.CRS.from_string(crs_code)
             spatial_ref = xr.DataArray(0, attrs=crs.to_cf())
@@ -75,7 +89,6 @@ class MSI(ProductType, ABC):
             for var_name, var in dataset.data_vars.items():
                 if var.ndim >= 2 and var.dims[-2:] == ("y", "x"):
                     var.attrs.update(grid_mapping="spatial_ref")
-
         return dataset
 
 

@@ -6,4 +6,6 @@ from xarray_eopf.prodtype import ProductTypeRegistry
 
 
 def register(_registry: ProductTypeRegistry):
+    # TODO: define Sentinel-1 ProductType to implement
+    #  its analysis-ready data model
     pass

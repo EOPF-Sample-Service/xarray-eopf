@@ -6,7 +6,6 @@ import os
 from collections.abc import Mapping
 from typing import Any, Iterable
 
-import s3fs
 import xarray as xr
 from xarray.backends import BackendEntrypoint, AbstractDataStore
 from xarray.coding.times import CFTimedeltaCoder
@@ -32,14 +31,12 @@ from .utils import assert_arg_is_one_of
 class EopfBackend(BackendEntrypoint):
     """Backend for EOPF Data Products using the Zarr format."""
 
-    fs_cache: dict[str, s3fs.S3FileSystem] = {}
-
     def open_datatree(
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
-        product_name: str | None = None,
+        product_type_name: str | None = None,
         protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         drop_variables: str | Iterable[str] | None = None,
@@ -47,33 +44,34 @@ class EopfBackend(BackendEntrypoint):
             bool | CFTimedeltaCoder | Mapping[str, bool | CFTimedeltaCoder] | None
         ) = False,
     ) -> xr.DataTree:
-        f"""Backend implementation delegated to by
-        [`xarray.open_datatree()`]({OPEN_DT_URL}).
-        
+        """Backend implementation delegated to by
+        [`xarray.open_datatree()`](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).
+
         Args:
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_name: Product type name, such as `"S2B_MSIL1C"`. 
+            product_type_name: Product type name, such as `"S2B_MSIL1C"`.
                 Only used if `op_mode="analysis"` and
-                only required if `filename_or_obj` is not a path or URL 
+                only required if `filename_or_obj` is not a path or URL
                 that refers to a product path adhering to EOPF naming conventions.
-            protocol: If `filename_or_obj` is a file path or URL, 
+            protocol: If `filename_or_obj` is a file path or URL,
                 forces using the filesystem protocol.
-                Otherwise the protocol will be derived from the file path or URL. 
-                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+                Otherwise, the protocol will be derived from the file path or URL.
+                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,
                 these options specify the source filesystem.
-                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file. See
-                [xarray documentation]({OPEN_DT_URL}).
+                [xarray documentation](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).
             decode_timedelta: How to decode time-delta units. See
-                [xarray documentation]({OPEN_DT_URL}).
+                [xarray documentation](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).
 
         Returns:
             A new data-tree instance.
         """
+
         assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
         fs_store = open_store(filename_or_obj, protocol, storage_options)
@@ -94,7 +92,7 @@ class EopfBackend(BackendEntrypoint):
         if op_mode == OP_MODE_NATIVE:
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
-            product_type = _guess_product_type(filename_or_obj, product_name)
+            product_type = _guess_product_type(filename_or_obj, product_type_name)
             return product_type.transform_datatree(datatree)
 
     def open_dataset(
@@ -108,7 +106,7 @@ class EopfBackend(BackendEntrypoint):
         group_sep: str = "_",
         variables: str | Iterable[str] | None = None,
         # params for op_mode=analysis
-        type_name: str | None = None,
+        product_type_name: str | None = None,
         resolution: int | float | None = None,
         spline_order: int | None = None,
         # params required by xarray backend interface
@@ -118,38 +116,42 @@ class EopfBackend(BackendEntrypoint):
             bool | CFTimedeltaCoder | Mapping[str, bool | CFTimedeltaCoder] | None
         ) = False,
     ) -> xr.Dataset:
-        f"""Backend implementation delegated to by
-        [`xarray.open_dataset()`]({OPEN_DS_URL}).
+        """Backend implementation delegated to by
+        [`xarray.open_dataset()`](https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html).
 
         Args:
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            type_name: Product type name, such as `"S2B_MSIL1C"`. 
+            product_type_name: Product type name, such as `"S2B_MSIL1C"`.
                 Only used if `op_mode="analysis"` and
-                only required if `filename_or_obj` is not a path or URL 
+                only required if `filename_or_obj` is not a path or URL
                 that refers to a product path adhering to EOPF naming conventions.
-            protocol: If `filename_or_obj` is a file path or URL, 
+            protocol: If `filename_or_obj` is a file path or URL,
                 forces using the filesystem protocol.
-                Otherwise the protocol will be derived from the file path or URL. 
-                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
+                Otherwise, the protocol will be derived from the file path or URL.
+                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,
                 these options specify the source filesystem.
-                Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
-            group_sep: Group name separator string.
-                Defaults to the underscore character.
+                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
+            group_sep: Separator string used to concatenate groups names
+                to create prefixes for unique variable and dimension names.
+                Defaults to the underscore character (`"_"`)
             resolution: Target resolution for all spatial data variables / bands.
-                Only used if `op_mode="analysis"`
-            spline_order: Spline order to be used for resampling 
+                Must be one of `10`, `20`, or `60`.
+                Only used if `op_mode="analysis"`.
+            spline_order: Spline order to be used for resampling
                 spatial data variables / bands.
+                Must be one of `0` (nearest neighbor), `1` (linear),
+                `2` (bi-linear), or `3` (cubic).
                 Only used if `op_mode="analysis"`
-            variables: Variable name or regex pattern or iterable of 
-                the latter to include in the dataset.
+            variables: Variables to include in the dataset. Can be a name or
+                regex pattern or iterable of the latter.
             drop_variables: Variable name or iterable of variable names
                 to drop from the underlying file. See
-                [xarray documentation]({OPEN_DS_URL}).
+                [xarray documentation](https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html).
             decode_timedelta: How to decode time-delta units. See
-                [xarray documentation]({OPEN_DS_URL}).
+                [xarray documentation](https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html).
 
         Returns:
             A new dataset instance.
@@ -172,7 +174,7 @@ class EopfBackend(BackendEntrypoint):
         if op_mode == OP_MODE_NATIVE:
             dataset = flatten_datatree(datatree, sep=group_sep)
         else:  # op_mode == OP_MODE_ANALYSIS
-            product_type = _guess_product_type(filename_or_obj, type_name)
+            product_type = _guess_product_type(filename_or_obj, product_type_name)
             params = product_type.get_applicable_params(
                 resolution=resolution, spline_order=spline_order
             )

@@ -39,43 +39,49 @@ class MSI(ProductType, ABC):
     def convert_datatree(
         self, datatree: xr.DataTree, spline_order: int = 0, resolution: int = 10
     ) -> xr.Dataset:
-        # TODO: use resolution
+        # Important note: rescale_spatial_vars() may take very long
+        # for some variables!
+        # - "conditions_geometry_sun_angles"
+        #   with shape (2, 23, 23) takes 120 seconds
+        # - "conditions_geometry_viewing_incidence_angles"
+        #   with shape (13, 7, 2, 23, 23) takes 140 seconds
 
-        # Note:
-        # - rescaling conditions_geometry_sun_angles
-        #   with shape (2, 23, 23) takes 120 seconds!
-        # - rescaling conditions_geometry_viewing_incidence_angles
-        #   with shape (13, 7, 2, 23, 23) takes 140 seconds!
+        resolution_name = f"r{resolution}m"
+        dataset = datatree.measurements.reflectance[resolution_name].ds
 
-        r10m_ds = datatree.measurements.reflectance.r10m.ds
-        r20m_ds = datatree.measurements.reflectance.r20m.ds.rename(
-            {"x": "r20m_x", "y": "r20m_y"}
-        )
-        r60m_ds = datatree.measurements.reflectance.r60m.ds.rename(
-            {"x": "r20m_x", "y": "r20m_y"}
-        )
+        if self.type_name != "MSIL2A" or resolution == 10:
+            variables = dict(dataset.data_vars)
+            assert len(variables) > 0
+            ref_var_name = tuple(get_spatial_vars(variables))[0]
 
-        # TODO: this is wrong for two reasons:
-        #  - r20m and r60m groups contain down-sampled 10 m bands
-        #  - dicts are ordered, hence r60m_ds takes precedence, not r10m_ds
-        spatial_vars = get_spatial_vars(
-            {**r10m_ds.data_vars, **r20m_ds.data_vars, **r60m_ds.data_vars},
-        )
+            r_names = [f"r{r}m" for r in (10, 20, 60) if r != resolution]
+            for r_name in r_names:
+                r_ds = datatree.measurements.reflectance[r_name].ds.rename(
+                    {"x": f"{r_name}_x", "y": f"{r_name}_y"}
+                )
+                variables.update(
+                    {k: v for k, v in r_ds.data_vars.items() if k not in variables}
+                )
 
-        rescaled_spatial_vars = rescale_spatial_vars(
-            spatial_vars,
-            ref_var_name="b02",  # TODO: use resolution param
-            spline_order=spline_order,
-        )
+            rescaled_variables = rescale_spatial_vars(
+                variables,
+                ref_var_name=ref_var_name,
+                spline_order=spline_order,
+            )
 
-        # TODO: process metadata and try adhering to CF conventions
-        metadata = datatree.attrs.get("other_metadata", {})
-        dataset = xr.Dataset(rescaled_spatial_vars, attrs=metadata)
-        # TODO: fix coordinate to be renamed using resolution param
-        dataset = dataset.rename({"r20m_x": "x", "r20m_y": "y"})
+            dataset = xr.Dataset(
+                rescaled_variables, attrs=self.process_metadata(datatree)
+            )
+
+        dataset.attrs = self.process_metadata(datatree)
         dataset = self.assign_grid_mapping(dataset)
-
         return dataset
+
+    # noinspection PyMethodMayBeStatic
+    def process_metadata(self, datatree):
+        # TODO: process metadata and try adhering to CF conventions
+        other_metadata = datatree.attrs.get("other_metadata", {})
+        return other_metadata
 
     # noinspection PyMethodMayBeStatic
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:

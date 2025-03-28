@@ -28,6 +28,7 @@ def filter_dataset(
             )
         )
     if drop_names:
-        # TODO: also drop unused coordinates + dimensions
+        # TODO: also drop now unused coordinates + dimensions as
+        #  they remain even if no longer referenced by any data variables
         dataset = dataset.drop_vars(drop_names)
     return dataset

@@ -35,7 +35,7 @@ class Sentinel2NativeTest(TestCase):
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
             dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native", chunks={})
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
         self.assertEqual(25, len(dt.groups))
         self.assertIn(
             "/measurements/reflectance/r10m",
@@ -63,7 +63,7 @@ class Sentinel2NativeTest(TestCase):
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
             dt = xr.open_datatree(url, engine="eopf-zarr", op_mode="native", chunks={})
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
         self.assertEqual(36, len(dt.groups))
         self.assertIn(
             "/measurements/reflectance/r10m",
@@ -91,7 +91,7 @@ class Sentinel2NativeTest(TestCase):
         with timeit(url) as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native", chunks={})
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
         self.assertEqual(62, len(ds.data_vars))
         self.assertIn(
             "measurements_r10m_b02",
@@ -119,7 +119,7 @@ class Sentinel2NativeTest(TestCase):
         with timeit(url) as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(url, engine="eopf-zarr", op_mode="native", chunks={})
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
         self.assertEqual(86, len(ds.data_vars))
         self.assertIn(
             "measurements_r10m_b02",

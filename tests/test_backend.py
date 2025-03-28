@@ -28,7 +28,7 @@ class EopfBackendTest(TestCase):
             )
         with pytest.raises(
             ValueError,
-            match="mode argument must be 'analysis' or 'native', was 'sensor'",
+            match="op_mode argument must be 'analysis' or 'native', was 'sensor'",
         ):
             xr.open_dataset(
                 "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="sensor"
@@ -45,6 +45,8 @@ class EopfBackendTest(TestCase):
         self.assertIn("r20m", data_tree)
         self.assertIn("r60m", data_tree)
 
+
+class EopfBackendNativeTest(TestCase):
     def test_open_dataset(self):
         original_ds = make_s2_msi()
         original_ds.to_zarr("memory://S02MSIL1C.zarr", mode="w")
@@ -61,3 +63,8 @@ class EopfBackendTest(TestCase):
         self.assertIn("r20m_y", dataset)
         self.assertIn("r60m_x", dataset)
         self.assertIn("r60m_y", dataset)
+
+    # TODO: add tests for open_datatree
+
+
+# TODO: add EopfBackendAnalysisTest

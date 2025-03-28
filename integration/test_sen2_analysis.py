@@ -38,10 +38,9 @@ class Sentinel2AnalysisTest(TestCase):
                 url,
                 engine="eopf-zarr",
                 op_mode="analysis",
-                variables="measurements",
                 chunks={},
             )
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
 
         self.assertIn("b03", ds)
         self.assertIn("b11", ds)
@@ -69,10 +68,9 @@ class Sentinel2AnalysisTest(TestCase):
                 url,
                 engine="eopf-zarr",
                 op_mode="analysis",
-                variables="measurements",
                 chunks={},
             )
-        self.assertTrue(result.time < allowed_open_time)
+        self.assertTrue(result.time_delta < allowed_open_time)
 
         self.assertIn("b03", ds)
         self.assertIn("b11", ds)

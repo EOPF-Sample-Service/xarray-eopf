@@ -24,9 +24,9 @@ from .constants import (
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
 from .prodtype import ProductType
-from .store import open_store
-
 from .prodtypes import register_product_types
+from .store import open_store
+from .utils import assert_arg_is_one_of
 
 
 class EopfBackend(BackendEntrypoint):
@@ -74,7 +74,7 @@ class EopfBackend(BackendEntrypoint):
         Returns:
             A new data-tree instance.
         """
-        _assert_valid_op_mode(op_mode)
+        assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
         fs_store = open_store(filename_or_obj, protocol, storage_options)
 
@@ -95,22 +95,25 @@ class EopfBackend(BackendEntrypoint):
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
             product_type = _guess_product_type(filename_or_obj, product_name)
-            # TODO: derive product-type specific params
-            params = {}
-            product_type.validate_params(params)
-            return product_type.transform_datatree(datatree, **params)
+            return product_type.transform_datatree(datatree)
 
     def open_dataset(
         self,
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
-        product_name: str | None = None,
+        # params for op_mode=native/analysis
         protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         group_sep: str = "_",
         variables: str | Iterable[str] | None = None,
+        # params for op_mode=analysis
+        type_name: str | None = None,
+        resolution: int | float | None = None,
+        spline_order: int | None = None,
+        # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
+        # params for other reasons
         decode_timedelta: (
             bool | CFTimedeltaCoder | Mapping[str, bool | CFTimedeltaCoder] | None
         ) = False,
@@ -122,7 +125,7 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_name: Product type name, such as `"S2B_MSIL1C"`. 
+            type_name: Product type name, such as `"S2B_MSIL1C"`. 
                 Only used if `op_mode="analysis"` and
                 only required if `filename_or_obj` is not a path or URL 
                 that refers to a product path adhering to EOPF naming conventions.
@@ -135,6 +138,11 @@ class EopfBackend(BackendEntrypoint):
                 Will be passed to [`fsspec.filesystem()`]({FSSPEC_USAGE_URL}).
             group_sep: Group name separator string.
                 Defaults to the underscore character.
+            resolution: Target resolution for all spatial data variables / bands.
+                Only used if `op_mode="analysis"`
+            spline_order: Spline order to be used for resampling 
+                spatial data variables / bands.
+                Only used if `op_mode="analysis"`
             variables: Variable name or regex pattern or iterable of 
                 the latter to include in the dataset.
             drop_variables: Variable name or iterable of variable names
@@ -146,7 +154,7 @@ class EopfBackend(BackendEntrypoint):
         Returns:
             A new dataset instance.
         """
-        _assert_valid_op_mode(op_mode)
+        assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
         datatree = self.open_datatree(
             filename_or_obj,
@@ -163,14 +171,15 @@ class EopfBackend(BackendEntrypoint):
 
         if op_mode == OP_MODE_NATIVE:
             dataset = flatten_datatree(datatree, sep=group_sep)
-            dataset = filter_dataset(dataset, variables)
-            return dataset
         else:  # op_mode == OP_MODE_ANALYSIS
-            product_type = _guess_product_type(filename_or_obj, product_name)
-            # TODO: derive product-type specific params
-            params = {}
-            product_type.validate_params(params)
-            return product_type.convert_datatree(datatree, **params)
+            product_type = _guess_product_type(filename_or_obj, type_name)
+            params = product_type.get_applicable_params(
+                resolution=resolution, spline_order=spline_order
+            )
+            dataset = product_type.convert_datatree(datatree, **params)
+
+        dataset = filter_dataset(dataset, variables)
+        return dataset
 
     def guess_can_open(
         self,
@@ -193,17 +202,10 @@ def _guess_product_type(filename_or_obj: Any, product_name: str | None) -> Produ
     if product_name:
         product_type = ProductType.from_name(product_name)
     if product_type is None:
-        product_type = ProductType.from_object(filename_or_obj)
+        product_type = ProductType.from_source(filename_or_obj)
     if product_type is None:
         raise ValueError("unable to detect product type")
     return product_type
-
-
-def _assert_valid_op_mode(op_mode: Any):
-    if op_mode not in OP_MODES:
-        raise ValueError(
-            f"mode argument must be {' or '.join(map(repr, OP_MODES))}, was {op_mode!r}"
-        )
 
 
 def _assert_datatree_is_chunked(datatree: xr.DataTree):

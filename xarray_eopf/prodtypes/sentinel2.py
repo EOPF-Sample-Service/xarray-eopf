@@ -10,34 +10,44 @@ import xarray as xr
 
 from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
 from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
+from xarray_eopf.utils import assert_arg_is_instance, assert_arg_is_one_of
 
 
 # TODO: add MSI tests
 
 
 class MSI(ProductType, ABC):
-    def is_applicable(self, path_or_obj: Any) -> bool:
-        if not isinstance(path_or_obj, str):
+    def is_valid_source(self, source: Any) -> bool:
+        if not isinstance(source, str):
             return False
-        path: str = path_or_obj
+        path: str = source
         return f"S2A_{self.type_name}_" in path or f"S2B_{self.type_name}_" in path
 
-    def validate_params(self, params: dict[str, Any]):
-        if "resolution" in params:
-            resolution = params["resolution"]
-            if resolution not in (10, 20, 60):
-                raise ValueError("resolution must be one of 10, 20, 60 (meters)")
+    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+        params = {}
 
-        if "spline_order" in params:
-            spline_order = params["spline_order"]
-            if spline_order not in (0, 1, 2, 3):
-                raise ValueError("spline_order must be in the range 0 to 3")
+        resolution = kwargs.get("resolution")
+        if resolution is not None:
+            assert_arg_is_instance(resolution, "resolution", (int, float))
+            assert_arg_is_one_of(resolution, "resolution", (10, 20, 60))
+            params.update(resolution=int(resolution))
+
+        spline_order = kwargs.get("spline_order")
+        if spline_order is not None:
+            assert_arg_is_instance(spline_order, "spline_order", int)
+            assert_arg_is_one_of(spline_order, "spline_order", (0, 1, 2, 3))
+            params.update(spline_order=spline_order)
+
+        return params
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         raise NotImplementedError
 
     def convert_datatree(
-        self, datatree: xr.DataTree, spline_order: int = 0, resolution: int = 10
+        self,
+        datatree: xr.DataTree,
+        resolution: int = 10,
+        spline_order: int = 0,
     ) -> xr.Dataset:
         # Important note: rescale_spatial_vars() may take very long
         # for some variables!

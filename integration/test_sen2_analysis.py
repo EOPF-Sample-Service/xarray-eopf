@@ -17,6 +17,7 @@ s3_prefix = f"s3://{bucket}/{path_prefix}"
 https_prefix = f"https://{DEFAULT_ENDPOINT_URL}/{bucket}/{path_prefix}"
 
 allowed_open_time = 5  # seconds
+show_chunking = False
 
 
 class Sentinel2AnalysisTest(TestCase):
@@ -47,7 +48,7 @@ class Sentinel2AnalysisTest(TestCase):
         self.assertIn("b01", ds)
 
         spatial_vars = get_spatial_vars(ds.data_vars)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_data_arrays_are_chunked(self, spatial_vars, verbose=show_chunking)
         for var_name in spatial_vars.keys():
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
 
@@ -78,6 +79,6 @@ class Sentinel2AnalysisTest(TestCase):
         self.assertIn("b01", ds)
 
         spatial_vars = get_spatial_vars(ds.data_vars)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_data_arrays_are_chunked(self, spatial_vars, verbose=show_chunking)
         for var_name in spatial_vars.keys():
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)

@@ -11,6 +11,9 @@ import xarray as xr
 from xarray_eopf.utils import timeit
 
 
+_DEBUG = False
+
+
 def get_spatial_vars(
     variables: Mapping[Hashable, xr.DataArray],
 ) -> dict[Hashable, xr.DataArray]:
@@ -52,9 +55,9 @@ def rescale_spatial_vars(
         if spatial_shape != ref_spatial_shape:
             scale_y = spatial_shape[0] / ref_spatial_shape[0]
             scale_x = spatial_shape[1] / ref_spatial_shape[1]
-            factors = (var.ndim - 2) * (1,) + (1.0 / scale_y, 1.0 / scale_x)
+            factors = (var.ndim - 2) * (1,) + (scale_y, scale_x)
             matrix = np.diag(factors)
-            with timeit(f"{var_name} affine_transform", silent=True):
+            with timeit(f"{var_name} affine_transform", silent=not _DEBUG):
                 rescaled_data = ndinterp.affine_transform(
                     var.data,
                     matrix,

@@ -52,8 +52,8 @@ class ProductType(ABC):
     @abstractmethod
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         """Transform `datatree` into an analysis-ready form.
-        Called from the backend's `open_datatree()` implementation to transform.
-        a given `xr.DataTree` into a `xr.Dataset` object.
+        Called from the backend's `open_datatree()` implementation to transform
+        the given `xr.DataTree` object.
 
         Args:
             datatree: The data tree to be transformed.

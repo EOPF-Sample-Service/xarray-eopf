@@ -16,9 +16,6 @@ from .constants import (
     OP_MODE_ANALYSIS,
     OP_MODE_NATIVE,
     OP_MODES,
-    OPEN_DS_URL,
-    OPEN_DT_URL,
-    FSSPEC_USAGE_URL,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
@@ -29,7 +26,13 @@ from .utils import assert_arg_is_one_of
 
 
 class EopfBackend(BackendEntrypoint):
-    """Backend for EOPF Data Products using the Zarr format."""
+    """Backend for EOPF Data Products using the Zarr format.
+
+    Note, that the `chunks` parameter passed to xarray top level functions
+    `xr.open_datatree()` and `xr.open_dataset()` is _not_ passed to
+    backend. Instead, xarray uses them to (re)chunk the results
+    from calling the backend equivalents, hence, _after_ backend code.
+    """
 
     def open_datatree(
         self,
@@ -173,14 +176,16 @@ class EopfBackend(BackendEntrypoint):
 
         if op_mode == OP_MODE_NATIVE:
             dataset = flatten_datatree(datatree, sep=group_sep)
+            dataset = filter_dataset(dataset, variables)
         else:  # op_mode == OP_MODE_ANALYSIS
             product_type = _guess_product_type(filename_or_obj, product_type_name)
             params = product_type.get_applicable_params(
                 resolution=resolution, spline_order=spline_order
             )
-            dataset = product_type.convert_datatree(datatree, **params)
+            dataset = product_type.convert_datatree(
+                datatree, includes=variables, **params
+            )
 
-        dataset = filter_dataset(dataset, variables)
         return dataset
 
     def guess_can_open(

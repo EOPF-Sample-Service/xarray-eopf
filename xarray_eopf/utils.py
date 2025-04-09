@@ -2,9 +2,12 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
+import re
 import time
 from collections.abc import Collection, Iterable
-from typing import Any, Type
+from typing import Any, Type, TypeAlias
+
+import xarray as xr
 
 
 class timeit:
@@ -66,3 +69,65 @@ def _text_items_to_text(items: Iterable[str]) -> str:
         return f"{items[0]}"
     else:
         return f"{', '.join(items[:-1])} or {items[-1]}"
+
+
+def get_datatree_group(
+    datatree: xr.DataTree, group_path: str | Iterable[str]
+) -> xr.DataTree | None:
+    """Get a group in a data tree given by its group path.
+
+    Args:
+        datatree: The data tree object
+        group_path: An iterable of group names or a string that
+            uses slashes as group name separators
+
+    Returns:
+        The group of type `xr.DataTree` or `None` if it cannot be found
+    """
+    if isinstance(group_path, str):
+        group_path = group_path.split("/")
+    group = datatree
+    for group_name in group_path:
+        if group_name:
+            if group_name not in group:
+                return None
+            group = group[group_name]
+    return group
+
+
+Matcher: TypeAlias = Any
+
+
+class NameFilter:
+    def __init__(
+        self,
+        includes: str | Iterable[str] | None,
+        excludes: str | Iterable[str] | None = None,
+    ):
+        self.includes = NameFilter._norm_patterns(includes)
+        self.excludes = NameFilter._norm_patterns(excludes)
+
+    def filter(self, names: Iterable[str]) -> Iterable[str]:
+        return filter(self.accept, names)
+
+    def accept(self, var_name: str) -> bool:
+        accepted = True
+        if self.includes:
+            accepted = False
+            for p, m in self.includes:
+                if var_name == p or var_name.startswith(p) or m.match(var_name):
+                    accepted = True
+                    break
+        if accepted:
+            for p, m in self.excludes:
+                if var_name == p or var_name.startswith(p) or m.match(var_name):
+                    accepted = False
+                    break
+        return accepted
+
+    @staticmethod
+    def _norm_patterns(
+        patterns: str | Iterable[str] | None,
+    ) -> list[tuple[str, Matcher]]:
+        patterns = (patterns,) if isinstance(patterns, str) else (patterns or ())
+        return [(p, re.compile(p)) for p in patterns if p]

@@ -52,10 +52,10 @@ class Sentinel2AnalysisTest(TestCase):
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
 
     def test_open_dataset_sen2_l2a_s3(self):
-        self._test_open_dataset_sen2_l1c(s3_prefix)
+        self._test_open_dataset_sen2_l2a(s3_prefix)
 
     def test_open_dataset_sen2_l2a_https(self):
-        self._test_open_dataset_sen2_l1c(https_prefix)
+        self._test_open_dataset_sen2_l2a(https_prefix)
 
     def _test_open_dataset_sen2_l2a(self, url_prefix):
         url = (
@@ -75,6 +75,9 @@ class Sentinel2AnalysisTest(TestCase):
         self.assertIn("b03", ds)
         self.assertIn("b11", ds)
         self.assertIn("b01", ds)
+        self.assertIn("scl", ds)
+        self.assertIn("cld", ds)
+        self.assertIn("snw", ds)
 
         spatial_vars = get_spatial_vars(ds.data_vars)
         assert_data_arrays_are_chunked(self, spatial_vars, verbose=show_chunking)

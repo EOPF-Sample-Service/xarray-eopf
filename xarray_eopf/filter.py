@@ -2,31 +2,22 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-import re
 from typing import Iterable
 
 import xarray as xr
 
+from .utils import NameFilter
+
 
 def filter_dataset(
-    dataset: xr.Dataset, variables: str | Iterable[str] | None
+    dataset: xr.Dataset,
+    variables: str | Iterable[str] | None,
 ) -> xr.Dataset:
     if not variables:
         return dataset
-    var_patterns = (variables,) if isinstance(variables, str) else tuple(variables)
-    var_names = [str(var_name) for var_name in dataset.variables.keys()]
-    drop_names = []
-    for var_pattern in var_patterns:
-        var_matcher = re.compile(var_pattern)
-        drop_names.extend(
-            var_name
-            for var_name in var_names
-            if not (
-                var_name == var_pattern
-                or var_name.startswith(var_pattern)
-                or var_matcher.match(var_name)
-            )
-        )
+    name_filter = NameFilter(includes=variables)
+    names = set(map(str, dataset.variables.keys()))
+    drop_names = names - set(name_filter.filter(names))
     if drop_names:
         # TODO: also drop now unused coordinates + dimensions as
         #  they remain even if no longer referenced by any data variables

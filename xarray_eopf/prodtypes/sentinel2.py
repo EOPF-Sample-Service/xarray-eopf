@@ -3,17 +3,68 @@
 #  https://opensource.org/license/apache-2-0.
 
 from abc import ABC
-from typing import Any
+from collections.abc import Iterable
+from typing import Any, Hashable
 
 import pyproj.crs
 import xarray as xr
 
 from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
 from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
-from xarray_eopf.utils import assert_arg_is_instance, assert_arg_is_one_of
-
+from xarray_eopf.utils import (
+    assert_arg_is_instance,
+    assert_arg_is_one_of,
+    get_datatree_group,
+    NameFilter,
+)
 
 # TODO: add MSI tests
+
+# Resolutions of bands and variables in the order they contribute
+# to a dataset (=value) for a target resolution (= key).
+#
+RESOLUTION_ORDERS = {
+    10: (10, 20, 60),
+    20: (20, 10, 60),
+    60: (60, 20, 10),
+}
+
+# Groups in L1C and L2A that contain resolution groups
+# (r10m, r20m, r60m) that contain a dataset
+#
+GROUP_PATHS = (
+    ("measurements", "reflectance"),
+    ("quality", "probability"),
+    ("conditions", "mask", "l2a_classification"),
+)
+
+# Extra attributes (= value) that will be added to the
+# named variables (= keys)
+#
+EXTRA_VAR_ATTRS: dict[Hashable, dict[str, Any]] = {
+    "scl": {
+        "flag_values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "flag_meanings": (
+            "no_data "
+            "sat_or_defect_pixel "
+            "topo_casted_shadows "
+            "cloud_shadows "
+            "vegetation "
+            "not_vegetation "
+            "water "
+            "unclassified "
+            "cloud_medium_prob "
+            "cloud_high_prob "
+            "thin_cirrus "
+            "snow_or_ice"
+        ),
+        "flag_colors": (
+            "#000000 #ff0000 #2f2f2f #643200 "
+            "#00a000 #ffe65a #0000ff #808080 "
+            "#c0c0c0 #ffffff #64c8ff #ff96ff"
+        ),
+    }
+}
 
 
 class MSI(ProductType, ABC):
@@ -46,6 +97,8 @@ class MSI(ProductType, ABC):
     def convert_datatree(
         self,
         datatree: xr.DataTree,
+        includes: str | Iterable[str] | None = None,
+        excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
         spline_order: int = 0,
     ) -> xr.Dataset:
@@ -56,33 +109,51 @@ class MSI(ProductType, ABC):
         # - "conditions_geometry_viewing_incidence_angles"
         #   with shape (13, 7, 2, 23, 23) takes 140 seconds
 
-        resolution_name = f"r{resolution}m"
-        dataset = datatree.measurements.reflectance[resolution_name].ds
+        name_filter = NameFilter(includes=includes, excludes=excludes)
+        ref_var_name: str | None = None
 
-        if self.type_name != "MSIL2A" or resolution == 10:
-            variables = dict(dataset.data_vars)
-            assert len(variables) > 0
-            ref_var_name = tuple(get_spatial_vars(variables))[0]
+        variables: dict[Hashable, xr.DataArray] = {}
+        for group_path in GROUP_PATHS:
+            group = get_datatree_group(datatree, group_path)
+            if group is None:
+                continue
+            for res in RESOLUTION_ORDERS[resolution]:
+                res_name = f"r{res}m"
+                if res_name not in group:
+                    continue
+                res_group = group[res_name]
+                res_ds = res_group.ds
+                if res != resolution:
+                    res_ds = res_ds.rename({"x": f"{res_name}_x", "y": f"{res_name}_y"})
+                spatial_vars = get_spatial_vars(res_ds.data_vars)
+                for k, v in spatial_vars.items():
+                    if name_filter.accept(str(k)) and (k not in variables):
+                        if ref_var_name is None and res == resolution:
+                            ref_var_name = str(k)
+                        variables[k] = v
 
-            r_names = [f"r{r}m" for r in (10, 20, 60) if r != resolution]
-            for r_name in r_names:
-                r_ds = datatree.measurements.reflectance[r_name].ds.rename(
-                    {"x": f"{r_name}_x", "y": f"{r_name}_y"}
-                )
-                variables.update(
-                    {k: v for k, v in r_ds.data_vars.items() if k not in variables}
-                )
-
-            rescaled_variables = rescale_spatial_vars(
-                variables,
-                ref_var_name=ref_var_name,
-                spline_order=spline_order,
+        if not variables:
+            raise ValueError("No variables selected")
+        if ref_var_name is None:
+            raise ValueError(
+                "No reference variable found. At least one of the selected"
+                " variables must have a native resolution that equals"
+                " the target resolution."
             )
 
-            dataset = xr.Dataset(
-                rescaled_variables, attrs=self.process_metadata(datatree)
-            )
+        rescaled_variables = rescale_spatial_vars(
+            variables,
+            ref_var_name=ref_var_name,
+            spline_order=spline_order,
+        )
 
+        # Assign extra variable attributes
+        for var_name, var in rescaled_variables.items():
+            attrs = EXTRA_VAR_ATTRS.get(var_name)
+            if attrs:
+                var.attrs.update(attrs)
+
+        dataset = xr.Dataset(rescaled_variables, attrs=self.process_metadata(datatree))
         dataset.attrs = self.process_metadata(datatree)
         dataset = self.assign_grid_mapping(dataset)
         return dataset

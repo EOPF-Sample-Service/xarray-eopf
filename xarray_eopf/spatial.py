@@ -5,8 +5,11 @@
 from collections.abc import Mapping, Hashable
 
 import dask_image.ndinterp as ndinterp
+import numba
 import numpy as np
 import xarray as xr
+
+
 
 from xarray_eopf.utils import timeit
 
@@ -43,7 +46,8 @@ def get_ref_var_name(variables: Mapping[Hashable, xr.DataArray]) -> Hashable | N
 def rescale_spatial_vars(
     variables: Mapping[Hashable, xr.DataArray],
     ref_var_name: Hashable | None = None,
-    spline_order: int = 0,
+    agg_method: str | dict[Hashable, str] | None = None,
+    spline_order: int | dict[Hashable, int] | None = None,
 ) -> Mapping[Hashable, xr.DataArray]:
     spatial_variables = get_spatial_vars(variables)
     ref_var_name = ref_var_name or get_ref_var_name(spatial_variables)
@@ -57,14 +61,47 @@ def rescale_spatial_vars(
             scale_x = spatial_shape[1] / ref_spatial_shape[1]
             factors = (var.ndim - 2) * (1,) + (scale_y, scale_x)
             matrix = np.diag(factors)
-            with timeit(f"{var_name} affine_transform", silent=not _DEBUG):
-                rescaled_data = ndinterp.affine_transform(
-                    var.data,
-                    matrix,
-                    order=spline_order,
-                    output_chunks=ref_var.chunks,
-                    output_shape=var.shape[:-2] + ref_spatial_shape,
-                )
+            is_down_sampling = scale_x < 1
+            is_integer = np.issubdtype(var.dtype, np.integer)
+            if is_down_sampling:
+                method = agg_method.get(var_name) if isinstance(agg_method,  dict) else agg_method
+                if not isinstance(method, str):
+                    if is_integer:
+                        # For integer/categorical data we take the
+                        # most frequent value in a block
+                        method = "mode"
+                    else:
+                        # For floating point we block-average
+                        method = "mean"
+                isx = int(scale_x)
+                isy = int(scale_x)
+                if isx == scale_x and isy == scale_y:
+                    with timeit(f"{var_name} down-sample by index", silent=not _DEBUG):
+                        y_name, x_name = var.dims[-2:]
+                        coarsened = var.coarsen(**{y_name: isy, x_name: isx})
+                        if method == "mode":
+                            rescaled_data = coarsened.reduce(fast_int_mode)
+                        else:
+                            rescaled_data = getattr(coarsened, method)()
+                    rescaled_data = rescaled_data.chunk(ref_var.chunks)
+                else:
+                    # TODO: implement down-sampling for non-integer factors
+                    raise NotImplementedError("Down-sampling only implemented for integer factors")
+            else:
+                order = spline_order.get(var_name) if isinstance(spline_order, dict) else spline_order
+                if not isinstance(order, int):
+                    if is_integer:
+                        order = 0  # nearest
+                    else:
+                        order = 3  # cubic
+                with timeit(f"{var_name} up-sample by affine_transform()", silent=not _DEBUG):
+                    rescaled_data = ndinterp.affine_transform(
+                        var.data,
+                        matrix,
+                        order=order,
+                        output_chunks=ref_var.chunks,
+                        output_shape=var.shape[:-2] + ref_spatial_shape,
+                    )
             y_dim, x_dim = var.dims[-2:]
             ref_y_dim, ref_x_dim = ref_var.dims[-2:]
             coords = dict(var.coords)
@@ -86,3 +123,19 @@ def rescale_spatial_vars(
     all_variables = {**variables, **rescaled_variables}
     sorted_var_names = sorted(all_variables)
     return {var_name: all_variables[var_name] for var_name in sorted_var_names}
+
+
+@numba.njit
+def fast_int_mode(array: np.ndarray) -> int:
+    if array.size == 0:
+        return 0
+    # Ensure input is integer
+    array = array.astype(np.int64)
+    min_val = array.min()
+    max_val = array.max()
+    offset = -min_val  # To shift negative values to positive indices
+    histogram = np.zeros(max_val - min_val + 1, dtype=np.int64)
+    for val in array:
+        histogram[val + offset] += 1
+    index = np.argmax(histogram)
+    return index - offset

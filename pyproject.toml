@@ -25,6 +25,7 @@ dependencies = [
   "dask",
   "dask-image",
   "fsspec",
+  "numba",
   "numpy",
   "pyproj",
   "requests",

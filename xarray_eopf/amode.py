@@ -14,13 +14,16 @@ class AnalysisMode(ABC):
     for the EOPF backend's "analysis" mode of operation.
     """
 
+    # Registry for analysis modes
+    registry: "AnalysisModeRegistry"
+
     # Product type name, e.g., "MSIL2A"
     product_type: str
 
     @classmethod
     def from_product_type(cls, product_type: str | None) -> Optional["AnalysisMode"]:
         """Get the analysis mode for given `product_type`."""
-        return registry.get(product_type)
+        return cls.registry.get(product_type)
 
     @classmethod
     def from_source(cls, source: Any = None) -> Optional["AnalysisMode"]:
@@ -28,7 +31,7 @@ class AnalysisMode(ABC):
         that was used or can be used to open the datatree or dataset.
         It may be a URL, a path, or another source object.
         """
-        for pt in registry.values():
+        for pt in cls.registry.values():
             if pt.is_valid_source(source):
                 return pt
         return None
@@ -112,5 +115,11 @@ class AnalysisModeRegistry:
         assert isinstance(cls.product_type, str)
         self._analysis_modes[cls.product_type] = cls()
 
+    def unregister(self, cls: Type[AnalysisMode]):
+        """Unregister the analysis mode given as its class `cls`."""
+        assert issubclass(cls, AnalysisMode)
+        assert isinstance(cls.product_type, str)
+        del self._analysis_modes[cls.product_type]
 
-registry = AnalysisModeRegistry()
+
+AnalysisMode.registry = AnalysisModeRegistry()

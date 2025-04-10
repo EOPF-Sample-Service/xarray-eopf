@@ -1,14 +1,55 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
-
+from typing import Iterable, Any
 from unittest import TestCase
 
-from xarray_eopf.amode import AnalysisModeRegistry
+import xarray as xr
+
+from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.amodes.sentinel2 import MSIL1C, MSIL2A
 
 
-class ProductTypeRegistryTest(TestCase):
+class TestMode(AnalysisMode):
+    product_type = "TEST"
+
+    def is_valid_source(self, source: Any) -> bool:
+        return source == "TEST"
+
+    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+        return {}
+
+    def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
+        return datatree
+
+    def convert_datatree(
+        self,
+        datatree: xr.DataTree,
+        includes: str | Iterable[str] | None = None,
+        excludes: str | Iterable[str] | None = None,
+        **params,
+    ) -> xr.Dataset:
+        return datatree.dataset
+
+
+class AnalysisModeTest(TestCase):
+    def setUp(self):
+        AnalysisMode.registry.register(TestMode)
+
+    def tearDown(self):
+        AnalysisMode.registry.unregister(TestMode)
+
+    def test_from_source(self):
+        self.assertIsInstance(AnalysisMode.from_source("TEST"), TestMode)
+        self.assertIsNone(AnalysisMode.from_source("REST"))
+
+    def test_from_product_type(self):
+        self.assertIsInstance(AnalysisMode.from_product_type("TEST"), TestMode)
+        self.assertIsNone(AnalysisMode.from_product_type("REST"))
+
+
+class AnalysisModeRegistryTest(TestCase):
+    # noinspection PyMethodMayBeStatic
     def get(self):
         reg = AnalysisModeRegistry()
         reg.register(MSIL1C)
@@ -28,3 +69,10 @@ class ProductTypeRegistryTest(TestCase):
         self.assertEqual(2, len(values))
         self.assertIsInstance(values[0], MSIL1C)
         self.assertIsInstance(values[1], MSIL2A)
+
+    def test_register_unregister(self):
+        reg = self.get()
+        reg.register(TestMode)
+        self.assertIsInstance(reg.get("TEST"), TestMode)
+        reg.unregister(TestMode)
+        self.assertIsNone(reg.get("TEST"))

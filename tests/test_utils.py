@@ -4,7 +4,64 @@
 
 from unittest import TestCase
 
+import pytest
+import xarray as xr
+
+from tests.helpers import make_s2_msi
 from xarray_eopf.utils import NameFilter
+from xarray_eopf.utils import get_data_tree_item
+from xarray_eopf.utils import assert_arg_is_one_of
+from xarray_eopf.utils import assert_arg_is_instance
+from xarray_eopf.utils import timeit
+
+
+class AssertionTest(TestCase):
+    def test_assert_arg_is_one_of(self):
+        self.assertIsNone(assert_arg_is_one_of(2, "order", (0, 1, 2, 3)))
+
+        with pytest.raises(
+            ValueError, match="order argument must be 0, 1, 2 or 3, was 4"
+        ):
+            self.assertIsNone(assert_arg_is_one_of(4, "order", (0, 1, 2, 3)))
+
+    def test_assert_arg_is_instance(self):
+        self.assertIsNone(assert_arg_is_instance(2, "order", int))
+        self.assertIsNone(assert_arg_is_instance(2, "order", (int, float)))
+
+        with pytest.raises(
+            TypeError, match="order argument must have type int, was float"
+        ):
+            self.assertIsNone(assert_arg_is_instance(2.0, "order", int))
+        with pytest.raises(
+            TypeError, match="order argument must have type int or float, was str"
+        ):
+            self.assertIsNone(assert_arg_is_instance("4", "order", (int, float)))
+
+
+class TimeitTest(TestCase):
+    def test_assert_arg_is_one_of(self):
+        with timeit("test", silent=False) as result:
+            pass
+        self.assertTrue(result.label == "test")
+        self.assertTrue(result.silent is False)
+        self.assertTrue(result.start_time > 0)
+        self.assertTrue(result.time_delta >= 0)
+
+
+class GetDataTreeItemTest(TestCase):
+    def test_with_pathname(self):
+        dt = make_s2_msi()
+        self.assertIsInstance(get_data_tree_item(dt, "r10m"), xr.DataTree)
+        self.assertIsInstance(get_data_tree_item(dt, "r10m/b02"), xr.DataArray)
+
+    def test_with_path(self):
+        dt = make_s2_msi()
+        self.assertIsInstance(get_data_tree_item(dt, ("r10m",)), xr.DataTree)
+        self.assertIsInstance(get_data_tree_item(dt, ("r10m", "b02")), xr.DataArray)
+
+    def test_not_found(self):
+        dt = make_s2_msi()
+        self.assertIsNone(get_data_tree_item(dt, "test"))
 
 
 class NameFilterTest(TestCase):

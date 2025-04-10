@@ -14,7 +14,7 @@ from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
 from xarray_eopf.utils import (
     assert_arg_is_instance,
     assert_arg_is_one_of,
-    get_datatree_group,
+    get_data_tree_item,
     NameFilter,
 )
 
@@ -116,7 +116,7 @@ class MSI(AnalysisMode, ABC):
 
         variables: dict[Hashable, xr.DataArray] = {}
         for group_path in GROUP_PATHS:
-            group = get_datatree_group(datatree, group_path)
+            group = get_data_tree_item(datatree, group_path)
             if group is None:
                 continue
             for res in RESOLUTION_ORDERS[resolution]:

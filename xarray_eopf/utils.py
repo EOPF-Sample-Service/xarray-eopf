@@ -62,18 +62,13 @@ def assert_arg_is_one_of(value: Any, name: str, collection: Collection):
 
 def _text_items_to_text(items: Iterable[str]) -> str:
     items = tuple(items)
-    n = len(items)
-    if n == 0:
-        return ""
-    elif n == 1:
-        return f"{items[0]}"
-    else:
-        return f"{', '.join(items[:-1])} or {items[-1]}"
+    assert len(items) >= 2
+    return f"{', '.join(items[:-1])} or {items[-1]}"
 
 
-def get_datatree_group(
+def get_data_tree_item(
     datatree: xr.DataTree, group_path: str | Iterable[str]
-) -> xr.DataTree | None:
+) -> xr.DataTree | xr.DataArray | None:
     """Get a group in a data tree given by its group path.
 
     Args:

@@ -10,15 +10,13 @@ import pyproj.crs
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
+from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars, SplineOrder
 from xarray_eopf.utils import (
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
     NameFilter,
 )
-
-# TODO: add MSI tests
 
 # Resolutions of bands and variables in the order they contribute
 # to a dataset (=value) for a target resolution (= key).
@@ -102,7 +100,7 @@ class MSI(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
-        spline_order: int = 0,
+        spline_order: SplineOrder = 0,
     ) -> xr.Dataset:
         # Important note: rescale_spatial_vars() may take very long
         # for some variables!
@@ -161,7 +159,7 @@ class MSI(AnalysisMode, ABC):
         return dataset
 
     # noinspection PyMethodMayBeStatic
-    def process_metadata(self, datatree):
+    def process_metadata(self, datatree: xr.DataTree):
         # TODO: process metadata and try adhering to CF conventions
         other_metadata = datatree.attrs.get("other_metadata", {})
         return other_metadata
@@ -181,14 +179,8 @@ class MSI(AnalysisMode, ABC):
         return dataset
 
 
-# TODO: add MSIL1C tests
-
-
 class MSIL1C(MSI):
     product_type = "MSIL1C"
-
-
-# TODO: add MSIL2A tests
 
 
 class MSIL2A(MSI):

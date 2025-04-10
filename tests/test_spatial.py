@@ -19,7 +19,7 @@ class RescaleSpatialVarsTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dt = make_s2_msi(size_r10m=48)
+        dt = make_s2_msi(r10m_size=48)
         cls.ds = flatten_datatree(dt)
 
     def test_s2_msi_to_10m(self):

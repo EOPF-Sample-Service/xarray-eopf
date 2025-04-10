@@ -36,8 +36,15 @@ pytest
 ```
 By default, this will run all unit and integration tests. To run only the unit test
 suite, use:  
+
 ```shell
-pytest tests/
+pytest tests
+```
+
+To run tests and generate a coverage report, use:
+
+```shell
+pytest --cov xarray_eopf --cov-report html tests
 ```
 
 ### Documentation

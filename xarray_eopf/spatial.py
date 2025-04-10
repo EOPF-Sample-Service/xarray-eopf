@@ -3,18 +3,53 @@
 #  https://opensource.org/license/apache-2-0.
 
 from collections.abc import Mapping, Hashable
+from typing import Literal, TypeAlias, Any
 
 import dask_image.ndinterp as ndinterp
 import numba
 import numpy as np
+import scipy
 import xarray as xr
-
 
 
 from xarray_eopf.utils import timeit
 
 
 _DEBUG = False
+
+AggMethod: TypeAlias = Literal[
+    "all",
+    "any",
+    "count",
+    "max",
+    "mean",
+    "median",
+    "min",
+    "mode",
+    "prod",
+    "std",
+    "sum",
+    "var",
+]
+
+AGG_METHODS = (
+    "all",
+    "any",
+    "count",
+    "max",
+    "mean",
+    "median",
+    "min",
+    "mode",
+    "prod",
+    "std",
+    "sum",
+    "var",
+)
+
+SplineOrder: TypeAlias = Literal[0, 1, 2, 3]
+
+SPLINE_ORDERS = 0, 1, 2, 3
 
 
 def get_spatial_vars(
@@ -46,8 +81,9 @@ def get_ref_var_name(variables: Mapping[Hashable, xr.DataArray]) -> Hashable | N
 def rescale_spatial_vars(
     variables: Mapping[Hashable, xr.DataArray],
     ref_var_name: Hashable | None = None,
-    agg_method: str | dict[Hashable, str] | None = None,
-    spline_order: int | dict[Hashable, int] | None = None,
+    agg_method: AggMethod | dict[Hashable, AggMethod] | None = None,
+    spline_order: SplineOrder | dict[Hashable, SplineOrder] | None = None,
+    eps: float = 1e-5,
 ) -> Mapping[Hashable, xr.DataArray]:
     spatial_variables = get_spatial_vars(variables)
     ref_var_name = ref_var_name or get_ref_var_name(spatial_variables)
@@ -59,42 +95,29 @@ def rescale_spatial_vars(
         if spatial_shape != ref_spatial_shape:
             scale_y = spatial_shape[0] / ref_spatial_shape[0]
             scale_x = spatial_shape[1] / ref_spatial_shape[1]
-            factors = (var.ndim - 2) * (1,) + (scale_y, scale_x)
-            matrix = np.diag(factors)
-            is_down_sampling = scale_x < 1
+            is_down_sampling = scale_x + eps > 1.0
             is_integer = np.issubdtype(var.dtype, np.integer)
             if is_down_sampling:
-                method = agg_method.get(var_name) if isinstance(agg_method,  dict) else agg_method
-                if not isinstance(method, str):
-                    if is_integer:
-                        # For integer/categorical data we take the
-                        # most frequent value in a block
-                        method = "mode"
-                    else:
-                        # For floating point we block-average
-                        method = "mean"
+                method = get_agg_method(var_name, agg_method, is_categorical=is_integer)
                 isx = int(scale_x)
-                isy = int(scale_x)
-                if isx == scale_x and isy == scale_y:
-                    with timeit(f"{var_name} down-sample by index", silent=not _DEBUG):
+                isy = int(scale_y)
+                if abs(isx - scale_x) < eps and abs(isy - scale_y) < eps:
+                    with timeit(f"down-sampling {var_name!r}", silent=not _DEBUG):
                         y_name, x_name = var.dims[-2:]
                         coarsened = var.coarsen(**{y_name: isy, x_name: isx})
-                        if method == "mode":
-                            rescaled_data = coarsened.reduce(fast_int_mode)
-                        else:
-                            rescaled_data = getattr(coarsened, method)()
-                    rescaled_data = rescaled_data.chunk(ref_var.chunks)
+                        rescaled_data = getattr(coarsened, method)()
                 else:
                     # TODO: implement down-sampling for non-integer factors
-                    raise NotImplementedError("Down-sampling only implemented for integer factors")
+                    raise NotImplementedError(
+                        "Down-sampling only implemented for integer factors"
+                    )
             else:
-                order = spline_order.get(var_name) if isinstance(spline_order, dict) else spline_order
-                if not isinstance(order, int):
-                    if is_integer:
-                        order = 0  # nearest
-                    else:
-                        order = 3  # cubic
-                with timeit(f"{var_name} up-sample by affine_transform()", silent=not _DEBUG):
+                factors = (var.ndim - 2) * (1,) + (scale_y, scale_x)
+                matrix = np.diag(factors)
+                order = get_spline_order(
+                    var_name, spline_order, is_categorical=is_integer
+                )
+                with timeit(f"up-sampling {var_name}!r", silent=not _DEBUG):
                     rescaled_data = ndinterp.affine_transform(
                         var.data,
                         matrix,
@@ -102,6 +125,7 @@ def rescale_spatial_vars(
                         output_chunks=ref_var.chunks,
                         output_shape=var.shape[:-2] + ref_spatial_shape,
                     )
+            rescaled_data = rescaled_data.astype(var.dtype)
             y_dim, x_dim = var.dims[-2:]
             ref_y_dim, ref_x_dim = ref_var.dims[-2:]
             coords = dict(var.coords)
@@ -125,17 +149,40 @@ def rescale_spatial_vars(
     return {var_name: all_variables[var_name] for var_name in sorted_var_names}
 
 
-@numba.njit
-def fast_int_mode(array: np.ndarray) -> int:
-    if array.size == 0:
-        return 0
-    # Ensure input is integer
-    array = array.astype(np.int64)
-    min_val = array.min()
-    max_val = array.max()
-    offset = -min_val  # To shift negative values to positive indices
-    histogram = np.zeros(max_val - min_val + 1, dtype=np.int64)
-    for val in array:
-        histogram[val + offset] += 1
-    index = np.argmax(histogram)
-    return index - offset
+def get_spline_order(
+    var_name: Hashable, spline_order: Any, is_categorical: bool = False
+) -> SplineOrder:
+    order = (
+        spline_order.get(var_name) if isinstance(spline_order, dict) else spline_order
+    )
+    if order is None:
+        if is_categorical:
+            order = 0  # nearest
+        else:
+            order = 3  # cubic
+    if order not in SPLINE_ORDERS:
+        raise ValueError(f"Unknown spline order: {order}")
+    return order
+
+
+def get_agg_method(
+    var_name: Hashable, agg_method: Any = None, is_categorical: bool = False
+) -> AggMethod:
+    method = agg_method.get(var_name) if isinstance(agg_method, dict) else agg_method
+    if method is None:
+        if is_categorical:
+            # TODO: down-sample categorical data
+            #  according to Sentinel-2 products, SCL should be down-sampled
+            #  using nearest-neighbour. This would be method="center".
+            #  In general, the most natural solution is to take the
+            #  most frequent value. This would be method="mode".
+            #  The only value preserving methods currently available in
+            #  xarray are "min" and "max".
+            #
+            method = "max"
+        else:
+            # For floating point we block-average
+            method = "mean"
+    if method not in AGG_METHODS:
+        raise ValueError(f"Unknown aggregation method: {method}")
+    return method

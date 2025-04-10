@@ -6,9 +6,7 @@ from collections.abc import Mapping, Hashable
 from typing import Literal, TypeAlias, Any
 
 import dask_image.ndinterp as ndinterp
-import numba
 import numpy as np
-import scipy
 import xarray as xr
 
 

@@ -4,13 +4,13 @@
 
 from unittest import TestCase
 
-from xarray_eopf.prodtype import ProductTypeRegistry
-from xarray_eopf.prodtypes.sentinel2 import MSIL1C, MSIL2A
+from xarray_eopf.amode import AnalysisModeRegistry
+from xarray_eopf.amodes.sentinel2 import MSIL1C, MSIL2A
 
 
 class ProductTypeRegistryTest(TestCase):
     def get(self):
-        reg = ProductTypeRegistry()
+        reg = AnalysisModeRegistry()
         reg.register(MSIL1C)
         reg.register(MSIL2A)
         return reg

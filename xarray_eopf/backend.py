@@ -19,8 +19,8 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .prodtype import ProductType
-from .prodtypes import register_product_types
+from .amode import AnalysisMode
+from .amodes import register_analysis_modes
 from .store import open_store
 from .utils import assert_arg_is_one_of
 
@@ -39,7 +39,7 @@ class EopfBackend(BackendEntrypoint):
         filename_or_obj: str | os.PathLike[Any] | ReadBuffer | AbstractDataStore,
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
-        product_type_name: str | None = None,
+        product_type: str | None = None,
         protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         drop_variables: str | Iterable[str] | None = None,
@@ -54,7 +54,7 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_type_name: Product type name, such as `"S2B_MSIL1C"`.
+            product_type: Product type name, such as `"S2B_MSIL1C"`.
                 Only used if `op_mode="analysis"` and
                 only required if `filename_or_obj` is not a path or URL
                 that refers to a product path adhering to EOPF naming conventions.
@@ -95,8 +95,8 @@ class EopfBackend(BackendEntrypoint):
         if op_mode == OP_MODE_NATIVE:
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
-            product_type = _guess_product_type(filename_or_obj, product_type_name)
-            return product_type.transform_datatree(datatree)
+            analysis_mode = _guess_analysis_mode(filename_or_obj, product_type)
+            return analysis_mode.transform_datatree(datatree)
 
     def open_dataset(
         self,
@@ -109,7 +109,7 @@ class EopfBackend(BackendEntrypoint):
         group_sep: str = "_",
         variables: str | Iterable[str] | None = None,
         # params for op_mode=analysis
-        product_type_name: str | None = None,
+        product_type: str | None = None,
         resolution: int | float | None = None,
         spline_order: int | None = None,
         # params required by xarray backend interface
@@ -126,7 +126,7 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_type_name: Product type name, such as `"S2B_MSIL1C"`.
+            product_type: Product type name, such as `"S2B_MSIL1C"`.
                 Only used if `op_mode="analysis"` and
                 only required if `filename_or_obj` is not a path or URL
                 that refers to a product path adhering to EOPF naming conventions.
@@ -178,11 +178,11 @@ class EopfBackend(BackendEntrypoint):
             dataset = flatten_datatree(datatree, sep=group_sep)
             dataset = filter_dataset(dataset, variables)
         else:  # op_mode == OP_MODE_ANALYSIS
-            product_type = _guess_product_type(filename_or_obj, product_type_name)
-            params = product_type.get_applicable_params(
+            analysis_mode = _guess_analysis_mode(filename_or_obj, product_type)
+            params = analysis_mode.get_applicable_params(
                 resolution=resolution, spline_order=spline_order
             )
-            dataset = product_type.convert_datatree(
+            dataset = analysis_mode.convert_datatree(
                 datatree, includes=variables, **params
             )
 
@@ -204,15 +204,17 @@ class EopfBackend(BackendEntrypoint):
         return False
 
 
-def _guess_product_type(filename_or_obj: Any, product_name: str | None) -> ProductType:
-    product_type: ProductType | None = None
-    if product_name:
-        product_type = ProductType.from_name(product_name)
-    if product_type is None:
-        product_type = ProductType.from_source(filename_or_obj)
-    if product_type is None:
-        raise ValueError("unable to detect product type")
-    return product_type
+def _guess_analysis_mode(
+    filename_or_obj: Any, product_type: str | None
+) -> AnalysisMode:
+    analysis_mode: AnalysisMode | None = None
+    if product_type:
+        analysis_mode = AnalysisMode.from_product_type(product_type)
+    if analysis_mode is None:
+        analysis_mode = AnalysisMode.from_source(filename_or_obj)
+    if analysis_mode is None:
+        raise ValueError("Unable to detect analysis mode")
+    return analysis_mode
 
 
 def _assert_datatree_is_chunked(datatree: xr.DataTree):
@@ -232,4 +234,4 @@ def _assert_dataset_is_chunked(dataset: xr.Dataset, name: str | None = None):
         # )
 
 
-register_product_types()
+register_analysis_modes()

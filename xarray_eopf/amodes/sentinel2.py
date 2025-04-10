@@ -9,7 +9,7 @@ from typing import Any, Hashable
 import pyproj.crs
 import xarray as xr
 
-from xarray_eopf.prodtype import ProductType, ProductTypeRegistry
+from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars
 from xarray_eopf.utils import (
     assert_arg_is_instance,
@@ -67,12 +67,14 @@ EXTRA_VAR_ATTRS: dict[Hashable, dict[str, Any]] = {
 }
 
 
-class MSI(ProductType, ABC):
+class MSI(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
         if not isinstance(source, str):
             return False
         path: str = source
-        return f"S2A_{self.type_name}_" in path or f"S2B_{self.type_name}_" in path
+        return (
+            f"S2A_{self.product_type}_" in path or f"S2B_{self.product_type}_" in path
+        )
 
     def get_applicable_params(self, **kwargs) -> dict[str, any]:
         params = {}
@@ -183,16 +185,16 @@ class MSI(ProductType, ABC):
 
 
 class MSIL1C(MSI):
-    type_name = "MSIL1C"
+    product_type = "MSIL1C"
 
 
 # TODO: add MSIL2A tests
 
 
 class MSIL2A(MSI):
-    type_name = "MSIL2A"
+    product_type = "MSIL2A"
 
 
-def register(registry: ProductTypeRegistry):
+def register(registry: AnalysisModeRegistry):
     registry.register(MSIL1C)
     registry.register(MSIL2A)

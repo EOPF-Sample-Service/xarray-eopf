@@ -2,10 +2,9 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from xarray_eopf.prodtype import ProductTypeRegistry
+from xarray_eopf.amode import AnalysisModeRegistry
 
 
-def register(_registry: ProductTypeRegistry):
-    # TODO: define Sentinel-1 ProductType to implement
-    #  its analysis-ready data model
+def register(_registry: AnalysisModeRegistry):
+    # TODO: implement Sentinel-3 AnalysisMode
     pass

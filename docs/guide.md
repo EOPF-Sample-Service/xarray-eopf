@@ -54,7 +54,7 @@ Parameters `**params`:
   `3` (cubic). 
 - `variables`: Variables to include in the dataset. Can be a name or regex pattern 
   or iterable of the latter.
-- `product_type_name`:  Product type name, such as `"S2B_MSIL1C"`. 
+- `product_type`:  Product type name, such as `"S2B_MSIL1C"`. 
   Only required if `filename_or_obj` is not a path or URL 
   that refers to a product path adhering to EOPF naming conventions.
 

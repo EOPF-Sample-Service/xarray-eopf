@@ -8,26 +8,23 @@ from typing import Any, Optional, Type
 
 import xarray as xr
 
-# TODO: Rename `ProductType` into something that better fits
-#  its purpose. E.g., `AnalysisMode`.
 
-
-class ProductType(ABC):
+class AnalysisMode(ABC):
     """Provides product-type specific properties and behaviour
-    for the EOPF backend's "analysis" mode.
+    for the EOPF backend's "analysis" mode of operation.
     """
 
     # Product type name, e.g., "MSIL2A"
-    type_name: str
+    product_type: str
 
     @classmethod
-    def from_name(cls, type_name: str | None) -> Optional["ProductType"]:
-        """Get product type from given `type_name`."""
-        return registry.get(type_name)
+    def from_product_type(cls, product_type: str | None) -> Optional["AnalysisMode"]:
+        """Get the analysis mode for given `product_type`."""
+        return registry.get(product_type)
 
     @classmethod
-    def from_source(cls, source: Any = None) -> Optional["ProductType"]:
-        """Get product type from given object `source`
+    def from_source(cls, source: Any = None) -> Optional["AnalysisMode"]:
+        """Get the analysis mode for given object `source`
         that was used or can be used to open the datatree or dataset.
         It may be a URL, a path, or another source object.
         """
@@ -38,7 +35,7 @@ class ProductType(ABC):
 
     @abstractmethod
     def is_valid_source(self, source: Any) -> bool:
-        """Check if this product type is applicable to or can be represented
+        """Check if this analysis mode is applicable to or can be represented
         by the given object `source`.
         """
 
@@ -90,30 +87,30 @@ class ProductType(ABC):
         """
 
 
-class ProductTypeRegistry:
-    """A simple registry for `ProductType` instances."""
+class AnalysisModeRegistry:
+    """A simple registry for `AnalysisMode` instances."""
 
     def __init__(self):
-        self._product_types: dict[str, ProductType] = {}
+        self._analysis_modes: dict[str, AnalysisMode] = {}
 
     def keys(self) -> tuple[str, ...]:
-        """Get registered product type names."""
-        return tuple(self._product_types.keys())
+        """Get registered analysis mode keys."""
+        return tuple(self._analysis_modes.keys())
 
-    def values(self) -> tuple[ProductType, ...]:
-        """Get registered product types."""
+    def values(self) -> tuple[AnalysisMode, ...]:
+        """Get registered analysis modes."""
         # noinspection PyTypeChecker
-        return tuple(self._product_types.values())
+        return tuple(self._analysis_modes.values())
 
-    def get(self, type_name: str) -> Optional["ProductType"]:
-        """Get a specific product types for given `type_name`."""
-        return self._product_types.get(type_name)
+    def get(self, product_type: str) -> Optional["AnalysisMode"]:
+        """Get a specific analysis modes for given `product_type`."""
+        return self._analysis_modes.get(product_type)
 
-    def register(self, cls: Type[ProductType]):
-        """Register the product type given as its class `cls`."""
-        assert issubclass(cls, ProductType)
-        assert isinstance(cls.type_name, str)
-        self._product_types[cls.type_name] = cls()
+    def register(self, cls: Type[AnalysisMode]):
+        """Register the analysis mode given as its class `cls`."""
+        assert issubclass(cls, AnalysisMode)
+        assert isinstance(cls.product_type, str)
+        self._analysis_modes[cls.product_type] = cls()
 
 
-registry = ProductTypeRegistry()
+registry = AnalysisModeRegistry()

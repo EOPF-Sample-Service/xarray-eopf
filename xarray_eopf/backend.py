@@ -213,7 +213,7 @@ def _guess_analysis_mode(
     if analysis_mode is None:
         analysis_mode = AnalysisMode.from_source(filename_or_obj)
     if analysis_mode is None:
-        raise ValueError("Unable to detect analysis mode")
+        raise ValueError("Unable to detect analysis mode for input")
     return analysis_mode
 
 

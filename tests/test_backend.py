@@ -34,9 +34,14 @@ class EopfBackendTest(TestCase):
                 "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="sensor"
             )
 
-    def test_open_datatree(self):
+
+class NativeModeTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
         original_dt = make_s2_msi()
         original_dt.to_zarr("memory://S02MSIL1C.zarr", mode="w")
+
+    def test_open_datatree(self):
         # noinspection PyTypeChecker
         data_tree = xr.open_datatree(
             "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="native"
@@ -45,11 +50,7 @@ class EopfBackendTest(TestCase):
         self.assertIn("r20m", data_tree)
         self.assertIn("r60m", data_tree)
 
-
-class EopfBackendNativeTest(TestCase):
     def test_open_dataset(self):
-        original_ds = make_s2_msi()
-        original_ds.to_zarr("memory://S02MSIL1C.zarr", mode="w")
         # noinspection PyTypeChecker
         dataset = xr.open_dataset(
             "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="native"
@@ -64,7 +65,31 @@ class EopfBackendNativeTest(TestCase):
         self.assertIn("r60m_x", dataset)
         self.assertIn("r60m_y", dataset)
 
-    # TODO: add tests for open_datatree
 
+class AnalysisModeTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        original_dt = make_s2_msi()
+        original_dt.to_zarr("memory://S02MSIL1C.zarr", mode="w")
 
-# TODO: add EopfBackendAnalysisTest
+    # noinspection PyMethodMayBeStatic
+    def test_open_datatree(self):
+        # TODO: make a better test ;)
+        with pytest.raises(
+            ValueError, match="Unable to detect analysis mode for input"
+        ):
+            # noinspection PyTypeChecker
+            _data_tree = xr.open_datatree(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="analysis"
+            )
+
+    # noinspection PyMethodMayBeStatic
+    def test_open_dataset(self):
+        # TODO: make a better test ;)
+        with pytest.raises(
+            ValueError, match="Unable to detect analysis mode for input"
+        ):
+            # noinspection PyTypeChecker
+            _dataset = xr.open_dataset(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="analysis"
+            )

@@ -5,11 +5,13 @@ from collections.abc import Mapping
 from typing import Hashable
 from unittest import TestCase
 
+import pytest
 import xarray as xr
 
 from tests.helpers import make_s2_msi
 from xarray_eopf.flatten import flatten_datatree
 from xarray_eopf.spatial import rescale_spatial_vars
+from xarray_eopf.spatial import get_spline_order, get_agg_method
 
 
 class RescaleSpatialVarsTest(TestCase):
@@ -43,3 +45,23 @@ class RescaleSpatialVarsTest(TestCase):
         for var_name, var in rescaled_vars.items():
             array = var.values
             self.assertEqual((target_res, target_res), array.shape[-2:])
+
+
+class UtilsTest(TestCase):
+    def test_get_agg_method(self):
+        self.assertEqual("min", get_agg_method("x", "min"))
+        self.assertEqual("median", get_agg_method("x", {"x": "median"}))
+        self.assertEqual("mean", get_agg_method("y", {"x": "median"}))
+        self.assertEqual(
+            "max", get_agg_method("y", {"x": "median"}, is_categorical=True)
+        )
+        with pytest.raises(ValueError, match="Unknown aggregation method: mode"):
+            get_agg_method("x", "mode")
+
+    def test_spline_order(self):
+        self.assertEqual(1, get_spline_order("x", 1))
+        self.assertEqual(2, get_spline_order("x", {"x": 2}))
+        self.assertEqual(3, get_spline_order("y", {"x": 2}))
+        self.assertEqual(0, get_spline_order("y", {"x": 2}, is_categorical=True))
+        with pytest.raises(ValueError, match="Unknown spline order: 4"):
+            get_spline_order("x", 4)

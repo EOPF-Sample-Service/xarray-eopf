@@ -5,12 +5,15 @@
 from unittest import TestCase
 
 import numpy as np
+import pytest
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisModeRegistry
 from xarray_eopf.amodes.sentinel2 import register
 from xarray_eopf.amodes.sentinel2 import MSIL1C
 from xarray_eopf.amodes.sentinel2 import MSIL2A
+from tests.helpers import make_s2_msi_l1c
+from tests.helpers import make_s2_msi_l2a
 
 
 class Sentinel2AnalysisModeTest(TestCase):
@@ -22,6 +25,7 @@ class Sentinel2AnalysisModeTest(TestCase):
 
 # noinspection PyUnresolvedReferences
 class MSITestMixin:
+
     def test_is_valid_source(self: TestCase):
         pass
 
@@ -55,6 +59,48 @@ class MSITestMixin:
         self.assertEqual("spatial_ref", dataset.b02.attrs.get("grid_mapping"))
         self.assertEqual("spatial_ref", dataset.b03.attrs.get("grid_mapping"))
 
+    def assert_transform_datatree_ok(self, original_dt: xr.DataTree):
+        with pytest.raises(NotImplementedError):
+            _dt = self.mode.transform_datatree(original_dt, resolution=10)
+
+    def assert_convert_datatree_ok(
+        self,
+        original_dt: xr.DataTree,
+        expected_var_names: list[str],
+        expected_size: int,
+    ):
+        ds = self.mode.convert_datatree(original_dt, resolution=10)
+        self.assertIsInstance(ds, xr.Dataset)
+        self.assertEqual(
+            expected_var_names,
+            sorted(ds.data_vars.keys()),
+        )
+        for var_name, var in ds.data_vars.items():
+            self.assertEqual((expected_size, expected_size), var.shape, msg=var_name)
+
+        # noinspection PyTypeChecker
+        self.assertEqual(
+            ["spatial_ref", "x", "y"],
+            sorted(ds.coords.keys()),
+        )
+        self.assertEqual((expected_size,), ds.x.shape, msg="x")
+        self.assertEqual((expected_size,), ds.y.shape, msg="y")
+
+    def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
+
+        with pytest.raises(ValueError, match="No variables selected"):
+            self.mode.convert_datatree(original_dt, includes="bibo")
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "No reference variable found."
+                " At least one of the selected variables must have"
+                " a native resolution that equals the target resolution."
+            ),
+        ):
+            self.mode.convert_datatree(original_dt, includes=["b11", "b12"])
+
 
 class MSIL1CTest(MSITestMixin, TestCase):
     mode = MSIL1C()
@@ -62,6 +108,34 @@ class MSIL1CTest(MSITestMixin, TestCase):
     def test_is_valid_source(self):
         self.assertTrue(self.mode.is_valid_source("S2A_MSIL1C_20240201.zarr"))
         self.assertFalse(self.mode.is_valid_source("S2A_MSIL2A_20240201.zarr"))
+        self.assertFalse(self.mode.is_valid_source(dict()))
+
+    def test_transform_datatree(self):
+        self.assert_transform_datatree_ok(make_s2_msi_l1c())
+
+    def test_convert_datatree(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=48),
+            expected_var_names=[
+                "b01",
+                "b02",
+                "b03",
+                "b04",
+                "b05",
+                "b06",
+                "b07",
+                "b08",
+                "b09",
+                "b10",
+                "b11",
+                "b12",
+                "b8a",
+            ],
+            expected_size=48,
+        )
+
+    def test_convert_datatree_fail(self):
+        self.assert_convert_datatree_fail(make_s2_msi_l1c(r10m_size=48))
 
 
 class MSIL2ATest(MSITestMixin, TestCase):
@@ -70,3 +144,32 @@ class MSIL2ATest(MSITestMixin, TestCase):
     def test_is_valid_source(self):
         self.assertTrue(self.mode.is_valid_source("S2A_MSIL2A_20240201.zarr"))
         self.assertFalse(self.mode.is_valid_source("S2A_MSIL1C_20240201.zarr"))
+        self.assertFalse(self.mode.is_valid_source(dict()))
+
+    def test_transform_datatree(self):
+        self.assert_transform_datatree_ok(make_s2_msi_l2a())
+
+    def test_convert_datatree_ok(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l2a(r10m_size=48),
+            expected_var_names=[
+                "b01",
+                "b02",
+                "b03",
+                "b04",
+                "b05",
+                "b06",
+                "b07",
+                "b08",
+                "b11",
+                "b12",
+                "b8a",
+                "cld",
+                "scl",
+                "snw",
+            ],
+            expected_size=48,
+        )
+
+    def test_convert_datatree_fail(self):
+        self.assert_convert_datatree_fail(make_s2_msi_l2a(r10m_size=48))

@@ -36,10 +36,10 @@ def make_s2_msi_l1c(r10m_size: int = 48) -> xr.DataTree:
 def make_s2_msi_l2a(r10m_size: int = 48) -> xr.DataTree:
     return create_datatree(
         {
-            "conditions/masks/l2a_classification/r20m": make_s2_msi_l2a_scl_r20m(
+            "conditions/mask/l2a_classification/r20m": make_s2_msi_l2a_scl_r20m(
                 r10m_size
             ),
-            "conditions/masks/l2a_classification/r60m": make_s2_msi_l2a_scl_r60m(
+            "conditions/mask/l2a_classification/r60m": make_s2_msi_l2a_scl_r60m(
                 r10m_size
             ),
             "measurements/reflectance/r10m": make_s2_msi_l2a_r10m(r10m_size),
@@ -97,7 +97,7 @@ def make_s2_msi_scl(size: int) -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             "scl": xr.DataArray(
-                np.random.randint(0, 2 << 8, (size, size), dtype="uint8"),
+                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={},
             ).chunk(x=4, y=4)
@@ -111,12 +111,12 @@ def make_s2_msi_l2a_probs_r20m(r10m_size: int):
     return xr.Dataset(
         data_vars={
             "cld": xr.DataArray(
-                np.random.randint(0, 2 << 8, (size, size), dtype="uint8"),
+                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={},
             ).chunk(x=4, y=4),
             "snw": xr.DataArray(
-                np.random.randint(0, 2 << 8, (size, size), dtype="uint8"),
+                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={},
             ).chunk(x=4, y=4),
@@ -133,7 +133,7 @@ def make_s2_msi_rx0m(bands: list[str], size: int) -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             band: xr.DataArray(
-                np.random.randint(0, 2 << 15, (size, size), dtype="uint16"),
+                np.random.randint(0, 1 << 16, (size, size), dtype="uint16"),
                 dims=("y", "x"),
                 attrs={
                     "_FillValue": 0,
@@ -165,14 +165,15 @@ def make_coords(w: int, h: int) -> dict[str, xr.DataArray]:
 def create_datatree(
     datasets: dict[str, xr.Dataset], attrs: dict[str, Any] | None = None
 ) -> xr.DataTree:
-    root = xr.DataTree(dataset=xr.Dataset(attrs=attrs or {}))
+    root_group = xr.DataTree(dataset=xr.Dataset(attrs=attrs or {}))
     for group_path, dataset in datasets.items():
         path_names = group_path.split("/")
-        current = root
-        for group_name in group_path.split("/")[:-1]:
-            if group_name in current:
-                current = current[group_name]
-            else:
-                current[group_name] = xr.DataTree()
-        current[path_names[-1]] = xr.DataTree(dataset=dataset)
-    return root
+        last_group = root_group
+        for group_name in path_names[:-1]:
+            if group_name:
+                if group_name not in last_group:
+                    last_group[group_name] = xr.DataTree(name=group_name)
+                last_group = last_group[group_name]
+        group_name = path_names[-1]
+        last_group[group_name] = xr.DataTree(name=group_name, dataset=dataset)
+    return root_group

@@ -4,10 +4,12 @@
 
 from unittest import TestCase
 
+import fsspec
 import pytest
 import xarray as xr
 
 from tests.helpers import make_s2_msi
+from tests.helpers import make_s2_msi_l2a
 from xarray_eopf.backend import EopfBackend
 
 
@@ -67,29 +69,63 @@ class NativeModeTest(TestCase):
 
 
 class AnalysisModeTest(TestCase):
+    path = "memory://S2A_MSIL2A_X.zarr"
+
     @classmethod
     def setUpClass(cls):
-        original_dt = make_s2_msi()
-        original_dt.to_zarr("memory://S02MSIL1C.zarr", mode="w")
+        original_dt = make_s2_msi_l2a()
+        original_dt.to_zarr(cls.path, mode="w")
+
+    def test_open_dataset_ok(self):
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(self.path, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dataset, xr.Dataset)
+        # Note, more detailed analysis is done in `tests/amodes`
+        self.assertEqual(
+            [
+                "b01",
+                "b02",
+                "b03",
+                "b04",
+                "b05",
+                "b06",
+                "b07",
+                "b08",
+                "b11",
+                "b12",
+                "b8a",
+                "cld",
+                "scl",
+                "snw",
+            ],
+            sorted(dataset.data_vars.keys()),
+        )
+        self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))
 
     # noinspection PyMethodMayBeStatic
-    def test_open_datatree(self):
-        # TODO: make a better test ;)
+    def test_open_dataset_fail(self):
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
+        store = fs.get_mapper(root=self.path)
         with pytest.raises(
             ValueError, match="Unable to detect analysis mode for input"
         ):
+            # noinspection PyTypeChecker
+            _dataset = xr.open_dataset(store, engine="eopf-zarr", op_mode="analysis")
+
+    # noinspection PyMethodMayBeStatic
+    def test_open_datatree_ok(self):
+        with pytest.raises(NotImplementedError):
             # noinspection PyTypeChecker
             _data_tree = xr.open_datatree(
-                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="analysis"
+                self.path, engine="eopf-zarr", op_mode="analysis"
             )
 
     # noinspection PyMethodMayBeStatic
-    def test_open_dataset(self):
-        # TODO: make a better test ;)
+    def test_open_datatree_fail(self):
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
+        store = fs.get_mapper(root=self.path)
         with pytest.raises(
             ValueError, match="Unable to detect analysis mode for input"
         ):
             # noinspection PyTypeChecker
-            _dataset = xr.open_dataset(
-                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="analysis"
-            )
+            _data_tree = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")

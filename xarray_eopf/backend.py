@@ -195,11 +195,14 @@ class EopfBackend(BackendEntrypoint):
         """Check if the given `filename_or_obj` refers to an object that
         can be opened by this backend.
 
+        The function returns `False` to indicate that this backend should
+        only be used when specified by passing `engine="eopf-zarr"`.
+
         Args:
             filename_or_obj: File path, or URL, or path-like string.
 
         Returns:
-            Currently always `False`.
+            Always `False`.
         """
         return False
 
@@ -226,12 +229,6 @@ def _assert_dataset_is_chunked(dataset: xr.Dataset, name: str | None = None):
     ds_name = name or "dataset"
     for var_name, var in dataset.data_vars.items():
         assert var.chunks is not None, f"{ds_name}.{var_name}: no chunks"
-        # chunk_shape = tuple(
-        #     (max(*c) if len(c) > 1 else c[0]) for c in var.chunks
-        # )
-        # assert var.shape != chunk_shape, (
-        #     f"{ds_name}.{var_name}: shape equals chunking"
-        # )
 
 
 register_analysis_modes()

@@ -12,7 +12,7 @@ from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
 
 
 def open_store(
-    filename_or_obj: str,
+    filename_or_obj: Any,
     protocol: str | None,
     storage_options: Mapping[str, Any] | None,
 ) -> Any:
@@ -20,11 +20,9 @@ def open_store(
         return _open_fs_store(filename_or_obj, protocol, storage_options)
     else:
         if protocol is not None:
-            raise ValueError("the protocol argument applies only to paths or URLs")
+            raise ValueError("protocol argument applies only to paths or URLs")
         if storage_options is not None:
-            raise ValueError(
-                "the storage_options argument applies only to paths or URLs"
-            )
+            raise ValueError("storage_options argument applies only to paths or URLs")
         return filename_or_obj
 
 
@@ -54,12 +52,15 @@ def _open_fs_store(
 
     fs = fsspec.filesystem(protocol, **storage_options)
     if is_ceph_fs and isinstance(fs, s3fs.S3FileSystem):
+        # The following is a hack to force
+        # boto3 to deal with colons in bucket names
         s3_fs: s3fs.S3FileSystem = fs
         # unregister handler to make boto3 work with CEPH
         # noinspection PyProtectedMember
         handlers = s3_fs.s3.meta.events._emitter._handlers
         handlers_to_unregister = handlers.prefix_search("before-parameter-build.s3")
         if len(handlers_to_unregister):
+            # The first handler should be the function 'validate_bucket_name()'
             handler_to_unregister = handlers_to_unregister[0]
             # noinspection PyProtectedMember
             s3_fs.s3.meta.events._emitter.unregister(

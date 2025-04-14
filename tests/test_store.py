@@ -3,9 +3,11 @@
 #  https://opensource.org/license/apache-2-0.
 
 from unittest import TestCase
+
 import fsspec
 import pytest
 import s3fs
+
 from xarray_eopf.store import open_store
 
 

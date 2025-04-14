@@ -10,12 +10,12 @@ import pyproj.crs
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.spatial import get_spatial_vars, rescale_spatial_vars, SplineOrder
+from xarray_eopf.spatial import SplineOrder, get_spatial_vars, rescale_spatial_vars
 from xarray_eopf.utils import (
+    NameFilter,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
-    NameFilter,
 )
 
 # Resolutions of bands and variables in the order they contribute

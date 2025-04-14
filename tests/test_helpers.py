@@ -6,8 +6,7 @@ from unittest import TestCase
 
 import xarray as xr
 
-from tests.helpers import make_s2_msi_l2a
-from tests.helpers import make_s2_msi_l1c
+from tests.helpers import make_s2_msi_l1c, make_s2_msi_l2a
 
 
 class HelpersTest(TestCase):

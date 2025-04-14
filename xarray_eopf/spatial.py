@@ -2,16 +2,14 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from collections.abc import Mapping, Hashable
-from typing import Literal, TypeAlias, Any
+from collections.abc import Hashable, Mapping
+from typing import Any, Literal, TypeAlias
 
 import dask_image.ndinterp as ndinterp
 import numpy as np
 import xarray as xr
 
-
 from xarray_eopf.utils import timeit
-
 
 _DEBUG = False
 

@@ -8,12 +8,9 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from tests.helpers import make_s2_msi_l1c, make_s2_msi_l2a
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel2 import register
-from xarray_eopf.amodes.sentinel2 import MSIL1C
-from xarray_eopf.amodes.sentinel2 import MSIL2A
-from tests.helpers import make_s2_msi_l1c
-from tests.helpers import make_s2_msi_l2a
+from xarray_eopf.amodes.sentinel2 import MSIL1C, MSIL2A, register
 
 
 class Sentinel2AnalysisModeTest(TestCase):
@@ -25,7 +22,6 @@ class Sentinel2AnalysisModeTest(TestCase):
 
 # noinspection PyUnresolvedReferences
 class MSITestMixin:
-
     def test_is_valid_source(self: TestCase):
         pass
 
@@ -87,7 +83,6 @@ class MSITestMixin:
         self.assertEqual((expected_size,), ds.y.shape, msg="y")
 
     def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
-
         with pytest.raises(ValueError, match="No variables selected"):
             self.mode.convert_datatree(original_dt, includes="bibo")
 

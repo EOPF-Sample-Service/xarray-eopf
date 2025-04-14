@@ -10,8 +10,7 @@ import xarray as xr
 
 from tests.helpers import make_s2_msi
 from xarray_eopf.flatten import flatten_datatree
-from xarray_eopf.spatial import rescale_spatial_vars
-from xarray_eopf.spatial import get_spline_order, get_agg_method
+from xarray_eopf.spatial import get_agg_method, get_spline_order, rescale_spatial_vars
 
 
 class RescaleSpatialVarsTest(TestCase):

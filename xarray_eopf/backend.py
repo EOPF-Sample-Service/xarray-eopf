@@ -7,20 +7,20 @@ from collections.abc import Mapping
 from typing import Any, Iterable
 
 import xarray as xr
-from xarray.backends import BackendEntrypoint, AbstractDataStore
+from xarray.backends import AbstractDataStore, BackendEntrypoint
 from xarray.coding.times import CFTimedeltaCoder
 from xarray.core.types import ReadBuffer
 
+from .amode import AnalysisMode
+from .amodes import register_analysis_modes
 from .constants import (
-    OpMode,
     OP_MODE_ANALYSIS,
     OP_MODE_NATIVE,
     OP_MODES,
+    OpMode,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .amode import AnalysisMode
-from .amodes import register_analysis_modes
 from .store import open_store
 from .utils import assert_arg_is_one_of
 

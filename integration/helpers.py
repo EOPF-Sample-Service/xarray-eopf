@@ -2,7 +2,7 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from collections.abc import Mapping, Hashable
+from collections.abc import Hashable, Mapping
 from unittest import TestCase
 
 import dask.array

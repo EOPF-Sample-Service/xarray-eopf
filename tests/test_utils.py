@@ -8,11 +8,13 @@ import pytest
 import xarray as xr
 
 from tests.helpers import make_s2_msi
-from xarray_eopf.utils import NameFilter
-from xarray_eopf.utils import get_data_tree_item
-from xarray_eopf.utils import assert_arg_is_one_of
-from xarray_eopf.utils import assert_arg_is_instance
-from xarray_eopf.utils import timeit
+from xarray_eopf.utils import (
+    NameFilter,
+    assert_arg_is_instance,
+    assert_arg_is_one_of,
+    get_data_tree_item,
+    timeit,
+)
 
 
 class AssertionTest(TestCase):

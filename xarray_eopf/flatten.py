@@ -5,6 +5,7 @@
 import xarray as xr
 
 from xarray_eopf.constants import DS_MERGE_KWARGS
+
 from .prefix import get_unique_short_sequences
 
 

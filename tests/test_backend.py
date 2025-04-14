@@ -8,8 +8,7 @@ import fsspec
 import pytest
 import xarray as xr
 
-from tests.helpers import make_s2_msi
-from tests.helpers import make_s2_msi_l2a
+from tests.helpers import make_s2_msi, make_s2_msi_l2a
 from xarray_eopf.backend import EopfBackend
 
 

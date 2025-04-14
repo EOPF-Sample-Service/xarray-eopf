@@ -6,10 +6,10 @@ namely _analysis mode_ and _native mode_, which are described in the following.
 This mode aims at representing the EOPF data products in an analysis-ready and 
 convenient form using the `xarray` data models `DataTree` and `Dataset`. 
 
-By default, data products are provided using a common single grid-mapping
-for all data variables. That is, spatial up- and downscaling is applied
-to selected variables in order to use only a single pair of `x` and `y` 
-coordinates in the returned datasets.
+By default, data products are provided using a unified grid mapping 
+for all variables. This means that selected variables are spatially upscaled 
+or downscaled as needed, so that the dataset can use a single shared pair 
+of `x` and `y` coordinates in the returned datasets.
 
 ### Function `open_datatree()`
 

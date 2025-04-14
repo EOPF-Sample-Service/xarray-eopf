@@ -22,7 +22,7 @@ def flatten_datatree(
 
     Returns:
         A single dataset with variable and dimension names
-        ´ renamed to be unique.
+        renamed to be unique.
     """
     prefix_ = f"{prefix}{sep}"
 

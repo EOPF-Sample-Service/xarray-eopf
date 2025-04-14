@@ -86,29 +86,40 @@ def rescale_spatial_vars(
     ref_var = spatial_variables[ref_var_name]
     ref_spatial_shape = ref_var.shape[-2:]
     rescaled_variables = {}
+
+    def format_factor(factor):
+        return f"{factor:.6f}".rstrip("0").rstrip(".")
+
     for var_name, var in spatial_variables.items():
+        var_attrs = dict(var.attrs)
+        ref_y_dim, ref_x_dim = ref_var.dims[-2:]
+        y_dim, x_dim = var.dims[-2:]
         spatial_shape = var.shape[-2:]
         if spatial_shape != ref_spatial_shape:
-            scale_y = spatial_shape[0] / ref_spatial_shape[0]
-            scale_x = spatial_shape[1] / ref_spatial_shape[1]
-            is_down_sampling = scale_x + eps > 1.0
+            y_scale = spatial_shape[0] / ref_spatial_shape[0]
+            x_scale = spatial_shape[1] / ref_spatial_shape[1]
+            is_down_sampling = x_scale + eps > 1.0
             is_integer = np.issubdtype(var.dtype, np.integer)
             if is_down_sampling:
                 method = get_agg_method(var_name, agg_method, is_categorical=is_integer)
-                isx = int(scale_x)
-                isy = int(scale_y)
-                if abs(isx - scale_x) < eps and abs(isy - scale_y) < eps:
+                isx = int(x_scale)
+                isy = int(y_scale)
+                if abs(isx - x_scale) < eps and abs(isy - y_scale) < eps:
                     with timeit(f"down-sampling {var_name!r}", silent=not _DEBUG):
-                        y_name, x_name = var.dims[-2:]
-                        coarsened = var.coarsen(**{y_name: isy, x_name: isx})
+                        coarsened = var.coarsen(**{y_dim: isy, x_dim: isx})
                         rescaled_data = getattr(coarsened, method)()
+                    var_attrs["history"] = (
+                        f"Down-sampling by factors"
+                        f" {ref_x_dim}={isx} and {ref_y_dim}={isy}"
+                        f" using aggregation method {method!r}."
+                    )
                 else:
                     # TODO: implement down-sampling for non-integer factors
                     raise NotImplementedError(
                         "Down-sampling only implemented for integer factors"
                     )
             else:
-                factors = (var.ndim - 2) * (1,) + (scale_y, scale_x)
+                factors = (var.ndim - 2) * (1,) + (y_scale, x_scale)
                 matrix = np.diag(factors)
                 order = get_spline_order(
                     var_name, spline_order, is_categorical=is_integer
@@ -121,9 +132,13 @@ def rescale_spatial_vars(
                         output_chunks=ref_var.chunks,
                         output_shape=var.shape[:-2] + ref_spatial_shape,
                     )
+                var_attrs["history"] = (
+                    f"Up-sampling by factors"
+                    f" {ref_x_dim}={format_factor(x_scale)} and"
+                    f" {ref_y_dim}={format_factor(y_scale)}"
+                    f" using spline interpolation of order {order}."
+                )
             rescaled_data = rescaled_data.astype(var.dtype)
-            y_dim, x_dim = var.dims[-2:]
-            ref_y_dim, ref_x_dim = ref_var.dims[-2:]
             coords = dict(var.coords)
             coords.pop(x_dim, None)
             coords.pop(y_dim, None)
@@ -134,7 +149,7 @@ def rescale_spatial_vars(
                 data=rescaled_data,
                 dims=var.dims[:-2] + ref_var.dims[-2:],
                 name=var.name,
-                attrs=var.attrs,
+                attrs=var_attrs,
             ).chunk(ref_var.chunks)
             for enc_name in ("chunks", "preferred_chunks"):
                 if enc_name in ref_var.encoding:

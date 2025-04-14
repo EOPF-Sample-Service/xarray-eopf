@@ -28,13 +28,63 @@ class RescaleSpatialVarsTest(TestCase):
         rescaled_vars = rescale_spatial_vars(self.ds.data_vars)
         self.assert_rescale_spatial_vars_ok(rescaled_vars, 48)
 
+        self.assertEqual(None, rescaled_vars["r10m_b02"].attrs.get("history"))
+        self.assertEqual(
+            (
+                "Up-sampling by factors"
+                " r10m_x=0.5 and r10m_y=0.5"
+                " using spline interpolation of order 0."
+            ),
+            rescaled_vars["r20m_b05"].attrs.get("history"),
+        )
+        self.assertEqual(
+            (
+                "Up-sampling by factors"
+                " r10m_x=0.166667 and r10m_y=0.166667"
+                " using spline interpolation of order 0."
+            ),
+            rescaled_vars["r60m_b01"].attrs.get("history"),
+        )
+
     def test_s2_msi_to_20m(self):
         rescaled_vars = rescale_spatial_vars(self.ds.data_vars, ref_var_name="r20m_b05")
         self.assert_rescale_spatial_vars_ok(rescaled_vars, 24)
 
+        self.assertEqual(
+            "Down-sampling by factors r20m_x=2 and r20m_y=2"
+            " using aggregation method 'max'.",
+            rescaled_vars["r10m_b02"].attrs.get("history"),
+        )
+        self.assertEqual(
+            None,
+            rescaled_vars["r20m_b05"].attrs.get("history"),
+        )
+        self.assertEqual(
+            (
+                "Up-sampling by factors r20m_x=0.333333 and r20m_y=0.333333 using "
+                "spline interpolation of order 0."
+            ),
+            rescaled_vars["r60m_b01"].attrs.get("history"),
+        )
+
     def test_s2_msi_to_60m(self):
         rescaled_vars = rescale_spatial_vars(self.ds.data_vars, ref_var_name="r60m_b01")
         self.assert_rescale_spatial_vars_ok(rescaled_vars, 8)
+
+        self.assertEqual(
+            "Down-sampling by factors r60m_x=6 and r60m_y=6"
+            " using aggregation method 'max'.",
+            rescaled_vars["r10m_b02"].attrs.get("history"),
+        )
+        self.assertEqual(
+            "Down-sampling by factors r60m_x=3 and r60m_y=3"
+            " using aggregation method 'max'.",
+            rescaled_vars["r20m_b05"].attrs.get("history"),
+        )
+        self.assertEqual(
+            None,
+            rescaled_vars["r60m_b01"].attrs.get("history"),
+        )
 
     def assert_rescale_spatial_vars_ok(
         self, rescaled_vars: Mapping[Hashable, xr.DataArray], target_res: int

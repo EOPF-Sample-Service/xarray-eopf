@@ -47,10 +47,6 @@ def flatten_datatree(
                         for dim, chunk_size in preferred_chunks.items()
                     }
                     var.encoding["preferred_chunks"] = renamed_chunks
-                    print(
-                        f"{var_name}:"
-                        f" preferred_chunks={var.encoding['preferred_chunks']}"
-                    )
 
         return dataset
 

@@ -1,30 +1,18 @@
 The xarray backend for EOPF data products `"eopf-zarr"` has two modes of operation,
-namely _analysis mode_ and _native mode_, which are described in the following. 
+namely _analysis mode_ (the default) and _native mode_, which are described in 
+the following. 
 
 ## Analysis Mode
 
 This mode aims at representing the EOPF data products in an analysis-ready and 
 convenient form using the `xarray` data models `DataTree` and `Dataset`. 
+For this reason, it is the default mode of operation when using the `"eopf-zarr"` 
+backend.
 
-By default, data products are provided using a unified grid mapping 
-for all variables. This means that selected variables are spatially upscaled 
-or downscaled as needed, so that the dataset can use a single shared pair 
-of `x` and `y` coordinates in the returned datasets.
-
-### Function `open_datatree()`
-
-Synopsis: 
-
-```python
-datatree = xr.open_datatree(
-    filename_or_obj, 
-    engine="eopf-zarr", 
-    op_mode="analysis", 
-    **kwargs
-)
-```
-
-_Not implemented yet._
+The data products are provided in this mode use a unified grid mapping 
+for all their data variables. This means that selected variables are 
+spatially up-scaled or down-scaled as needed, so that the dataset can use a 
+single shared pair of `x` and `y` coordinates in the returned datasets.
 
 ### Function `open_dataset()`
 
@@ -39,10 +27,8 @@ dataset = xr.open_dataset(
 )
 ```
 
-Works basically as `open_datatree()` but using flattened Zarr groups, e.g., groups 
-`r10m`, `r20m`, `r60m` in Sentinel 2 MSI products.
-Flattening includes renaming variables and dimensions by prefixing them using the 
-concatenated names of nested groups. 
+Returns a EOPF data product from Sentinel-1, -2, or -3 in a analysis-ready, convenient 
+form. All bands and quality flags are resampled to a unified, user-provided resolution. 
 
 Parameters `**params`:
 
@@ -58,6 +44,22 @@ Parameters `**params`:
   Only required if `filename_or_obj` is not a path or URL 
   that refers to a product path adhering to EOPF naming conventions.
 
+
+### Function `open_datatree()`
+
+Synopsis: 
+
+```python
+datatree = xr.open_datatree(
+    filename_or_obj, 
+    engine="eopf-zarr", 
+    op_mode="analysis", 
+    **kwargs
+)
+```
+
+This function is currently not implemented for the analysis mode
+and will raise a `NotImplementedError`.
 
 ## Native Mode
 
@@ -80,6 +82,9 @@ datatree = xr.open_datatree(
 
 Opens a data product as-is including Zarr groups and returns a data tree object.
 
+This function currently returns the result of calling 
+`xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)`.  
+
 ### Function `open_dataset()`
 
 Synopsis:  
@@ -100,6 +105,10 @@ group paths to make them unique in the returned dataset. For example, the variab
 `b02` found in the group `measurements/reflectance/r10m` will be renamed to 
 `measurements_reflectance_r10m_b02` using the default underscore group separator.
 The separator character is configurable by setting the `group_sep` parameter.
+
+The main use case for this function is to allow passing an EOPF data product 
+where the type `xr.Dataset` is expected (not `xr.DataTree`) and where the naming of 
+dimensions and variables is not an issue.
 
 Parameters `**params`:
 

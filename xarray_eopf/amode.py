@@ -1,6 +1,7 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
+
 from pathlib import Path
 
 from abc import ABC, abstractmethod
@@ -45,7 +46,11 @@ class AnalysisMode(ABC):
         if analysis_mode is None:
             analysis_mode = AnalysisMode.from_source(source)
         if analysis_mode is None:
-            raise ValueError("Unable to detect analysis mode for input")
+            raise ValueError(
+                "Unable to detect analysis mode for input."
+                " Use product_type argument to pass one of"
+                f" {', '.join(map(repr, cls.registry.keys()))}."
+            )
         return analysis_mode
 
     @classmethod

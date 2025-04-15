@@ -5,6 +5,7 @@
 from typing import Iterable
 
 import xarray as xr
+from dask.core import keys_in_tasks
 
 from .utils import NameFilter
 
@@ -17,9 +18,8 @@ def filter_dataset(
         return dataset
     name_filter = NameFilter(includes=variables)
     names = set(map(str, dataset.variables.keys()))
+    # find all dataset variables including respective coordinates
     drop_names = names - set(name_filter.filter(names))
     if drop_names:
-        # TODO: also drop now unused coordinates + dimensions as
-        #  they remain even if no longer referenced by any data variables
         dataset = dataset.drop_vars(drop_names)
     return dataset

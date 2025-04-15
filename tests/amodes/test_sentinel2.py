@@ -4,9 +4,11 @@
 
 from unittest import TestCase
 
+import fsspec
 import numpy as np
 import pytest
 import xarray as xr
+import zarr.storage
 
 from tests.helpers import make_s2_msi_l1c, make_s2_msi_l2a
 from xarray_eopf.amode import AnalysisModeRegistry
@@ -100,9 +102,22 @@ class MSITestMixin:
 class MSIL1CTest(MSITestMixin, TestCase):
     mode = MSIL1C()
 
-    def test_is_valid_source(self):
-        self.assertTrue(self.mode.is_valid_source("S2A_MSIL1C_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source("S2A_MSIL2A_20240201.zarr"))
+    def test_is_valid_source_ok(self):
+        self.assertTrue(self.mode.is_valid_source("data/S2A_MSIL1C_20240201.zarr"))
+        self.assertTrue(
+            self.mode.is_valid_source(
+                zarr.storage.DirectoryStore("data/S2A_MSIL1C_20240201.zarr")
+            )
+        )
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("local")
+        self.assertTrue(
+            self.mode.is_valid_source(
+                fs.get_mapper(root="data/S2A_MSIL1C_20240201.zarr")
+            )
+        )
+
+    def test_is_no_valid_source(self):
+        self.assertFalse(self.mode.is_valid_source("data/S2A_MSIL2A_20240201.zarr"))
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_transform_datatree(self):

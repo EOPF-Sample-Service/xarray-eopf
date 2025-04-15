@@ -95,7 +95,9 @@ class EopfBackend(BackendEntrypoint):
         if op_mode == OP_MODE_NATIVE:
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
-            analysis_mode = _guess_analysis_mode(filename_or_obj, product_type)
+            analysis_mode = AnalysisMode.guess(
+                filename_or_obj, product_type=product_type
+            )
             return analysis_mode.transform_datatree(datatree)
 
     def open_dataset(
@@ -178,7 +180,9 @@ class EopfBackend(BackendEntrypoint):
             dataset = flatten_datatree(datatree, sep=group_sep)
             dataset = filter_dataset(dataset, variables)
         else:  # op_mode == OP_MODE_ANALYSIS
-            analysis_mode = _guess_analysis_mode(filename_or_obj, product_type)
+            analysis_mode = AnalysisMode.guess(
+                filename_or_obj, product_type=product_type
+            )
             params = analysis_mode.get_applicable_params(
                 resolution=resolution, spline_order=spline_order
             )
@@ -205,19 +209,6 @@ class EopfBackend(BackendEntrypoint):
             Always `False`.
         """
         return False
-
-
-def _guess_analysis_mode(
-    filename_or_obj: Any, product_type: str | None
-) -> AnalysisMode:
-    analysis_mode: AnalysisMode | None = None
-    if product_type:
-        analysis_mode = AnalysisMode.from_product_type(product_type)
-    if analysis_mode is None:
-        analysis_mode = AnalysisMode.from_source(filename_or_obj)
-    if analysis_mode is None:
-        raise ValueError("Unable to detect analysis mode for input")
-    return analysis_mode
 
 
 def _assert_datatree_is_chunked(datatree: xr.DataTree):

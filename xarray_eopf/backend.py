@@ -51,15 +51,16 @@ class EopfBackend(BackendEntrypoint):
         [`xarray.open_datatree()`](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).
 
         Args:
-            filename_or_obj: File path, or URL, or path-like string.
+            filename_or_obj: File path, or URL, a path-like string, or
+                a Zarr store, or other key to object mapping.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_type: Product type name, such as `"S2B_MSIL1C"`.
-                Only used if `op_mode="analysis"` and
-                only required if `filename_or_obj` is not a path or URL
-                that refers to a product path adhering to EOPF naming conventions.
+            product_type: Optional product type name, such as `"MSIL1C"`.
+                Only used if `op_mode="analysis"`. You should not need
+                pass this argument, if the filename inherent to `filename_or_obj`
+                adheres to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL,
-                forces using the filesystem protocol.
+                forces using the specified filesystem protocol.
                 Otherwise, the protocol will be derived from the file path or URL.
                 Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,
@@ -128,12 +129,12 @@ class EopfBackend(BackendEntrypoint):
             filename_or_obj: File path, or URL, or path-like string.
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
-            product_type: Product type name, such as `"S2B_MSIL1C"`.
-                Only used if `op_mode="analysis"` and
-                only required if `filename_or_obj` is not a path or URL
-                that refers to a product path adhering to EOPF naming conventions.
+            product_type: Optional product type name, such as `"MSIL1C"`.
+                Only used if `op_mode="analysis"`. You should not need
+                pass this argument, if the filename inherent to `filename_or_obj`
+                adheres to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL,
-                forces using the filesystem protocol.
+                forces using the specified filesystem protocol.
                 Otherwise, the protocol will be derived from the file path or URL.
                 Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,

@@ -5,7 +5,6 @@
 from typing import Iterable
 
 import xarray as xr
-from dask.core import keys_in_tasks
 
 from .utils import NameFilter
 

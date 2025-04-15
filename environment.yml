@@ -6,9 +6,12 @@ dependencies:
   # Library Dependencies
   - aiohttp
   - dask
+  - dask-image
   - fsspec
   - numpy
+  - pyproj
   - requests
+  - s3fs
   - xarray >=2024.10
   - zarr >=2,<3.0
   # Development Dependencies - Tools

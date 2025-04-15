@@ -4,9 +4,11 @@
 
 from unittest import TestCase
 
-import numpy as np
+import fsspec
+import pytest
 import xarray as xr
 
+from tests.helpers import make_s2_msi, make_s2_msi_l2a
 from xarray_eopf.backend import EopfBackend
 
 
@@ -16,65 +18,113 @@ class EopfBackendTest(TestCase):
         self.assertIn("eopf-zarr", engines)
         self.assertIsInstance(engines["eopf-zarr"], EopfBackend)
 
-    def test_open_datatree(self):
+    # noinspection PyTypeChecker,PyMethodMayBeStatic
+    def test_mode_is_validated(self):
+        with pytest.raises(
+            ValueError,
+            match="mode argument must be 'analysis' or 'native', was 'convenience'",
+        ):
+            xr.open_datatree(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="convenience"
+            )
+        with pytest.raises(
+            ValueError,
+            match="op_mode argument must be 'analysis' or 'native', was 'sensor'",
+        ):
+            xr.open_dataset(
+                "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="sensor"
+            )
+
+
+class NativeModeTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
         original_dt = make_s2_msi()
         original_dt.to_zarr("memory://S02MSIL1C.zarr", mode="w")
-        data_tree = xr.open_datatree("memory://S02MSIL1C.zarr", engine="eopf-zarr")
+
+    def test_open_datatree(self):
+        # noinspection PyTypeChecker
+        data_tree = xr.open_datatree(
+            "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="native"
+        )
         self.assertIn("r10m", data_tree)
         self.assertIn("r20m", data_tree)
         self.assertIn("r60m", data_tree)
 
     def test_open_dataset(self):
-        original_ds = make_s2_msi_r60m()
-        original_ds.to_zarr("memory://S02MSIL1C.zarr", mode="w")
-        dataset = xr.open_dataset("memory://S02MSIL1C.zarr", engine="eopf-zarr")
-        self.assertIn("b01", dataset)
-        self.assertIn("b09", dataset)
-        self.assertIn("b10", dataset)
-        self.assertIn("x", dataset)
-        self.assertIn("y", dataset)
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(
+            "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="native"
+        )
+        self.assertIn("r60m_b01", dataset)
+        self.assertIn("r10m_b02", dataset)
+        self.assertIn("r20m_b05", dataset)
+        self.assertIn("r10m_x", dataset)
+        self.assertIn("r10m_y", dataset)
+        self.assertIn("r20m_x", dataset)
+        self.assertIn("r20m_y", dataset)
+        self.assertIn("r60m_x", dataset)
+        self.assertIn("r60m_y", dataset)
 
 
-def make_s2_msi() -> xr.DataTree:
-    return xr.DataTree(
-        children={
-            "r10m": xr.DataTree(dataset=make_s2_msi_r10m()),
-            "r20m": xr.DataTree(dataset=make_s2_msi_r20m()),
-            "r60m": xr.DataTree(dataset=make_s2_msi_r60m()),
-        }
-    )
+class AnalysisModeTest(TestCase):
+    path = "memory://S2A_MSIL2A_X.zarr"
 
+    @classmethod
+    def setUpClass(cls):
+        original_dt = make_s2_msi_l2a()
+        original_dt.to_zarr(cls.path, mode="w")
 
-def make_s2_msi_r10m() -> xr.Dataset:
-    return make_s2_msi_rx0m(["b02", "b03", "b04", "b08"], 48, 48)
+    def test_open_dataset_ok(self):
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(self.path, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dataset, xr.Dataset)
+        # Note, more detailed analysis is done in `tests/amodes`
+        self.assertEqual(
+            [
+                "b01",
+                "b02",
+                "b03",
+                "b04",
+                "b05",
+                "b06",
+                "b07",
+                "b08",
+                "b11",
+                "b12",
+                "b8a",
+                "cld",
+                "scl",
+                "snw",
+            ],
+            sorted(dataset.data_vars.keys()),
+        )
+        self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))
 
+    # noinspection PyMethodMayBeStatic
+    def test_open_dataset_fail(self):
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
+        store = fs.get_mapper(root=self.path)
+        with pytest.raises(
+            ValueError, match="Unable to detect analysis mode for input"
+        ):
+            # noinspection PyTypeChecker
+            _dataset = xr.open_dataset(store, engine="eopf-zarr", op_mode="analysis")
 
-def make_s2_msi_r20m() -> xr.Dataset:
-    return make_s2_msi_rx0m(["b05", "b06", "b07", "b11", "b12", "b8a"], 24, 24)
-
-
-def make_s2_msi_r60m() -> xr.Dataset:
-    return make_s2_msi_rx0m(["b01", "b09", "b10"], 8, 8)
-
-
-def make_s2_msi_rx0m(bands: list[str], w: int, h: int) -> xr.Dataset:
-    x1, x2 = 0.0, 48.0
-    dx = 0.5 * (x2 - x1) / w
-
-    y1, y2 = 0.0, 48.0
-    dy = 0.5 * (y2 - y1) / h
-
-    return xr.Dataset(
-        data_vars={
-            band: xr.DataArray(
-                np.random.randint(1, 2 << 15, (h, w)),
-                dims=("y", "x"),
-                attrs={"_FillValue": 0},
+    # noinspection PyMethodMayBeStatic
+    def test_open_datatree_ok(self):
+        with pytest.raises(NotImplementedError):
+            # noinspection PyTypeChecker
+            _data_tree = xr.open_datatree(
+                self.path, engine="eopf-zarr", op_mode="analysis"
             )
-            for band in bands
-        },
-        coords={
-            "x": xr.DataArray(np.linspace(x1 + dx, y2 - dx, w), dims="x"),
-            "y": xr.DataArray(np.linspace(y1 + dy, y2 - dy, h), dims="y"),
-        },
-    )
+
+    # noinspection PyMethodMayBeStatic
+    def test_open_datatree_fail(self):
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
+        store = fs.get_mapper(root=self.path)
+        with pytest.raises(
+            ValueError, match="Unable to detect analysis mode for input"
+        ):
+            # noinspection PyTypeChecker
+            _data_tree = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")

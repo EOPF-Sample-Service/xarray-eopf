@@ -30,11 +30,11 @@ object including groups:
 
 The backend supports two distinct modes of operation, `"native"` and `"analysis-ready"`:
 
-- `mode="native"` - using the _native mode_, the returned `Dataset` or `DataTree`
+- `op_mode="native"` - using the _native mode_, the returned `Dataset` or `DataTree`
   objects try to serve as a 1:1 representation of the actual Zarr product structure and
   content with either none or minimal preprocessing applied.
 
-- `mode="analysis"` - using the _analysis mode_, the returned `Dataset` 
+- `op_mode="analysis"` - using the _analysis mode_, the returned `Dataset` 
   or `DataTree` objects attempt to be user-friendly and analysis-ready to a maximum
   extend. Certain preprocessing steps will be applied depending on the specific 
   Sentinel product towards an analysis-ready data model and content. For example, 

@@ -56,8 +56,8 @@ class EopfBackend(BackendEntrypoint):
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
             product_type: Optional product type name, such as `"MSIL1C"`.
-                Only used if `op_mode="analysis"`. You should not need
-                pass this argument, if the filename inherent to `filename_or_obj`
+                Only used if `op_mode="analysis"`; typically not required
+                if the filename inherent to `filename_or_obj`
                 adheres to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL,
                 it forces using the specified filesystem protocol.
@@ -130,8 +130,8 @@ class EopfBackend(BackendEntrypoint):
             op_mode: Mode of operation, either "analysis" or "native".
                 Defaults to "analysis".
             product_type: Optional product type name, such as `"MSIL1C"`.
-                Only used if `op_mode="analysis"`. You should not need
-                pass this argument, if the filename inherent to `filename_or_obj`
+                Only used if `op_mode="analysis"`; typically not required
+                if the filename inherent to `filename_or_obj`
                 adheres to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL,
                 it forces using the specified filesystem protocol.

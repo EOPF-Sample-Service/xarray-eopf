@@ -6,6 +6,7 @@ from unittest import TestCase
 
 import xarray as xr
 
+# TODO: adjust path to new locations
 bucket = "e05ab01a9d56408d82ac32d69a5aae2a:sample-data"
 path_prefix = "tutorial_data/cpm_v253"
 url_prefix = f"s3://{bucket}/{path_prefix}"

@@ -389,18 +389,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#function-open_datatree_1" class="md-nav__link">
+  <a href="#function-open_dataset_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Function open_datatree()
+      Function open_dataset()
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#function-open_dataset_1" class="md-nav__link">
+  <a href="#function-open_datatree_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Function open_dataset()
+      Function open_datatree()
     </span>
   </a>
   
@@ -531,18 +531,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#function-open_datatree_1" class="md-nav__link">
+  <a href="#function-open_dataset_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Function open_datatree()
+      Function open_dataset()
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#function-open_dataset_1" class="md-nav__link">
+  <a href="#function-open_datatree_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Function open_dataset()
+      Function open_datatree()
     </span>
   </a>
   
@@ -582,7 +582,7 @@ the following. </p>
 convenient form using the <code>xarray</code> data models <code>DataTree</code> and <code>Dataset</code>. 
 For this reason, it is the default mode of operation when using the <code>"eopf-zarr"</code> 
 backend.</p>
-<p>The data products are provided in this mode use a unified grid mapping 
+<p>The data products provided in this mode use a unified grid mapping 
 for all their data variables. This means that selected variables are 
 spatially up-scaled or down-scaled as needed, so that the dataset can use a 
 single shared pair of <code>x</code> and <code>y</code> coordinates in the returned datasets.</p>
@@ -626,18 +626,6 @@ and will raise a <code>NotImplementedError</code>.</p>
 <p>The aim of this mode is to represent EOPF data products without modification 
 using the <code>xarray</code> data models <code>DataTree</code> and <code>Dataset</code>. Content and structure 
 of the original data products are preserved to a maximum extend.</p>
-<h3 id="function-open_datatree_1">Function <code>open_datatree()</code></h3>
-<p>Synopsis:  </p>
-<div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
-    <span class="n">filename_or_obj</span><span class="p">,</span> 
-    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
-    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span> 
-    <span class="o">**</span><span class="n">kwargs</span>
-<span class="p">)</span>
-</code></pre></div>
-<p>Opens a data product as-is including Zarr groups and returns a data tree object.</p>
-<p>This function currently returns the result of calling 
-<code>xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)</code>.  </p>
 <h3 id="function-open_dataset_1">Function <code>open_dataset()</code></h3>
 <p>Synopsis:  </p>
 <div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span>
@@ -663,6 +651,18 @@ dimensions and variables is not an issue.</p>
   to create prefixes for unique variable and dimension names.
   Defaults to the underscore character (<code>"_"</code>).</li>
 </ul>
+<h3 id="function-open_datatree_1">Function <code>open_datatree()</code></h3>
+<p>Synopsis:  </p>
+<div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
+    <span class="n">filename_or_obj</span><span class="p">,</span> 
+    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
+    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span> 
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Opens a data product as-is including Zarr groups and returns a data tree object.</p>
+<p>This function currently returns the result of calling 
+<code>xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)</code>.  </p>
 
 
 

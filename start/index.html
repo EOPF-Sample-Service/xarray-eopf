@@ -407,15 +407,15 @@
 
 
 <h1 id="getting-started">Getting Started</h1>
-<p>By installing the <code>xarray-eopf</code> package into an existing Python environment
+<p>The <code>xarray-eopf</code> package can be installed into an existing Python environment
 using</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>xarray-eopf
 </code></pre></div>
 <p>or</p>
 <div class="highlight"><pre><span></span><code>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>xarray-eopf
 </code></pre></div>
-<p>you are ready to go and use the <code>engine="eopf-zarr"</code> keyword argument when calling
-<code>open_dataset()</code> or <code>open_datatree()</code>:</p>
+<p>After installation, you are ready to go and use the <code>engine="eopf-zarr"</code> keyword
+argument when calling <code>open_dataset()</code> or <code>open_datatree()</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
 
 <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>

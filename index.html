@@ -505,7 +505,7 @@ in Zarr format and representing them using analysis ready data models.</p>
 <h2 id="overview">Overview</h2>
 <p>After installation of the package, you can open EOPF data products using the
 usual xarray top-level functions <code>open_dataset()</code> that provides
-a <a href="https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html"><code>Dataset</code></a> object</p>
+a <a href="https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html"><code>Dataset</code></a> object:</p>
 <div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>and <code>open_datatree()</code> that provides a <a href="https://docs.xarray.dev/en/stable/generated/xarray.DataTree.html"><code>DataTree</code></a> 
@@ -521,30 +521,29 @@ The following features are only partly or not at all implemented yet.</p>
 <p>The backend supports two distinct modes of operation, <code>"native"</code> and <code>"analysis"</code>:</p>
 <ul>
 <li>
-<p><code>op_mode="native"</code> - using the <em>native mode</em>, the returned <code>Dataset</code> or <code>DataTree</code>
-  objects try to serve as a 1:1 representation of the actual Zarr product structure and
-  content with either none or minimal preprocessing applied. It can be used as in shown
-  in the examples below:
-<div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
-</code></pre></div></p>
-</li>
-<li>
 <p><code>op_mode="analysis"</code> - using the <em>analysis mode</em>, the returned <code>Dataset</code> 
   or <code>DataTree</code> objects attempt to be user-friendly and analysis-ready to a maximum
   extend. Certain preprocessing steps will be applied depending on the specific 
   Sentinel product towards an analysis-ready data model and content. For example, 
   for Sentinel-2, we will support the selection of specific bands and resampling to a 
   desired spatial resolution. For Sentinel-3 we will allow for rectifying the images 
-  in satellite coordinates to a user-provided, common CRS. It can be used as in shown
+  in satellite coordinates to a user-provided, common CRS. It can be used as shown
   in the examples below:
 <div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
+    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><code>op_mode="native"</code> - using the <em>native mode</em>, the returned <code>Dataset</code> or <code>DataTree</code>
+  objects try to serve as a 1:1 representation of the actual Zarr product structure and
+  content with either none or minimal preprocessing applied. It can be used as shown
+  in the examples below:
+<div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
+    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
 </code></pre></div></p>
 </li>
 </ul>
+<p>More information on the two modes are given in the <a href="guide/">User Guide</a></p>
 <p>Data variables will always be represented as chunked Dask arrays for 
 efficient out-of core computations and visualisations.</p>
 <p>The package has minimal core dependencies: <code>xarray</code>, <code>zarr</code>, and <code>dask</code>.

@@ -84,7 +84,7 @@ class AnalysisModeTest(TestCase):
             fsspec.filesystem("local").get_mapper("test3.zarr")
         )
         self.assertIsInstance(path, str)
-        self.assertEqual("test3.zarr", Path(path).name)
+        self.assertEqual("test3.zarr", path)
 
         # From zarr.storage.DirectoryStore
         path = AnalysisMode._source_to_path(zarr.storage.DirectoryStore("test4.zarr"))

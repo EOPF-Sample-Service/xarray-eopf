@@ -2,6 +2,8 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
+from pathlib import Path
+
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Any, Optional, Type
@@ -19,6 +21,36 @@ class AnalysisMode(ABC):
 
     # Product type name, e.g., "MSIL2A"
     product_type: str
+
+    @classmethod
+    def guess(
+        cls, source: Any, product_type: str | None = None
+    ) -> Optional["AnalysisMode"]:
+        """Guess the suitable analysis mode for the backend xarray input.
+
+        Args:
+            source: A path or URL or dict-like mapping that acts as a
+                Zarr store.
+            product_type: If provided, it must be a valid product type name
+                for which an analysis mode has been registered.
+
+        Returns:
+            The analysis mode.
+
+        Raises:
+            ValueError: if guessing the analysis mode failed.
+        """
+        if product_type:
+            analysis_mode = AnalysisMode.from_product_type(product_type)
+        else:
+            analysis_mode = AnalysisMode.from_source(source)
+        if analysis_mode is None:
+            raise ValueError(
+                "Unable to detect analysis mode for input."
+                " Use product_type argument to pass one of"
+                f" {', '.join(map(repr, cls.registry.keys()))}."
+            )
+        return analysis_mode
 
     @classmethod
     def from_product_type(cls, product_type: str | None) -> Optional["AnalysisMode"]:
@@ -88,6 +120,24 @@ class AnalysisMode(ABC):
         Returns:
             A transformed data tree.
         """
+
+    @classmethod
+    def _source_to_path(cls, source: Any) -> Optional[str]:
+        """Derive a path from given `source` object.
+        This is an implementation helper that may be used by
+        derived classes in `is_valid_source()`.
+        """
+        path: str | None = None
+        if isinstance(source, (str, Path)):
+            path = source
+        elif hasattr(source, "path"):
+            path = source.path
+        elif hasattr(source, "root"):
+            path = source.root
+        if isinstance(path, (str, Path)):
+            return str(path)
+        else:
+            return None
 
 
 class AnalysisModeRegistry:

@@ -1,7 +1,7 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
-
+from typing import Any
 from unittest import TestCase
 
 import fsspec
@@ -78,6 +78,21 @@ class AnalysisModeTest(TestCase):
     def test_open_dataset_ok(self):
         # noinspection PyTypeChecker
         dataset = xr.open_dataset(self.path, engine="eopf-zarr", op_mode="analysis")
+        self.assert_dataset_ok(dataset)
+
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
+        store = fs.get_mapper(root=self.path)
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(store, engine="eopf-zarr", op_mode="analysis")
+        self.assert_dataset_ok(dataset)
+
+    # noinspection PyMethodMayBeStatic
+    def test_open_dataset_fail(self):
+        with pytest.raises(FileNotFoundError):
+            # noinspection PyTypeChecker
+            xr.open_dataset("test.zarr", engine="eopf-zarr", op_mode="analysis")
+
+    def assert_dataset_ok(self, dataset: Any):
         self.assertIsInstance(dataset, xr.Dataset)
         # Note, more detailed analysis is done in `tests/amodes`
         self.assertEqual(
@@ -102,29 +117,13 @@ class AnalysisModeTest(TestCase):
         self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))
 
     # noinspection PyMethodMayBeStatic
-    def test_open_dataset_fail(self):
-        fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
-        store = fs.get_mapper(root=self.path)
-        with pytest.raises(
-            ValueError, match="Unable to detect analysis mode for input"
-        ):
-            # noinspection PyTypeChecker
-            _dataset = xr.open_dataset(store, engine="eopf-zarr", op_mode="analysis")
-
-    # noinspection PyMethodMayBeStatic
     def test_open_datatree_ok(self):
         with pytest.raises(NotImplementedError):
             # noinspection PyTypeChecker
-            _data_tree = xr.open_datatree(
-                self.path, engine="eopf-zarr", op_mode="analysis"
-            )
+            _dt = xr.open_datatree(self.path, engine="eopf-zarr", op_mode="analysis")
 
-    # noinspection PyMethodMayBeStatic
-    def test_open_datatree_fail(self):
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
         store = fs.get_mapper(root=self.path)
-        with pytest.raises(
-            ValueError, match="Unable to detect analysis mode for input"
-        ):
+        with pytest.raises(NotImplementedError):
             # noinspection PyTypeChecker
-            _data_tree = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")
+            _dt = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")

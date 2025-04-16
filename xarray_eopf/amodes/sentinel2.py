@@ -1,6 +1,7 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
+from pathlib import Path
 
 from abc import ABC
 from collections.abc import Iterable
@@ -67,11 +68,11 @@ EXTRA_VAR_ATTRS: dict[Hashable, dict[str, Any]] = {
 
 class MSI(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
-        if not isinstance(source, str):
-            return False
-        path: str = source
+        path = self._source_to_path(source)
         return (
-            f"S2A_{self.product_type}_" in path or f"S2B_{self.product_type}_" in path
+            (f"S2A_{self.product_type}_" in path or f"S2B_{self.product_type}_" in path)
+            if path
+            else False
         )
 
     def get_applicable_params(self, **kwargs) -> dict[str, any]:

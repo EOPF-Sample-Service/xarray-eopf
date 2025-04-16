@@ -21,7 +21,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .store import open_store
+from .source import normalize_source
 from .utils import assert_arg_is_one_of
 
 
@@ -40,7 +40,6 @@ class EopfBackend(BackendEntrypoint):
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
         product_type: str | None = None,
-        protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         drop_variables: str | Iterable[str] | None = None,
         decode_timedelta: (
@@ -59,10 +58,6 @@ class EopfBackend(BackendEntrypoint):
                 Only used if `op_mode="analysis"`; typically not required
                 if the filename inherent to `filename_or_obj`
                 adheres to EOPF naming conventions.
-            protocol: If `filename_or_obj` is a file path or URL,
-                it forces using the specified filesystem protocol.
-                Otherwise, the protocol will be derived from the file path or URL.
-                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,
                 these options specify the source filesystem.
                 Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
@@ -78,7 +73,7 @@ class EopfBackend(BackendEntrypoint):
 
         assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
-        fs_store = open_store(filename_or_obj, protocol, storage_options)
+        fs_store = normalize_source(filename_or_obj, storage_options)
 
         datatree = xr.open_datatree(
             fs_store,
@@ -107,7 +102,6 @@ class EopfBackend(BackendEntrypoint):
         *,
         op_mode: OpMode = OP_MODE_ANALYSIS,
         # params for op_mode=native/analysis
-        protocol: str | None = None,
         storage_options: Mapping[str, Any] | None = None,
         group_sep: str = "_",
         variables: str | Iterable[str] | None = None,
@@ -133,10 +127,6 @@ class EopfBackend(BackendEntrypoint):
                 Only used if `op_mode="analysis"`; typically not required
                 if the filename inherent to `filename_or_obj`
                 adheres to EOPF naming conventions.
-            protocol: If `filename_or_obj` is a file path or URL,
-                it forces using the specified filesystem protocol.
-                Otherwise, the protocol will be derived from the file path or URL.
-                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,
                 these options specify the source filesystem.
                 Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
@@ -167,7 +157,6 @@ class EopfBackend(BackendEntrypoint):
         datatree = self.open_datatree(
             filename_or_obj,
             op_mode="native",
-            protocol=protocol,
             storage_options=storage_options,
             # here as it is required for all backends
             drop_variables=drop_variables,

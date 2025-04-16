@@ -506,11 +506,11 @@ in Zarr format and representing them using analysis ready data models.</p>
 <p>After installation of the package, you can open EOPF data products using the
 usual xarray top-level functions <code>open_dataset()</code> that provides
 a <a href="https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html"><code>Dataset</code></a> object:</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>and <code>open_datatree()</code> that provides a <a href="https://docs.xarray.dev/en/stable/generated/xarray.DataTree.html"><code>DataTree</code></a> 
 object including groups:</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="features">Features</h2>
 <blockquote>
@@ -529,8 +529,8 @@ The following features are only partly or not at all implemented yet.</p>
   desired spatial resolution. For Sentinel-3 we will allow for rectifying the images 
   in satellite coordinates to a user-provided, common CRS. It can be used as shown
   in the examples below:
-<div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
-    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
+<span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -538,8 +538,8 @@ The following features are only partly or not at all implemented yet.</p>
   objects try to serve as a 1:1 representation of the actual Zarr product structure and
   content with either none or minimal preprocessing applied. It can be used as shown
   in the examples below:
-<div class="highlight"><pre><span></span><code>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
-    <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
+<span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span><span class="n">url_or_path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
 </code></pre></div></p>
 </li>
 </ul>

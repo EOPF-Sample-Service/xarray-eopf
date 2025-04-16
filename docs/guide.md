@@ -9,7 +9,7 @@ convenient form using the `xarray` data models `DataTree` and `Dataset`.
 For this reason, it is the default mode of operation when using the `"eopf-zarr"` 
 backend.
 
-The data products are provided in this mode use a unified grid mapping 
+The data products provided in this mode use a unified grid mapping 
 for all their data variables. This means that selected variables are 
 spatially up-scaled or down-scaled as needed, so that the dataset can use a 
 single shared pair of `x` and `y` coordinates in the returned datasets.
@@ -67,24 +67,6 @@ The aim of this mode is to represent EOPF data products without modification
 using the `xarray` data models `DataTree` and `Dataset`. Content and structure 
 of the original data products are preserved to a maximum extend.
 
-### Function `open_datatree()`
-
-Synopsis:  
-
-```python
-datatree = xr.open_datatree(
-    filename_or_obj, 
-    engine="eopf-zarr", 
-    op_mode="native", 
-    **kwargs
-)
-```
-
-Opens a data product as-is including Zarr groups and returns a data tree object.
-
-This function currently returns the result of calling 
-`xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)`.  
-
 ### Function `open_dataset()`
 
 Synopsis:  
@@ -115,3 +97,23 @@ Parameters `**params`:
 - `group_sep`: Separator string used to concatenate groups names 
   to create prefixes for unique variable and dimension names.
   Defaults to the underscore character (`"_"`).
+
+
+### Function `open_datatree()`
+
+Synopsis:  
+
+```python
+datatree = xr.open_datatree(
+    filename_or_obj, 
+    engine="eopf-zarr", 
+    op_mode="native", 
+    **kwargs
+)
+```
+
+Opens a data product as-is including Zarr groups and returns a data tree object.
+
+This function currently returns the result of calling 
+`xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)`.  
+

@@ -134,7 +134,7 @@ class EopfBackend(BackendEntrypoint):
                 pass this argument, if the filename inherent to `filename_or_obj`
                 adheres to EOPF naming conventions.
             protocol: If `filename_or_obj` is a file path or URL,
-                forces using the specified filesystem protocol.
+                it forces using the specified filesystem protocol.
                 Otherwise, the protocol will be derived from the file path or URL.
                 Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).
             storage_options: If `filename_or_obj` is a file path or URL,

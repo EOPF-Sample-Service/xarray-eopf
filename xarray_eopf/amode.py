@@ -40,10 +40,9 @@ class AnalysisMode(ABC):
         Raises:
             ValueError: if guessing the analysis mode failed.
         """
-        analysis_mode: AnalysisMode | None = None
         if product_type:
             analysis_mode = AnalysisMode.from_product_type(product_type)
-        if analysis_mode is None:
+        else:
             analysis_mode = AnalysisMode.from_source(source)
         if analysis_mode is None:
             raise ValueError(

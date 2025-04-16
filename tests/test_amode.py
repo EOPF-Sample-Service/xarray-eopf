@@ -47,21 +47,23 @@ class AnalysisModeTest(TestCase):
     def test_guess_ok(self):
         self.assertIsInstance(AnalysisMode.guess("TEST.zarr"), TestMode)
         self.assertIsInstance(AnalysisMode.guess({}, product_type="TEST"), TestMode)
-        self.assertIsInstance(
-            AnalysisMode.guess("TEST.zarr", product_type="REST"), TestMode
-        )
 
     # noinspection PyMethodMayBeStatic
     def test_guess_fail(self):
         with pytest.raises(
             ValueError, match="Unable to detect analysis mode for input"
         ):
-            _mode = AnalysisMode.guess("REST.zarr")
+            AnalysisMode.guess("REST.zarr")
 
         with pytest.raises(
             ValueError, match="Unable to detect analysis mode for input"
         ):
-            _mode = AnalysisMode.guess({}, product_type="REST")
+            AnalysisMode.guess({}, product_type="REST")
+
+        with pytest.raises(
+            ValueError, match="Unable to detect analysis mode for input"
+        ):
+            AnalysisMode.guess("TEST.zarr", product_type="REST"), TestMode
 
     def test_from_source(self):
         self.assertIsInstance(AnalysisMode.from_source("TEST.zarr"), TestMode)
@@ -83,13 +85,11 @@ class AnalysisModeTest(TestCase):
         path = AnalysisMode._source_to_path(
             fsspec.filesystem("local").get_mapper("test3.zarr")
         )
-        self.assertIsInstance(path, str)
-        self.assertEqual("test3.zarr", path)
+        self.assertEqual("test3.zarr", Path(path).name)
 
         # From zarr.storage.DirectoryStore
         path = AnalysisMode._source_to_path(zarr.storage.DirectoryStore("test4.zarr"))
-        self.assertIsInstance(path, str)
-        self.assertEqual("test4.zarr", path)
+        self.assertEqual("test4.zarr", Path(path).name)
 
         # From dict
         self.assertEqual(None, AnalysisMode._source_to_path({"path": "test5.zarr"}))

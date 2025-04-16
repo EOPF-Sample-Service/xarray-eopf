@@ -89,7 +89,7 @@ class AnalysisModeTest(TestCase):
         # From zarr.storage.DirectoryStore
         path = AnalysisMode._source_to_path(zarr.storage.DirectoryStore("test4.zarr"))
         self.assertIsInstance(path, str)
-        self.assertEqual("test4.zarr", Path(path).name)
+        self.assertEqual("test4.zarr", path)
 
         # From dict
         self.assertEqual(None, AnalysisMode._source_to_path({"path": "test5.zarr"}))

@@ -2,8 +2,6 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from pathlib import Path
-
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Any, Optional, Type
@@ -97,6 +95,24 @@ class AnalysisMode(ABC):
         """
 
     @abstractmethod
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+        """Transform `dataset` into an analysis-ready form.
+        Called from the backend's `open_dataset()` implementation to transform
+        the given `xr.Dataset` object.
+
+        The function will be called only if the dataset was opened using
+        a subgroup path into a dataset.
+
+        Args:
+            dataset: The dataset to be transformed.
+            params: Product type specific parameters.
+                See `get_applicable_params()`.
+
+        Returns:
+            A transformed data tree.
+        """
+
+    @abstractmethod
     def convert_datatree(
         self,
         datatree: xr.DataTree,
@@ -120,24 +136,6 @@ class AnalysisMode(ABC):
         Returns:
             A transformed data tree.
         """
-
-    @classmethod
-    def _source_to_path(cls, source: Any) -> Optional[str]:
-        """Derive a path from given `source` object.
-        This is an implementation helper that may be used by
-        derived classes in `is_valid_source()`.
-        """
-        path: str | None = None
-        if isinstance(source, (str, Path)):
-            path = source
-        elif hasattr(source, "path"):
-            path = source.path
-        elif hasattr(source, "root"):
-            path = source.root
-        if isinstance(path, (str, Path)):
-            return str(path)
-        else:
-            return None
 
 
 class AnalysisModeRegistry:

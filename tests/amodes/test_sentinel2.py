@@ -58,8 +58,8 @@ class MSITestMixin:
         self.assertEqual("spatial_ref", dataset.b03.attrs.get("grid_mapping"))
 
     def assert_transform_datatree_ok(self, original_dt: xr.DataTree):
-        with pytest.raises(NotImplementedError):
-            _dt = self.mode.transform_datatree(original_dt, resolution=10)
+        dt = self.mode.transform_datatree(original_dt, resolution=10)
+        self.assertIs(dt, original_dt)
 
     def assert_convert_datatree_ok(
         self,

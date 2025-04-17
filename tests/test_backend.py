@@ -118,12 +118,22 @@ class AnalysisModeTest(TestCase):
 
     # noinspection PyMethodMayBeStatic
     def test_open_datatree_ok(self):
-        with pytest.raises(NotImplementedError):
-            # noinspection PyTypeChecker
-            _dt = xr.open_datatree(self.path, engine="eopf-zarr", op_mode="analysis")
+        # noinspection PyTypeChecker
+        dt = xr.open_datatree(self.path, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dt, xr.DataTree)
 
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
         store = fs.get_mapper(root=self.path)
-        with pytest.raises(NotImplementedError):
-            # noinspection PyTypeChecker
-            _dt = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")
+        # noinspection PyTypeChecker
+        dt = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dt, xr.DataTree)
+
+    def test_open_dataset_from_group_ok(self):
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(
+            self.path + "/measurements/reflectance/r10m", engine="eopf-zarr"
+        )
+        self.assertIsInstance(dataset, xr.Dataset)
+        self.assertEqual(["b02", "b03", "b04", "b08"], sorted(dataset.data_vars.keys()))
+        # noinspection PyTypeChecker
+        self.assertEqual(["x", "y"], sorted(dataset.coords.keys()))

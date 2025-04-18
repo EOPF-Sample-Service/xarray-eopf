@@ -49,7 +49,6 @@ class NormalizeSourceTest(TestCase):
 
 
 class GetSourcePathsTest(TestCase):
-
     def test_from_path(self):
         # From str
         paths = get_source_paths("test1.zarr")

@@ -21,7 +21,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .source import normalize_source, get_source_paths
+from .source import get_source_paths, normalize_source
 from .utils import assert_arg_is_one_of
 
 

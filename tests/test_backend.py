@@ -136,4 +136,4 @@ class AnalysisModeTest(TestCase):
         self.assertIsInstance(dataset, xr.Dataset)
         self.assertEqual(["b02", "b03", "b04", "b08"], sorted(dataset.data_vars.keys()))
         # noinspection PyTypeChecker
-        self.assertEqual(["x", "y"], sorted(dataset.coords.keys()))
+        self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))

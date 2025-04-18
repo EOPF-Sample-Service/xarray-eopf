@@ -1,6 +1,7 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
+
 import warnings
 from abc import ABC
 from collections.abc import Iterable
@@ -102,10 +103,7 @@ class MSI(AnalysisMode, ABC):
         return datatree
 
     def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
-        warnings.warn(
-            "Analysis mode not implemented for given source, return dataset as-is."
-        )
-        return dataset
+        return self.assign_grid_mapping(dataset)
 
     def convert_datatree(
         self,
@@ -179,16 +177,36 @@ class MSI(AnalysisMode, ABC):
 
     # noinspection PyMethodMayBeStatic
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
-        # TODO: check if this is the "official" way to detect a
-        #  Sentinel-2 tile's CRS
-        crs_code = dataset.attrs.get("horizontal_CRS_code")
-        if crs_code:
-            crs = pyproj.crs.CRS.from_string(crs_code)
-            spatial_ref = xr.DataArray(0, attrs=crs.to_cf())
-            dataset = dataset.assign_coords(spatial_ref=spatial_ref)
-            for var_name, var in dataset.data_vars.items():
-                if var.ndim >= 2 and var.dims[-2:] == ("y", "x"):
-                    var.attrs.update(grid_mapping="spatial_ref")
+        code_to_crs: dict[int, pyproj.CRS] = {}
+        var_name_to_code: dict[Hashable, int] = {}
+        for var_name, var in dataset.data_vars.items():
+            code = var.attrs.get("proj:epsg")
+            if isinstance(code, int):
+                crs = code_to_crs.get(code)
+                if crs is None:
+                    try:
+                        crs = pyproj.CRS.from_epsg(code)
+                        code_to_crs[code] = crs
+                    except pyproj.exceptions.CRSError:
+                        crs = None
+                if crs:
+                    var_name_to_code[var_name] = code
+
+        if code_to_crs:
+            is_single = len(code_to_crs) == 1
+            spatial_ref_names: dict[int, Hashable] = {}
+            spatial_refs: dict[Hashable, xr.DataArray] = {}
+            for i, (code, crs) in enumerate(code_to_crs.items()):
+                spatial_ref_name = (
+                    "spatial_ref" if is_single else f"spatial_ref_{i + 1}"
+                )
+                spatial_refs[spatial_ref_name] = xr.DataArray(0, attrs=crs.to_cf())
+                spatial_ref_names[code] = spatial_ref_name
+            dataset = dataset.assign_coords(spatial_refs)
+            for var_name, code in var_name_to_code.items():
+                spatial_ref_name = spatial_ref_names[code]
+                dataset[var_name].attrs["grid_mapping"] = spatial_ref_name
+
         return dataset
 
 

@@ -39,14 +39,18 @@ class MSITestMixin:
         self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
 
     def test_assign_grid_mapping(self: TestCase):
+        def make_band():
+            return xr.DataArray(
+                np.zeros((10, 10)), dims=("y", "x"), attrs={"proj:epsg": 32632}
+            )
+
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
                 dict(
-                    b01=xr.DataArray(np.zeros((10, 10)), dims=("y", "x")),
-                    b02=xr.DataArray(np.zeros((10, 10)), dims=("y", "x")),
-                    b03=xr.DataArray(np.zeros((10, 10)), dims=("y", "x")),
+                    b01=make_band(),
+                    b02=make_band(),
+                    b03=make_band(),
                 ),
-                attrs=dict(horizontal_CRS_code="EPSG:32632"),
             )
         )
         self.assertIn("spatial_ref", dataset)
@@ -56,6 +60,37 @@ class MSITestMixin:
         self.assertEqual("spatial_ref", dataset.b01.attrs.get("grid_mapping"))
         self.assertEqual("spatial_ref", dataset.b02.attrs.get("grid_mapping"))
         self.assertEqual("spatial_ref", dataset.b03.attrs.get("grid_mapping"))
+
+    def test_assign_grid_mapping_fail(self: TestCase):
+        def make_band():
+            return xr.DataArray(
+                np.zeros((10, 10)), dims=("y", "x"), attrs={"proj:epsg": -1}
+            )
+
+        dataset = self.mode.assign_grid_mapping(
+            xr.Dataset(
+                dict(
+                    b01=make_band(),
+                    b02=make_band(),
+                    b03=make_band(),
+                ),
+            )
+        )
+        self.assertNotIn("spatial_ref", dataset)
+        self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
+        self.assertEqual(None, dataset.b02.attrs.get("grid_mapping"))
+        self.assertEqual(None, dataset.b03.attrs.get("grid_mapping"))
+
+    def test_get_applicable_params(self: TestCase):
+        self.assertEqual(
+            {"resolution": 10, "spline_order": 2},
+            self.mode.get_applicable_params(
+                resolution=10, spline_order=2, temp_file="."
+            ),
+        )
+
+    def test_process_metadata(self: TestCase):
+        self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
 
     def assert_transform_datatree_ok(self, original_dt: xr.DataTree):
         dt = self.mode.transform_datatree(original_dt, resolution=10)

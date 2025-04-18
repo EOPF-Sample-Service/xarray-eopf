@@ -10,7 +10,7 @@ import pytest
 import s3fs
 import zarr
 
-from xarray_eopf.source import normalize_source, get_source_paths
+from xarray_eopf.source import get_source_paths, normalize_source
 
 
 class NormalizeSourceTest(TestCase):

@@ -2,10 +2,10 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-import pytest
 from typing import Any, Iterable
 from unittest import TestCase
 
+import pytest
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry

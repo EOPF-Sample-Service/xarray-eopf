@@ -148,7 +148,7 @@ def rescale_spatial_vars(
                 dims=var.dims[:-2] + ref_var.dims[-2:],
                 name=var.name,
                 attrs=var_attrs,
-            ).chunk(ref_var.chunks)
+            ).chunk({ref_x_dim: ref_var.chunks[-1], ref_y_dim: ref_var.chunks[-2]})
             for enc_name in ("chunks", "preferred_chunks"):
                 if enc_name in ref_var.encoding:
                     rescaled_var.encoding[enc_name] = ref_var.encoding[enc_name]

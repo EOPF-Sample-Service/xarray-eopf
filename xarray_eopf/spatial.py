@@ -1,11 +1,13 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
+from math import ceil
 
 from collections.abc import Hashable, Mapping
 from typing import Any, Literal, TypeAlias
 
 import dask_image.ndinterp as ndinterp
+import dask.array as da
 import numpy as np
 import xarray as xr
 
@@ -89,34 +91,24 @@ def rescale_spatial_vars(
         return f"{factor:.6f}".rstrip("0").rstrip(".")
 
     for var_name, var in spatial_variables.items():
-        var_attrs = dict(var.attrs)
         ref_y_dim, ref_x_dim = ref_var.dims[-2:]
         y_dim, x_dim = var.dims[-2:]
         spatial_shape = var.shape[-2:]
         if spatial_shape != ref_spatial_shape:
-            y_scale = spatial_shape[0] / ref_spatial_shape[0]
-            x_scale = spatial_shape[1] / ref_spatial_shape[1]
-            is_down_sampling = x_scale + eps > 1.0
             is_integer = np.issubdtype(var.dtype, np.integer)
-            if is_down_sampling:
-                method = get_agg_method(var_name, agg_method, is_categorical=is_integer)
-                isx = int(x_scale)
-                isy = int(y_scale)
-                if abs(isx - x_scale) < eps and abs(isy - y_scale) < eps:
-                    with timeit(f"down-sampling {var_name!r}", silent=not _DEBUG):
-                        coarsened = var.coarsen(**{y_dim: isy, x_dim: isx})
-                        rescaled_data = getattr(coarsened, method)()
-                    var_attrs["history"] = (
-                        f"Down-sampling by factors"
-                        f" {ref_x_dim}={isx} and {ref_y_dim}={isy}"
-                        f" using aggregation method {method!r}."
-                    )
-                else:
-                    # TODO: implement down-sampling for non-integer factors
-                    raise NotImplementedError(
-                        "Down-sampling only implemented for integer factors"
-                    )
-            else:
+            y_size, x_size = spatial_shape
+            target_y_size, target_x_size = ref_spatial_shape
+            x_scale = x_size / target_x_size
+            y_scale = y_size / target_y_size
+            x_window_size = ceil(x_scale)
+            y_window_size = ceil(y_scale)
+            target_x_size = x_window_size * target_x_size
+            target_y_size = y_window_size * target_y_size
+            x_scale = x_size / target_x_size
+            y_scale = y_size / target_y_size
+            history = var.attrs.get("history", "")
+            rescaled_data = da.asarray(var.data)
+            if abs(x_scale - 1) > eps or abs(y_scale - 1) > eps:
                 factors = (var.ndim - 2) * (1,) + (y_scale, x_scale)
                 matrix = np.diag(factors)
                 order = get_spline_order(
@@ -124,18 +116,35 @@ def rescale_spatial_vars(
                 )
                 with timeit(f"up-sampling {var_name}!r", silent=not _DEBUG):
                     rescaled_data = ndinterp.affine_transform(
-                        var.data,
+                        rescaled_data,
                         matrix,
                         order=order,
-                        output_chunks=ref_var.chunks,
-                        output_shape=var.shape[:-2] + ref_spatial_shape,
+                        output_shape=var.shape[:-2] + (target_y_size, target_x_size),
                     )
-                var_attrs["history"] = (
-                    f"Up-sampling by factors"
-                    f" {ref_x_dim}={format_factor(x_scale)} and"
-                    f" {ref_y_dim}={format_factor(y_scale)}"
-                    f" using spline interpolation of order {order}."
+                x_sf = format_factor(x_scale)
+                y_sf = format_factor(y_scale)
+                s = f" {x_sf}" if x_sf == y_sf else f"s {x_sf} and {y_sf}"
+                history += (
+                    f"Upsampling in dimensions {ref_x_dim!r} and {ref_y_dim!r} by"
+                    f" scale factor{s} using spline interpolation of order {order};\n"
                 )
+            if x_window_size > 1 or y_window_size > 1:
+                method = get_agg_method(var_name, agg_method, is_categorical=is_integer)
+                with timeit(f"down-sampling {var_name!r}", silent=not _DEBUG):
+                    reduction = getattr(np, method)
+                    rescaled_data = da.coarsen(
+                        reduction,
+                        rescaled_data,
+                        {1: y_window_size, 0: x_window_size},
+                    )
+                x_ws = x_window_size
+                y_ws = y_window_size
+                s = f" {x_ws}" if x_ws == y_ws else f"s {x_ws} and {y_ws}"
+                history += (
+                    f"Downsampling in dimensions {ref_x_dim!r} and {ref_y_dim!r} by"
+                    f" window size{s} using aggregation method {method!r};\n"
+                )
+
             rescaled_data = rescaled_data.astype(var.dtype)
             coords = dict(var.coords)
             coords.pop(x_dim, None)
@@ -147,7 +156,7 @@ def rescale_spatial_vars(
                 data=rescaled_data,
                 dims=var.dims[:-2] + ref_var.dims[-2:],
                 name=var.name,
-                attrs=var_attrs,
+                attrs={**var.attrs, "history": history},
             ).chunk({ref_x_dim: ref_var.chunks[-1], ref_y_dim: ref_var.chunks[-2]})
             for enc_name in ("chunks", "preferred_chunks"):
                 if enc_name in ref_var.encoding:

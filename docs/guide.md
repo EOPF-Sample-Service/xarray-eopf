@@ -30,14 +30,32 @@ dataset = xr.open_dataset(
 Returns a EOPF data product from Sentinel-1, -2, or -3 in a analysis-ready, convenient 
 form. All bands and quality flags are resampled to a unified, user-provided resolution. 
 
-Parameters `**params`:
+Parameters `**kwargs`:
 
 - `resolution`: Target resolution for all spatial data variables / bands.
   Must be one of `10`, `20`, or `60`. 
-- `spline_order`: Spline order to be used for resampling 
+- `spline_orders`: Spline order to be used for resampling 
   spatial data variables / bands.
   Must be one of `0` (nearest neighbor), `1` (linear), `2` (bi-linear), or 
   `3` (cubic). 
+- `spline_orders`: Optional spline orders to be used for upsampling
+  spatial data variables / bands. Can be a single spline order
+  for all variables or a dictionary that maps a spline order to
+  applicable variable names or array data types.
+  A spline order is given by one of `0` (nearest neighbor),
+  `1` (linear), `2` (bi-linear), or `3` (cubic).
+  The default is `3`, except for product specific overrides.
+  For example, the Sentinel-2 variable `scl` uses the default `0`.
+- `agg_methods`: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single aggregation method
+  for all variables or a dictionary that maps an aggregation method to
+  applicable variable names or array data types.
+  An aggregation method is one of
+  `"center"`, `"count"`, `"first"`, `"last"`, `"max"`,
+  `"mean"`, `"median"`, `"mode"`, `"min"`, `"prod"`,
+  `"std"`, `"sum"`, or `"var"`.
+  The default is `"mean"`, except for product specific overrides.
+  For example, the Sentinel-2 variable `scl` uses the default `"center"`.
 - `variables`: Variables to include in the dataset. Can be a name or regex pattern 
   or iterable of the latter.
 - `product_type`:  Product type name, such as `"S2B_MSIL1C"`. 
@@ -92,7 +110,7 @@ The main use case for this function is to allow passing an EOPF data product
 where the type `xr.Dataset` is expected (not `xr.DataTree`) and where the naming of 
 dimensions and variables is not an issue.
 
-Parameters `**params`:
+Parameters `**kwargs`:
 
 - `group_sep`: Separator string used to concatenate groups names 
   to create prefixes for unique variable and dimension names.

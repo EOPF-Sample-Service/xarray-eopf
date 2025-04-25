@@ -2,14 +2,15 @@ name: eopf-xr
 channels:
 - conda-forge
 dependencies:
-  - python >=3.10
   # Library Dependencies
   - aiohttp
   - dask
   - dask-image
   - fsspec
+  - numba
   - numpy
   - pyproj
+  - python >=3.10
   - requests
   - s3fs
   - xarray >=2024.10

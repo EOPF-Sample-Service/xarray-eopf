@@ -12,7 +12,12 @@ import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_paths
-from xarray_eopf.spatial import SplineOrder, get_spatial_vars, rescale_spatial_vars
+from xarray_eopf.spatial import (
+    AggMethods,
+    SplineOrders,
+    get_spatial_vars,
+    rescale_spatial_vars,
+)
 from xarray_eopf.utils import (
     NameFilter,
     assert_arg_is_instance,
@@ -88,11 +93,21 @@ class MSI(AnalysisMode, ABC):
             assert_arg_is_one_of(resolution, "resolution", (10, 20, 60))
             params.update(resolution=int(resolution))
 
-        spline_order = kwargs.get("spline_order")
-        if spline_order is not None:
-            assert_arg_is_instance(spline_order, "spline_order", int)
-            assert_arg_is_one_of(spline_order, "spline_order", (0, 1, 2, 3))
-            params.update(spline_order=spline_order)
+        spline_orders = kwargs.get("spline_orders")
+        if spline_orders is not None:
+            assert_arg_is_instance(spline_orders, "spline_orders", (int, dict))
+            params.update(spline_orders=spline_orders)
+        else:
+            # Nearest is desired for "scl" by ESA
+            params.update(spline_orders={0: ["scl"]})
+
+        agg_methods = kwargs.get("agg_methods")
+        if agg_methods is not None:
+            assert_arg_is_instance(agg_methods, "agg_methods", (str, dict))
+            params.update(agg_methods=agg_methods)
+        else:
+            # "center" is desired for "scl" by ESA
+            params.update(agg_methods={"center": ["scl"]})
 
         return params
 
@@ -111,7 +126,8 @@ class MSI(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
-        spline_order: SplineOrder = 0,
+        spline_orders: SplineOrders | None = None,
+        agg_methods: AggMethods | None = None,
     ) -> xr.Dataset:
         # Important note: rescale_spatial_vars() may take very long
         # for some variables!
@@ -155,7 +171,8 @@ class MSI(AnalysisMode, ABC):
         rescaled_variables = rescale_spatial_vars(
             variables,
             ref_var_name=ref_var_name,
-            spline_order=spline_order,
+            spline_orders=spline_orders,
+            agg_methods=agg_methods,
         )
 
         # Assign extra variable attributes

@@ -4,7 +4,7 @@
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import fsspec
 import s3fs

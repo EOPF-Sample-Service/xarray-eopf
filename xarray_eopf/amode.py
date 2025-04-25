@@ -109,7 +109,7 @@ class AnalysisMode(ABC):
                 See `get_applicable_params()`.
 
         Returns:
-            A transformed data tree.
+            A transformed dataset.
         """
 
     @abstractmethod

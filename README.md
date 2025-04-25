@@ -14,7 +14,15 @@ for ESA EOPF data products in Zarr format.
 
 After installing this package, user can specify a new xarray backend 
 named `"eopf-zarr"` to open EOPF sample products. The backend has
-two modes of operation, analysis mode and native mode.
+two modes of operation, default analysis mode and the native mode. 
+Both modes allow 
+
+* to open EOPF sample products from the local filesystem or from their
+  original object storage using URLs with both `https` or `s3` 
+  protocols;
+* to open entire products as `xarray.DataTree` or `xarray.Dataset`; 
+* to open a subgroup as `xarray.Dataset`. This works with 
+  local filesystem or `s3`-URLs.
 
 The default analysis mode has the aim to represent the EOPF data 
 products in an analysis-ready and convenient way. It provides the
@@ -31,11 +39,11 @@ following features:
 The analysis mode is currently implemented Sentinel-2 products only.
 Support for Sentinel-1 and Sentinel-3 is coming soon. 
 
-The native mode delegates to the in-build `"zarr"` backend.
+The native mode does not modify any contents or data, instead it basically 
+delegates to the in-build `"zarr"` backend.
 
 More information can be found in the 
 [package documentation](https://eopf-sample-service.github.io/xarray-eopf). 
-
 
 ## Development
 

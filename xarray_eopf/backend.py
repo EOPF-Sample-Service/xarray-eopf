@@ -21,7 +21,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .source import normalize_source
+from .source import get_source_paths, normalize_source
 from .utils import assert_arg_is_one_of
 
 
@@ -73,10 +73,12 @@ class EopfBackend(BackendEntrypoint):
 
         assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
-        fs_store = normalize_source(filename_or_obj, storage_options)
+        source = normalize_source(filename_or_obj, storage_options)
+        _, subgroup_path = get_source_paths(source)
 
+        # noinspection PyTypeChecker
         datatree = xr.open_datatree(
-            fs_store,
+            source,
             engine="zarr",
             # prefer the chunking from the Zarr metadata
             chunks={},
@@ -84,17 +86,26 @@ class EopfBackend(BackendEntrypoint):
             drop_variables=drop_variables,
             # here to silence xarray warnings
             decode_timedelta=decode_timedelta,
+            # subgroups don't have consolidated metadata
+            consolidated=False if subgroup_path else None,
         )
 
         _assert_datatree_is_chunked(datatree)
 
         if op_mode == OP_MODE_NATIVE:
+            # native mode, so we return tree as-is
             return datatree
         else:  # op_mode == OP_MODE_ANALYSIS
-            analysis_mode = AnalysisMode.guess(
-                filename_or_obj, product_type=product_type
-            )
-            return analysis_mode.transform_datatree(datatree)
+            # analysis mode
+            if subgroup_path:
+                # subgroup level, return subtree as-is
+                return datatree
+            else:
+                # product level, so we transform the tree
+                analysis_mode = AnalysisMode.guess(
+                    filename_or_obj, product_type=product_type
+                )
+                return analysis_mode.transform_datatree(datatree)
 
     def open_dataset(
         self,
@@ -167,18 +178,31 @@ class EopfBackend(BackendEntrypoint):
         _assert_datatree_is_chunked(datatree)
 
         if op_mode == OP_MODE_NATIVE:
-            dataset = flatten_datatree(datatree, sep=group_sep)
+            # native mode
+            if datatree.has_data:
+                # subgroup level, so we return dataset as-is
+                dataset = datatree.to_dataset()
+            else:
+                # product level, so we flatten the tree
+                dataset = flatten_datatree(datatree, sep=group_sep)
             dataset = filter_dataset(dataset, variables)
-        else:  # op_mode == OP_MODE_ANALYSIS
+        else:
+            # analysis mode
             analysis_mode = AnalysisMode.guess(
                 filename_or_obj, product_type=product_type
             )
-            params = analysis_mode.get_applicable_params(
-                resolution=resolution, spline_order=spline_order
-            )
-            dataset = analysis_mode.convert_datatree(
-                datatree, includes=variables, **params
-            )
+            if datatree.has_data:
+                # subgroup level, so we transform the dataset
+                dataset = datatree.to_dataset()
+                dataset = analysis_mode.transform_dataset(dataset)
+            else:
+                # product level, so we convert the tree into a dataset
+                params = analysis_mode.get_applicable_params(
+                    resolution=resolution, spline_order=spline_order
+                )
+                dataset = analysis_mode.convert_datatree(
+                    datatree, includes=variables, **params
+                )
 
         return dataset
 

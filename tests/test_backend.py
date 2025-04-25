@@ -1,6 +1,7 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
+
 from typing import Any
 from unittest import TestCase
 
@@ -35,6 +36,12 @@ class EopfBackendTest(TestCase):
                 "memory://S02MSIL1C.zarr", engine="eopf-zarr", op_mode="sensor"
             )
 
+    def test_guess_can_open(self):
+        backend = EopfBackend()
+        self.assertFalse(backend.guess_can_open("data/test.zarr"))
+        # noinspection PyTypeChecker
+        self.assertFalse(backend.guess_can_open({}))
+
 
 class NativeModeTest(TestCase):
     @classmethod
@@ -51,6 +58,17 @@ class NativeModeTest(TestCase):
         self.assertIn("r20m", data_tree)
         self.assertIn("r60m", data_tree)
 
+    def test_open_datatree_subgroup(self):
+        # noinspection PyTypeChecker
+        data_tree = xr.open_datatree(
+            "memory://S02MSIL1C.zarr/r10m", engine="eopf-zarr", op_mode="native"
+        )
+        self.assertEqual(
+            ["b02", "b03", "b04", "b08"], sorted(data_tree.data_vars.keys())
+        )
+        # noinspection PyTypeChecker
+        self.assertEqual(["x", "y"], sorted(data_tree.coords.keys()))
+
     def test_open_dataset(self):
         # noinspection PyTypeChecker
         dataset = xr.open_dataset(
@@ -65,6 +83,17 @@ class NativeModeTest(TestCase):
         self.assertIn("r20m_y", dataset)
         self.assertIn("r60m_x", dataset)
         self.assertIn("r60m_y", dataset)
+
+    def test_open_dataset_subgroup(self):
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(
+            "memory://S02MSIL1C.zarr/r20m", engine="eopf-zarr", op_mode="native"
+        )
+        self.assertEqual(
+            ["b05", "b06", "b07", "b11", "b12", "b8a"], sorted(dataset.data_vars.keys())
+        )
+        # noinspection PyTypeChecker
+        self.assertEqual(["x", "y"], sorted(dataset.coords.keys()))
 
 
 class AnalysisModeTest(TestCase):
@@ -114,16 +143,33 @@ class AnalysisModeTest(TestCase):
             ],
             sorted(dataset.data_vars.keys()),
         )
+        # noinspection PyTypeChecker
         self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))
 
-    # noinspection PyMethodMayBeStatic
+    def test_open_dataset_subgroup_ok(self):
+        # noinspection PyTypeChecker
+        dataset = xr.open_dataset(
+            self.path + "/measurements/reflectance/r10m", engine="eopf-zarr"
+        )
+        self.assertIsInstance(dataset, xr.Dataset)
+        self.assertEqual(["b02", "b03", "b04", "b08"], sorted(dataset.data_vars.keys()))
+        # noinspection PyTypeChecker
+        self.assertEqual(["spatial_ref", "x", "y"], sorted(dataset.coords.keys()))
+
     def test_open_datatree_ok(self):
-        with pytest.raises(NotImplementedError):
-            # noinspection PyTypeChecker
-            _dt = xr.open_datatree(self.path, engine="eopf-zarr", op_mode="analysis")
+        # noinspection PyTypeChecker
+        dt = xr.open_datatree(self.path, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dt, xr.DataTree)
 
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("memory")
         store = fs.get_mapper(root=self.path)
-        with pytest.raises(NotImplementedError):
-            # noinspection PyTypeChecker
-            _dt = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")
+        # noinspection PyTypeChecker
+        dt = xr.open_datatree(store, engine="eopf-zarr", op_mode="analysis")
+        self.assertIsInstance(dt, xr.DataTree)
+
+    def test_open_datatree_subgroup_ok(self):
+        # noinspection PyTypeChecker
+        dt = xr.open_datatree(
+            self.path + "/measurements/reflectance/r10m", engine="eopf-zarr"
+        )
+        self.assertIsInstance(dt, xr.DataTree)

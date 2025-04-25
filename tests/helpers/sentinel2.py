@@ -99,7 +99,7 @@ def make_s2_msi_scl(size: int) -> xr.Dataset:
             "scl": xr.DataArray(
                 np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
-                attrs={},
+                attrs={"proj:epsg": 32625},
             ).chunk(x=4, y=4)
         },
         coords=make_coords(size, size),
@@ -113,12 +113,12 @@ def make_s2_msi_l2a_probs_r20m(r10m_size: int):
             "cld": xr.DataArray(
                 np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
-                attrs={},
+                attrs={"proj:epsg": 32625},
             ).chunk(x=4, y=4),
             "snw": xr.DataArray(
                 np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
-                attrs={},
+                attrs={"proj:epsg": 32625},
             ).chunk(x=4, y=4),
         },
         coords=make_coords(size, size),
@@ -141,6 +141,7 @@ def make_s2_msi_rx0m(bands: list[str], size: int) -> xr.Dataset:
                     "units": "digital_counts",
                     "valid_max": 65535,
                     "valid_min": 1,
+                    "proj:epsg": 32625,
                 },
             ).chunk(x=4, y=4)
             for band in bands

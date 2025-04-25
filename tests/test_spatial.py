@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Hashable
 from unittest import TestCase
 
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -94,6 +95,20 @@ class RescaleSpatialVarsTest(TestCase):
         for var_name, var in rescaled_vars.items():
             array = var.values
             self.assertEqual((target_res, target_res), array.shape[-2:])
+
+    # noinspection PyMethodMayBeStatic
+    def test_rescale_spatial_vars_fail(self):
+        with pytest.raises(
+            NotImplementedError,
+            match="Down-sampling only implemented for integer factors",
+        ):
+            rescale_spatial_vars(
+                {
+                    "a": xr.DataArray(np.zeros((10, 10)), dims=["y", "x"]),
+                    "b": xr.DataArray(np.zeros((25, 25)), dims=["y", "x"]),
+                },
+                ref_var_name="a",
+            )
 
 
 class UtilsTest(TestCase):

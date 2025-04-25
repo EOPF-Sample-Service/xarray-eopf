@@ -1,14 +1,11 @@
 #  Copyright (c) 2025 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
-import fsspec
-import zarr.storage
-from pathlib import Path
 
-import pytest
 from typing import Any, Iterable
 from unittest import TestCase
 
+import pytest
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
@@ -26,6 +23,9 @@ class TestMode(AnalysisMode):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         return datatree
+
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+        return dataset
 
     def convert_datatree(
         self,
@@ -73,26 +73,6 @@ class AnalysisModeTest(TestCase):
     def test_from_product_type(self):
         self.assertIsInstance(AnalysisMode.from_product_type("TEST"), TestMode)
         self.assertIsNone(AnalysisMode.from_product_type("REST"))
-
-    def test_source_to_path(self):
-        # From str
-        self.assertEqual("test1.zarr", AnalysisMode._source_to_path("test1.zarr"))
-
-        # From pathlib.Path
-        self.assertEqual("test2.zarr", AnalysisMode._source_to_path(Path("test2.zarr")))
-
-        # From fsspec.FSMap
-        path = AnalysisMode._source_to_path(
-            fsspec.filesystem("local").get_mapper("test3.zarr")
-        )
-        self.assertEqual("test3.zarr", Path(path).name)
-
-        # From zarr.storage.DirectoryStore
-        path = AnalysisMode._source_to_path(zarr.storage.DirectoryStore("test4.zarr"))
-        self.assertEqual("test4.zarr", Path(path).name)
-
-        # From dict
-        self.assertEqual(None, AnalysisMode._source_to_path({"path": "test5.zarr"}))
 
 
 class AnalysisModeRegistryTest(TestCase):

@@ -12,6 +12,7 @@ import numpy as np
 import xarray as xr
 
 import xarray_eopf.coarsen as xec
+
 from .utils import NameTypeMapping, timeit
 
 ALL = slice(None)

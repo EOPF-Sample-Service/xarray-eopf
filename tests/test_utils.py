@@ -11,11 +11,11 @@ import xarray as xr
 from tests.helpers import make_s2_msi
 from xarray_eopf.utils import (
     NameFilter,
+    NameTypeMapping,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
     timeit,
-    NameTypeMapping,
 )
 
 

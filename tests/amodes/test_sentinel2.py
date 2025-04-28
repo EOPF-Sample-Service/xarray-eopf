@@ -29,9 +29,19 @@ class MSITestMixin:
 
     def test_get_applicable_params(self: TestCase):
         self.assertEqual(
-            {"resolution": 10, "spline_order": 2},
+            {
+                "spline_orders": {0: ["scl"]},
+                "agg_methods": {"center": ["scl"]},
+            },
+            self.mode.get_applicable_params(),
+        )
+        self.assertEqual(
+            {"resolution": 10, "spline_orders": 2, "agg_methods": {"mode": ["scl"]}},
             self.mode.get_applicable_params(
-                resolution=10, spline_order=2, temp_file="."
+                resolution=10,
+                spline_orders=2,
+                agg_methods={"mode": ["scl"]},
+                temp_file=".",
             ),
         )
 
@@ -80,17 +90,6 @@ class MSITestMixin:
         self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
         self.assertEqual(None, dataset.b02.attrs.get("grid_mapping"))
         self.assertEqual(None, dataset.b03.attrs.get("grid_mapping"))
-
-    def test_get_applicable_params(self: TestCase):
-        self.assertEqual(
-            {"resolution": 10, "spline_order": 2},
-            self.mode.get_applicable_params(
-                resolution=10, spline_order=2, temp_file="."
-            ),
-        )
-
-    def test_process_metadata(self: TestCase):
-        self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
 
     def assert_transform_datatree_ok(self, original_dt: xr.DataTree):
         dt = self.mode.transform_datatree(original_dt, resolution=10)

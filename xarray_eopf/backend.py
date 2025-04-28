@@ -22,6 +22,7 @@ from .constants import (
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
 from .source import get_source_paths, normalize_source
+from .spatial import AggMethods, SplineOrders
 from .utils import assert_arg_is_one_of
 
 
@@ -119,7 +120,8 @@ class EopfBackend(BackendEntrypoint):
         # params for op_mode=analysis
         product_type: str | None = None,
         resolution: int | float | None = None,
-        spline_order: int | None = None,
+        spline_orders: SplineOrders | None = None,
+        agg_methods: AggMethods | None = None,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons
@@ -147,10 +149,25 @@ class EopfBackend(BackendEntrypoint):
             resolution: Target resolution for all spatial data variables / bands.
                 Must be one of `10`, `20`, or `60`.
                 Only used if `op_mode="analysis"`.
-            spline_order: Spline order to be used for resampling
-                spatial data variables / bands.
-                Must be one of `0` (nearest neighbor), `1` (linear),
-                `2` (bi-linear), or `3` (cubic).
+            spline_orders: Optional spline orders to be used for upsampling
+                spatial data variables / bands. Can be a single spline order
+                for all variables or a dictionary that maps a spline order to
+                applicable variable names or array data types.
+                A spline order is given by one of `0` (nearest neighbor),
+                `1` (linear), `2` (bi-linear), or `3` (cubic).
+                The default is `3`, except for product specific overrides.
+                For example, the Sentinel-2 variable `scl` uses the default `0`.
+                Only used if `op_mode="analysis"`
+            agg_methods: Optional aggregation methods to be used for downsampling
+                spatial data variables / bands. Can be a single aggregation method
+                for all variables or a dictionary that maps an aggregation method to
+                applicable variable names or array data types.
+                An aggregation method is one of
+                `"center"`, `"count"`, `"first"`, `"last"`, `"max"`,
+                `"mean"`, `"median"`, `"mode"`, `"min"`, `"prod"`,
+                `"std"`, `"sum"`, or `"var"`.
+                The default is `"mean"`, except for product specific overrides.
+                For example, the Sentinel-2 variable `scl` uses the default `"center"`.
                 Only used if `op_mode="analysis"`
             variables: Variables to include in the dataset. Can be a name or
                 regex pattern or iterable of the latter.
@@ -198,7 +215,9 @@ class EopfBackend(BackendEntrypoint):
             else:
                 # product level, so we convert the tree into a dataset
                 params = analysis_mode.get_applicable_params(
-                    resolution=resolution, spline_order=spline_order
+                    resolution=resolution,
+                    spline_orders=spline_orders,
+                    agg_methods=agg_methods,
                 )
                 dataset = analysis_mode.convert_datatree(
                     datatree, includes=variables, **params

@@ -35,6 +35,9 @@ following features:
   and aggregation methods for downscaling.
 * CF-compliant spatial referencing of datasets using a shared grid 
   mapping variable `spatial_ref`.
+* Attach other CF-compliant metadata enhancements such as flag values and 
+  meanings for pixel quality information, such as the Sentinel-2 
+  scene classification (variable `scl`).
 
 The analysis mode is currently implemented Sentinel-2 products only.
 Support for Sentinel-1 and Sentinel-3 is coming soon. 
@@ -45,6 +48,24 @@ delegates to the built-in `"zarr"` backend.
 More information can be found in the 
 [package documentation](https://eopf-sample-service.github.io/xarray-eopf). 
 
+## Usage
+
+The `xarray-eopf` package can be installed from PyPI (`pip install xarray-eopf`)
+or conda-forge (`conda install -c conda-forge xarray-eopf`).
+Now you can open EOPF sample products using xarray by specifying the
+`"eopf-zarr"` backend in your Python code: 
+
+```python
+
+import xarray as xr
+
+s2_l2a_url = (
+    "s3://e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil2a/15/products/cpm_v256/"
+    "S2B_MSIL2A_20250415T142749_N0511_R139_T25WEV_20250415T181516.zarr"
+)
+s2_l2a_dataset = xr.open_dataset(s2_l2a_url, engine="eopf-zarr", resolution=10)
+```
+ 
 ## Development
 
 ### Setting up a development environment
@@ -80,8 +101,6 @@ To run tests and generate a coverage report, use:
 ```shell
 pytest --cov xarray_eopf --cov-report html tests
 ```
-
-### Documentation
 
 ### Setting up a documentation environment
 

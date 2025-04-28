@@ -35,6 +35,9 @@ following features:
   and aggregation methods for downscaling.
 * CF-compliant spatial referencing of datasets using a shared grid 
   mapping variable `spatial_ref`.
+* Attach CF-compliant metadata enhancements such as flag values and 
+  meanings for pixel quality information, such as the Sentinel-2 
+  scene classification (variable `scl`).
 
 The analysis mode is currently implemented Sentinel-2 products only.
 Support for Sentinel-1 and Sentinel-3 is coming soon. 

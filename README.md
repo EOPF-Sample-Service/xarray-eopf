@@ -35,7 +35,7 @@ following features:
   and aggregation methods for downscaling.
 * CF-compliant spatial referencing of datasets using a shared grid 
   mapping variable `spatial_ref`.
-* Attach CF-compliant metadata enhancements such as flag values and 
+* Attach other CF-compliant metadata enhancements such as flag values and 
   meanings for pixel quality information, such as the Sentinel-2 
   scene classification (variable `scl`).
 

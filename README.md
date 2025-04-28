@@ -40,7 +40,7 @@ The analysis mode is currently implemented Sentinel-2 products only.
 Support for Sentinel-1 and Sentinel-3 is coming soon. 
 
 The native mode does not modify any contents or data, instead it basically 
-delegates to the in-build `"zarr"` backend.
+delegates to the built-in `"zarr"` backend.
 
 More information can be found in the 
 [package documentation](https://eopf-sample-service.github.io/xarray-eopf). 

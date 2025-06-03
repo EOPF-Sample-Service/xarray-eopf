@@ -1,3 +1,12 @@
+## Changes in 0.1.1 (in developement)
+
+### Enhancements
+
+### Bug fixes
+
+* Added support for Sentinel-2C observations. The product type can now be correctly
+  inferred from the file path in object storage.
+
 ## Changes in 0.1.0 (from 2025-04-28)
 
 * Added initial analysis mode for Sentinel-2 L1C and L2A products.

@@ -79,6 +79,7 @@ class MSI(AnalysisMode, ABC):
             (
                 f"S2A_{self.product_type}_" in root_path
                 or f"S2B_{self.product_type}_" in root_path
+                or f"S2C_{self.product_type}_" in root_path
             )
             if root_path
             else False

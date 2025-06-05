@@ -11,7 +11,7 @@ import pyproj.crs
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.source import get_source_paths
+from xarray_eopf.source import get_source_path
 from xarray_eopf.spatial import (
     AggMethods,
     SplineOrders,
@@ -74,7 +74,7 @@ EXTRA_VAR_ATTRS: dict[Hashable, dict[str, Any]] = {
 
 class MSI(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
-        root_path, _ = get_source_paths(source)
+        root_path = get_source_path(source)
         return (
             (
                 f"S2A_{self.product_type}_" in root_path

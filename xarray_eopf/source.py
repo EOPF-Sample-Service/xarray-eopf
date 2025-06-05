@@ -23,19 +23,15 @@ def normalize_source(source: Any, storage_options: Mapping[str, Any] | None) -> 
     return source
 
 
-def get_source_paths(source: Any) -> tuple[str, str] | tuple[None, None]:
+def get_source_path(source: Any) -> str | None:
     """
-    Derive a Zarr root path (or URL) and subgroup path
-    from given `source` object.
+    Extract a path-like string from the given `source` object.
 
     Args:
-        source: The source object.
+        source: A string, Path, or object with a `.path` or `.root` attribute.
 
     Returns:
-        A tuple comprising a Zarr root path and subgroup path,
-        or the tuple `(None, None)` if the paths cannot be derived.
-        The subgroup path will be the empty string if it is
-        not part of the path derived from `source`.
+        The extracted path as a string, or `None` if unavailable.
     """
     path: str | None = None
     if isinstance(source, (str, Path)):
@@ -44,12 +40,52 @@ def get_source_paths(source: Any) -> tuple[str, str] | tuple[None, None]:
         path = source.path
     elif hasattr(source, "root"):
         path = source.root
+    return path
+
+
+def normalize_source_path(source: Any) -> tuple[Any, str] | tuple[Any, None]:
+    """
+    Normalize a Zarr-based source by extracting any subgroup path
+    and updating the source to its Zarr root path if applicable.
+
+    Args:
+        source: A source object, such as a string, Path, or an object with a
+                `.path` or `.root` attribute.
+
+    Returns:
+        A tuple of:
+            - the normalized `source` (with Zarr root path),
+            - the subgroup path as a string, or `None` if it cannot be derived.
+
+    Notes:
+        - If the source includes a subgroup (e.g. `foo.zarr/group/subgroup`), it is
+          split into `foo.zarr` as the root and `group/subgroup` as the subgroup.
+        - If no subgroup is present, the subgroup path is returned as an empty string.
+        - If the source is an object with `.path` or `.root`, the corresponding attribute
+          is updated to reflect the Zarr root path.
+    """
+    path = get_source_path(source)
+
     if isinstance(path, (str, Path)):
         path_parts = str(path).split(".zarr/", maxsplit=1)
         if len(path_parts) == 2:
-            return path_parts[0] + ".zarr", path_parts[1]
-        return path_parts[0], ""
-    return None, None
+            zarr_root = path_parts[0] + ".zarr"
+            subgroup = path_parts[1]
+        else:
+            zarr_root = path_parts[0]
+            subgroup = ""
+
+        # Update the object's attribute if applicable
+        if isinstance(source, (str, Path)):
+            source = zarr_root
+        elif hasattr(source, "path"):
+            source.path = zarr_root
+        elif hasattr(source, "root"):
+            source.root = zarr_root
+
+        return source, subgroup
+
+    return source, None
 
 
 def _get_s3_store(root: str, storage_options: Mapping[str, Any] | None) -> fsspec.FSMap:

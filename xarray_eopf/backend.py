@@ -91,7 +91,7 @@ class EopfBackend(BackendEntrypoint):
             # here to silence xarray warnings
             decode_timedelta=decode_timedelta,
             # subgroups don't have consolidated metadata
-            consolidated=True,
+            consolidated=False if subgroup_path else None,
         )
 
         _assert_datatree_is_chunked(datatree)

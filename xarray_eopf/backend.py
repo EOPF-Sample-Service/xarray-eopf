@@ -21,7 +21,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .source import normalize_source_path, normalize_source
+from .source import normalize_source, normalize_source_path
 from .spatial import AggMethods, SplineOrders
 from .utils import assert_arg_is_one_of
 

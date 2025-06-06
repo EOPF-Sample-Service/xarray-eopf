@@ -10,7 +10,7 @@ import pytest
 import s3fs
 import zarr
 
-from xarray_eopf.source import get_source_paths, normalize_source
+from xarray_eopf.source import normalize_source, normalize_source_path
 
 
 class NormalizeSourceTest(TestCase):
@@ -51,35 +51,45 @@ class NormalizeSourceTest(TestCase):
 class GetSourcePathsTest(TestCase):
     def test_from_path(self):
         # From str
-        paths = get_source_paths("test1.zarr")
+        paths = normalize_source_path("test1.zarr")
         self.assertIsInstance(paths, tuple)
         self.assertEqual(("test1.zarr", ""), paths)
 
-        # From pathlib.Path
-        paths = get_source_paths(Path("test2.zarr"))
-        self.assertIsInstance(paths, tuple)
-        self.assertEqual(("test2.zarr", ""), paths)
-
         # From str with sub-group
-        paths = get_source_paths("s3://eopf-samples/data/test2.zarr/r10m")
+        paths = normalize_source_path("s3://eopf-samples/data/test2.zarr/r10m")
         self.assertIsInstance(paths, tuple)
         self.assertEqual(("s3://eopf-samples/data/test2.zarr", "r10m"), paths)
 
+        # From pathlib.Path
+        paths = normalize_source_path(Path("test2.zarr"))
+        self.assertIsInstance(paths, tuple)
+        self.assertEqual(("test2.zarr", ""), paths)
+
+        # From pathlib.Path with subgroup
+        paths = normalize_source_path(Path("test2.zarr/r10m"))
+        self.assertIsInstance(paths, tuple)
+        self.assertEqual(("test2.zarr", "r10m"), paths)
+
     def test_from_mappings(self):
         # From fsspec.FSMap
-        paths = get_source_paths(fsspec.filesystem("local").get_mapper("test3.zarr"))
+        paths = normalize_source_path(
+            fsspec.filesystem("local").get_mapper("test3.zarr")
+        )
         self.assertIsInstance(paths, tuple)
         root_path, group_path = paths
-        self.assertEqual("test3.zarr", Path(root_path).name)
+        self.assertEqual("test3.zarr", Path(root_path.root).name)
         self.assertEqual("", group_path)
 
         # From zarr.storage.DirectoryStore
-        paths = get_source_paths(zarr.storage.DirectoryStore("test4.zarr"))
+        paths = normalize_source_path(zarr.storage.DirectoryStore("test4.zarr"))
         self.assertIsInstance(paths, tuple)
         root_path, group_path = paths
-        self.assertEqual("test4.zarr", Path(root_path).name)
+        self.assertEqual("test4.zarr", Path(root_path.path).name)
         self.assertEqual("", group_path)
 
     def test_fail(self):
         # From dict
-        self.assertEqual((None, None), get_source_paths({"path": "test5.zarr"}))
+        self.assertEqual(
+            ({"path": "test5.zarr"}, None),
+            normalize_source_path({"path": "test5.zarr"}),
+        )

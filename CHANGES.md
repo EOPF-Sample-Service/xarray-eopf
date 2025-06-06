@@ -2,10 +2,13 @@
 
 ### Enhancements
 
+
 ### Bug fixes
 
 * Added support for Sentinel-2C observations. The product type can now be correctly
   inferred from the file path in object storage.
+* Support for accessing sub-groups within a Zarr DataTree via HTTPS paths,
+  e.g. https://...zarr/sub/group.
 
 ## Changes in 0.1.0 (from 2025-04-28)
 

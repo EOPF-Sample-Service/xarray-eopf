@@ -21,7 +21,7 @@ from .constants import (
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
-from .source import get_source_paths, normalize_source
+from .source import normalize_source, normalize_source_path
 from .spatial import AggMethods, SplineOrders
 from .utils import assert_arg_is_one_of
 
@@ -71,16 +71,19 @@ class EopfBackend(BackendEntrypoint):
         Returns:
             A new data-tree instance.
         """
+        # Disable attribute expansion for cleaner, more concise rendering in notebooks
+        xr.set_options(display_expand_attrs=False)
 
         assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
+        filename_or_obj, subgroup_path = normalize_source_path(filename_or_obj)
         source = normalize_source(filename_or_obj, storage_options)
-        _, subgroup_path = get_source_paths(source)
 
         # noinspection PyTypeChecker
         datatree = xr.open_datatree(
             source,
             engine="zarr",
+            group=subgroup_path,
             # prefer the chunking from the Zarr metadata
             chunks={},
             # here as it is required for all backends
@@ -180,6 +183,9 @@ class EopfBackend(BackendEntrypoint):
         Returns:
             A new dataset instance.
         """
+        # Disable attribute expansion for cleaner, more concise rendering in notebooks
+        xr.set_options(display_expand_attrs=False)
+
         assert_arg_is_one_of(op_mode, "op_mode", OP_MODES)
 
         datatree = self.open_datatree(

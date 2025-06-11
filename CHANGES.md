@@ -1,7 +1,4 @@
-## Changes in 0.1.1 (in developement)
-
-### Enhancements
-
+## Changes in 0.1.1 (from 2025-06-11)
 
 ### Bug fixes
 

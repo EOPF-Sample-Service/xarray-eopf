@@ -1,5 +1,8 @@
 ## Changes in 0.1.2 (under development)
 
+* Fixed a bug that prevented access to sub-groups within a Zarr `DataTree` via HTTPS  
+  paths (e.g., `https://.../zarr/sub/group`), addressing the issue reported  
+  [here](https://github.com/EOPF-Sample-Service/eopf-stac/issues/26#issuecomment-2978483579).
 
 ## Changes in 0.1.1 (from 2025-06-11)
 

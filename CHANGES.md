@@ -1,4 +1,4 @@
-## Changes in 0.1.2 (under development)
+## Changes in 0.1.2
 
 * Fixed a bug that prevented access to sub-groups within a Zarr `DataTree` via HTTPS  
   paths (e.g., `https://.../zarr/sub/group`), addressing the issue reported  

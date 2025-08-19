@@ -1,8 +1,9 @@
-name: eopf-xr
+name: xarray-eopf
 channels:
 - conda-forge
 dependencies:
   # Library Dependencies
+  - affine >=2.2
   - aiohttp
   - dask
   - dask-image

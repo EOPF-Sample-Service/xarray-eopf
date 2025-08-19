@@ -12,4 +12,4 @@ class Sentinel3AnalysisModeTest(TestCase):
     def test_register(self):
         registry = AnalysisModeRegistry()
         register(registry)
-        self.assertEqual(0, len(list(registry.keys())))
+        self.assertEqual(5, len(list(registry.keys())))

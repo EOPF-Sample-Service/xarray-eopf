@@ -2,9 +2,158 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from xarray_eopf.amode import AnalysisModeRegistry
+import warnings
+from abc import ABC
+from collections.abc import Iterable
+from typing import Any, Hashable
+
+import numpy as np
+import pyproj.crs
+import xarray as xr
+from xcube_resampling.constants import InterpMethod, AggMethods, FillValues
+from xcube_resampling.rectify import rectify_dataset
+from xcube_resampling.gridmapping import GridMapping
+
+from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.source import get_source_path
+
+from xarray_eopf.utils import (
+    NameFilter,
+    assert_arg_is_instance,
+)
+
+_SEN3_EPSG_CODE = 4326
+_SEN3_SPATIAL_REF_NAME = "spatial_ref"
 
 
-def register(_registry: AnalysisModeRegistry):
-    # TODO: implement Sentinel-3 AnalysisMode
-    pass
+class SEN3(AnalysisMode, ABC):
+    def is_valid_source(self, source: Any) -> bool:
+        root_path = get_source_path(source)
+        return (
+            (
+                f"S3A_{self.product_type}_" in root_path
+                or f"S3B_{self.product_type}_" in root_path
+            )
+            if root_path
+            else False
+        )
+
+    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+        params = {}
+
+        interp_methods = kwargs.get("interp_methods")
+        if interp_methods is not None:
+            assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
+            params.update(interp_methods=interp_methods)
+
+        agg_methods = kwargs.get("agg_methods")
+        if agg_methods is not None:
+            assert_arg_is_instance(agg_methods, "agg_methods", (str, dict))
+            params.update(agg_methods=agg_methods)
+
+        return params
+
+    def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
+        warnings.warn(
+            "Analysis mode not implemented for given source, return data tree as-is."
+        )
+        return datatree
+
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+        return self.assign_grid_mapping(dataset)
+
+    def convert_datatree(
+        self,
+        datatree: xr.DataTree,
+        includes: str | Iterable[str] | None = None,
+        excludes: str | Iterable[str] | None = None,
+        resolution: float | tuple | None = None,
+        interp_methods: InterpMethod | None = None,
+        agg_methods: AggMethods | None = None,
+    ) -> xr.Dataset:
+
+        # filter dataset by variable names
+        name_filter = NameFilter(includes=includes, excludes=excludes)
+        dataset = datatree.measurements.to_dataset()
+        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No variables selected")
+        dataset = dataset[variable_names]
+
+        # reproject dataset to regular grid
+        source_gm = GridMapping.from_dataset(dataset)
+        target_gm = source_gm.to_regular()
+        if resolution is not None:
+            resolution: int | tuple
+            if not isinstance(resolution, tuple):
+                resolution = (resolution, resolution)
+            bbox = target_gm.xy_bbox
+            x_size = np.ceil((bbox[2] - bbox[0]) / resolution[0])
+            y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution[1])
+            target_gm = GridMapping.regular(
+                size=(x_size, y_size),
+                xy_min=(bbox[0], bbox[1]),
+                xy_res=resolution,
+                crs=target_gm.crs,
+                tile_size=target_gm.tile_size,
+            )
+
+        rescaled_dataset = rectify_dataset(
+            dataset,
+            source_gm=source_gm,
+            target_gm=target_gm,
+            interp_methods=interp_methods,
+            agg_methods=agg_methods,
+        )
+        rescaled_dataset.attrs = self.process_metadata(datatree)
+        return rescaled_dataset
+
+    # noinspection PyMethodMayBeStatic
+    def process_metadata(self, datatree: xr.DataTree | xr.Dataset):
+        # TODO: process metadata and try adhering to CF conventions
+        other_metadata = datatree.attrs.get("other_metadata", {})
+        return other_metadata
+
+    # noinspection PyMethodMayBeStatic
+    def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
+        crs = pyproj.CRS.from_epsg(_SEN3_EPSG_CODE)
+        dataset = dataset.assign_coords(
+            dict(spatial_ref=xr.DataArray(0, attrs=crs.to_cf()))
+        )
+        for var_name in dataset.data_vars:
+            dataset[var_name].attrs["grid_mapping"] = _SEN3_SPATIAL_REF_NAME
+
+        return dataset
+
+
+class SEN3OL1ERR(SEN3):
+    product_type = "OL_1_ERR"
+
+
+class SEN3OL1EFR(SEN3):
+    product_type = "OL_1_EFR"
+
+
+# STAC Item names look wrong: https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lrr?.language=en
+# class SEN3OL2LRR(SEN3):
+#     product_type = "OL_1_LRR"
+
+
+class SEN3OL2LFR(SEN3):
+    product_type = "OL_1_LFR"
+
+
+class SEN3SL1RBT(SEN3):
+    product_type = "SL_1_RBT"
+
+
+class SEN3SL2LST(SEN3):
+    product_type = "SL_2_LST"
+
+
+def register(registry: AnalysisModeRegistry):
+    registry.register(SEN3OL1ERR)
+    registry.register(SEN3OL1EFR)
+    registry.register(SEN3OL2LFR)
+    registry.register(SEN3SL1RBT)
+    registry.register(SEN3SL2LST)

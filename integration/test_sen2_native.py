@@ -6,9 +6,8 @@ from unittest import TestCase
 
 import xarray as xr
 
-from integration.helpers import assert_data_arrays_are_chunked
+from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
-from xarray_eopf.spatial import get_spatial_vars
 from xarray_eopf.utils import timeit
 
 s02msil1c_bucket = "e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil1c"
@@ -79,11 +78,8 @@ class Sentinel2NativeTest(TestCase):
         )
         ds = dt.measurements.reflectance.r10m.ds
         self.assertEqual({"y": 10980, "x": 10980}, ds.sizes)
-        spatial_vars = get_spatial_vars(ds)
-        self.assertEqual(
-            ["b02", "b03", "b04", "b08"], sorted(map(str, spatial_vars.keys()))
-        )
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        self.assertCountEqual(["b02", "b03", "b04", "b08"], ds.data_vars.keys())
+        assert_dataset_is_chunked(self, ds, verbose=True)
 
     def _test_open_datatree_sen2_l2a(self, url_prefix: str):
         url = f"{url_prefix}/{l2a_filename}.zarr"
@@ -98,11 +94,8 @@ class Sentinel2NativeTest(TestCase):
         )
         ds = dt.measurements.reflectance.r10m.ds
         self.assertEqual({"y": 10980, "x": 10980}, ds.sizes)
-        spatial_vars = get_spatial_vars(ds)
-        self.assertEqual(
-            ["b02", "b03", "b04", "b08"], sorted(map(str, spatial_vars.keys()))
-        )
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        self.assertCountEqual(["b02", "b03", "b04", "b08"], ds.data_vars.keys())
+        assert_dataset_is_chunked(self, ds, verbose=True)
 
     def _test_open_dataset_sen2_l1c(self, url_prefix: str):
         url = f"{url_prefix}/{l1c_filename}"
@@ -119,9 +112,7 @@ class Sentinel2NativeTest(TestCase):
         self.assertEqual(
             {"measurements_r10m_y": 10980, "measurements_r10m_x": 10980}, da.sizes
         )
-        spatial_vars = get_spatial_vars(ds)
-        self.assertEqual(43, len(spatial_vars))
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=True)
 
     def _test_open_dataset_sen2_l1c_subgroup(self, url_prefix: str):
         url = f"{url_prefix}/{l1c_filename}/measurements/reflectance/r60m"
@@ -132,8 +123,7 @@ class Sentinel2NativeTest(TestCase):
         self.assertCountEqual(["b01", "b09", "b10"], ds.data_vars)
         da = ds.b01
         self.assertEqual({"y": 1830, "x": 1830}, da.sizes)
-        spatial_vars = get_spatial_vars(ds)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=True)
 
     def _test_open_dataset_sen2_l2a_subgroup(self, url_prefix: str):
         url = f"{url_prefix}/{l2a_filename}/measurements/reflectance/r10m"
@@ -144,8 +134,7 @@ class Sentinel2NativeTest(TestCase):
         self.assertCountEqual(["b02", "b03", "b04", "b08"], ds.data_vars)
         da = ds.b02
         self.assertEqual({"y": 10980, "x": 10980}, da.sizes)
-        spatial_vars = get_spatial_vars(ds)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=True)
 
     def _test_open_dataset_sen2_l2a(self, url_prefix: str):
         url = f"{url_prefix}/{l2a_filename}"
@@ -162,6 +151,4 @@ class Sentinel2NativeTest(TestCase):
         self.assertEqual(
             {"measurements_r10m_y": 10980, "measurements_r10m_x": 10980}, da.sizes
         )
-        spatial_vars = get_spatial_vars(ds)
-        self.assertEqual(67, len(spatial_vars))
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=True)

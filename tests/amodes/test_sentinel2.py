@@ -29,18 +29,15 @@ class MSITestMixin:
 
     def test_get_applicable_params(self: TestCase):
         self.assertEqual(
-            {
-                "spline_orders": {0: ["scl"]},
-                "agg_methods": {"center": ["scl"]},
-            },
+            {},
             self.mode.get_applicable_params(),
         )
         self.assertEqual(
-            {"resolution": 10, "spline_orders": 2, "agg_methods": {"mode": ["scl"]}},
+            {"resolution": 10, "interp_methods": 2, "agg_methods": {"scl": "mode"}},
             self.mode.get_applicable_params(
                 resolution=10,
-                spline_orders=2,
-                agg_methods={"mode": ["scl"]},
+                interp_methods=2,
+                agg_methods={"scl": "mode"},
                 temp_file=".",
             ),
         )
@@ -121,16 +118,6 @@ class MSITestMixin:
     def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
         with pytest.raises(ValueError, match="No variables selected"):
             self.mode.convert_datatree(original_dt, includes="bibo")
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                "No reference variable found."
-                " At least one of the selected variables must have"
-                " a native resolution that equals the target resolution."
-            ),
-        ):
-            self.mode.convert_datatree(original_dt, includes=["b11", "b12"])
 
 
 class MSIL1CTest(MSITestMixin, TestCase):

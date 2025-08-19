@@ -6,9 +6,8 @@ from unittest import TestCase
 
 import xarray as xr
 
-from integration.helpers import assert_data_arrays_are_chunked
+from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
-from xarray_eopf.spatial import get_spatial_vars
 from xarray_eopf.utils import timeit
 
 s02msil1c_bucket = "e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil1c"
@@ -55,9 +54,8 @@ class Sentinel2AnalysisTest(TestCase):
         self.assertIn("b11", ds)
         self.assertIn("b01", ds)
 
-        spatial_vars = get_spatial_vars(ds.data_vars)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=show_chunking)
-        for var_name in spatial_vars.keys():
+        assert_dataset_is_chunked(self, ds, verbose=show_chunking)
+        for var_name in ds.data_vars:
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
 
     def _test_open_dataset_sen2_l2a(self, url_prefix):
@@ -79,9 +77,8 @@ class Sentinel2AnalysisTest(TestCase):
         self.assertIn("cld", ds)
         self.assertIn("snw", ds)
 
-        spatial_vars = get_spatial_vars(ds.data_vars)
-        assert_data_arrays_are_chunked(self, spatial_vars, verbose=show_chunking)
-        for var_name in spatial_vars.keys():
+        assert_dataset_is_chunked(self, ds, verbose=show_chunking)
+        for var_name in ds.data_vars:
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
 
     def test_production(self):

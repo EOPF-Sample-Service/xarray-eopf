@@ -2,28 +2,27 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
+import collections
 import warnings
 from abc import ABC
 from collections.abc import Iterable
 from typing import Any, Hashable
 
+import numpy as np
 import pyproj.crs
 import xarray as xr
+from xcube_resampling.constants import AggMethods, InterpMethods
+from xcube_resampling.affine import affine_transform_dataset
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
-from xarray_eopf.spatial import (
-    AggMethods,
-    SplineOrders,
-    get_spatial_vars,
-    rescale_spatial_vars,
-)
 from xarray_eopf.utils import (
     NameFilter,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
 )
+from xcube_resampling.gridmapping import GridMapping
 
 # Resolutions of bands and variables in the order they contribute
 # to a dataset (=value) for a target resolution (= key).
@@ -33,6 +32,8 @@ RESOLUTION_ORDERS = {
     20: (20, 10, 60),
     60: (60, 20, 10),
 }
+SEN2_RESOLUTIONS = list(RESOLUTION_ORDERS.keys())
+RESOLUTION_CHUNKSIZE = {10: 1830, 20: 915, 60: 305}
 
 # Groups in L1C and L2A that contain resolution groups
 # (r10m, r20m, r60m) that contain a dataset
@@ -91,24 +92,17 @@ class MSI(AnalysisMode, ABC):
         resolution = kwargs.get("resolution")
         if resolution is not None:
             assert_arg_is_instance(resolution, "resolution", (int, float))
-            assert_arg_is_one_of(resolution, "resolution", (10, 20, 60))
             params.update(resolution=int(resolution))
 
-        spline_orders = kwargs.get("spline_orders")
-        if spline_orders is not None:
-            assert_arg_is_instance(spline_orders, "spline_orders", (int, dict))
-            params.update(spline_orders=spline_orders)
-        else:
-            # Nearest is desired for "scl" by ESA
-            params.update(spline_orders={0: ["scl"]})
+        interp_methods = kwargs.get("interp_methods")
+        if interp_methods is not None:
+            assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
+            params.update(interp_methods=interp_methods)
 
         agg_methods = kwargs.get("agg_methods")
         if agg_methods is not None:
             assert_arg_is_instance(agg_methods, "agg_methods", (str, dict))
             params.update(agg_methods=agg_methods)
-        else:
-            # "center" is desired for "scl" by ESA
-            params.update(agg_methods={"center": ["scl"]})
 
         return params
 
@@ -127,7 +121,7 @@ class MSI(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
-        spline_orders: SplineOrders | None = None,
+        interp_methods: InterpMethods | None = None,
         agg_methods: AggMethods | None = None,
     ) -> xr.Dataset:
         # Important note: rescale_spatial_vars() may take very long
@@ -138,9 +132,8 @@ class MSI(AnalysisMode, ABC):
         #   with shape (13, 7, 2, 23, 23) takes 140 seconds
 
         name_filter = NameFilter(includes=includes, excludes=excludes)
-        ref_var_name: str | None = None
 
-        variables: dict[Hashable, xr.DataArray] = {}
+        variables: dict[int, dict[Hashable, xr.DataArray]] = {10: {}, 20: {}, 60: {}}
         for group_path in GROUP_PATHS:
             group = get_data_tree_item(datatree, group_path)
             if group is None:
@@ -151,41 +144,58 @@ class MSI(AnalysisMode, ABC):
                     continue
                 res_group = group[res_name]
                 res_ds = res_group.ds
-                if res != resolution:
-                    res_ds = res_ds.rename({"x": f"{res_name}_x", "y": f"{res_name}_y"})
-                spatial_vars = get_spatial_vars(res_ds.data_vars)
-                for k, v in spatial_vars.items():
+                for k, v in res_ds.data_vars.items():
                     if name_filter.accept(str(k)) and (k not in variables):
-                        if ref_var_name is None and res == resolution:
-                            ref_var_name = str(k)
-                        variables[k] = v
+                        variables[res][k] = v
 
-        if not variables:
+        if all(len(v) == 0 for v in variables.values()):
             raise ValueError("No variables selected")
-        if ref_var_name is None:
-            raise ValueError(
-                "No reference variable found. At least one of the selected"
-                " variables must have a native resolution that equals"
-                " the target resolution."
+        datasets = dict()
+        for res, da_mapping in variables.items():
+            if da_mapping:
+                datasets[res] = self.assign_grid_mapping(xr.Dataset(da_mapping))
+
+        # resample data set via affine transform
+        if resolution in SEN2_RESOLUTIONS and resolution in datasets:
+            target_gm = GridMapping.from_dataset(datasets[resolution])
+        else:
+            res, ds = next(iter(datasets.items()))
+            resh = res / 2
+            bbox = [ds.x[0] - resh, ds.y[-1] - resh, ds.x[-1] + resh, ds.y[0] + resh]
+            x_size = np.ceil((bbox[2] - bbox[0]) / resolution)
+            y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution)
+            chunk_size = RESOLUTION_CHUNKSIZE[
+                min(SEN2_RESOLUTIONS, key=lambda x: abs(x - resolution))
+            ]
+            target_gm = GridMapping.regular(
+                size=(x_size, y_size),
+                xy_min=(bbox[0], bbox[1]),
+                xy_res=resolution,
+                crs=pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"]),
+                tile_size=chunk_size,
             )
 
-        rescaled_variables = rescale_spatial_vars(
-            variables,
-            ref_var_name=ref_var_name,
-            spline_orders=spline_orders,
-            agg_methods=agg_methods,
-        )
+        rescaled_ds = None
+        for res, ds in datasets.items():
+            ds = affine_transform_dataset(
+                ds,
+                target_gm=target_gm,
+                interp_methods=interp_methods,
+                agg_methods=agg_methods,
+            )
+            if rescaled_ds is None:
+                rescaled_ds = ds
+            else:
+                rescaled_ds.update(ds)
 
         # Assign extra variable attributes
-        for var_name, var in rescaled_variables.items():
+        for var_name in rescaled_ds.data_vars:
             attrs = EXTRA_VAR_ATTRS.get(var_name)
             if attrs:
-                var.attrs.update(attrs)
+                rescaled_ds[var_name].attrs.update(attrs)
 
-        dataset = xr.Dataset(rescaled_variables, attrs=self.process_metadata(datatree))
-        dataset.attrs = self.process_metadata(datatree)
-        dataset = self.assign_grid_mapping(dataset)
-        return dataset
+        rescaled_ds.attrs = self.process_metadata(datatree)
+        return rescaled_ds
 
     # noinspection PyMethodMayBeStatic
     def process_metadata(self, datatree: xr.DataTree | xr.Dataset):

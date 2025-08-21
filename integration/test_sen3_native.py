@@ -32,6 +32,11 @@ sl1rbt_url = (
     "20/products/cpm_v256/S3A_SL_1_RBT____20250820T074725_20250820T075025_"
     "20250820T095144_0180_129_263_3060_PS1_O_NR_004.zarr"
 )
+sl2lst_url = (
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03slslst/"
+    "21/products/cpm_v256/S3A_SL_2_LST____20250821T085614_20250821T085914_"
+    "20250821T110745_0179_129_278_2700_PS1_O_NR_004.zarr"
+)
 
 allowed_open_time = 5  # seconds
 
@@ -39,7 +44,7 @@ allowed_open_time = 5  # seconds
 class Sentinel3NativeTest(TestCase):
     def test_open_datatree_sen3_ol1efr(self):
         self._test_open_datatree_sen3(
-            ol1efr_url, 11, {"columns": 4865, "rows": 4091}, 21
+            ol1efr_url, 11, "measurements", {"columns": 4865, "rows": 4091}, 21
         )
 
     def test_open_dataset_sen3_ol1efr(self):
@@ -52,12 +57,16 @@ class Sentinel3NativeTest(TestCase):
 
     def test_open_dataset_sen3_ol1efr_subgroup(self):
         self._test_open_dataset_sen3_subgroup(
-            ol1efr_url, "oa21_radiance", {"columns": 4865, "rows": 4091}, 21
+            ol1efr_url,
+            "oa21_radiance",
+            "measurements",
+            {"columns": 4865, "rows": 4091},
+            21,
         )
 
     def test_open_datatree_sen3_ol1err(self):
         self._test_open_datatree_sen3(
-            ol1err_url, 8, {"columns": 1217, "rows": 14893}, 21
+            ol1err_url, 8, "measurements", {"columns": 1217, "rows": 14893}, 21
         )
 
     def test_open_dataset_sen3_ol1err(self):
@@ -70,11 +79,17 @@ class Sentinel3NativeTest(TestCase):
 
     def test_open_dataset_sen3_ol1err_subgroup(self):
         self._test_open_dataset_sen3_subgroup(
-            ol1err_url, "oa21_radiance", {"columns": 1217, "rows": 14893}, 21
+            ol1err_url,
+            "oa21_radiance",
+            "measurements",
+            {"columns": 1217, "rows": 14893},
+            21,
         )
 
     def test_open_datatree_sen3_ol2lfr(self):
-        self._test_open_datatree_sen3(ol2lfr_url, 9, {"columns": 4865, "rows": 4091}, 5)
+        self._test_open_datatree_sen3(
+            ol2lfr_url, 9, "measurements", {"columns": 4865, "rows": 4091}, 5
+        )
 
     def test_open_dataset_sen3_ol2lfr(self):
         self._test_open_dataset_sen3(
@@ -86,12 +101,16 @@ class Sentinel3NativeTest(TestCase):
 
     def test_open_dataset_sen3_ol2lfr_subgroup(self):
         self._test_open_dataset_sen3_subgroup(
-            ol2lfr_url, "otci", {"columns": 4865, "rows": 4091}, 5
+            ol2lfr_url, "otci", "measurements", {"columns": 4865, "rows": 4091}, 5
         )
 
     def test_open_datatree_sen3_sl1rbt(self):
         self._test_open_datatree_sen3(
-            sl1rbt_url, 97, {"columns": 4865, "rows": 4091}, 97
+            sl1rbt_url,
+            97,
+            "measurements/bnadir",
+            {"columns": 3000, "rows": 2400},
+            5,
         )
 
     def test_open_dataset_sen3_sl1rbt(self):
@@ -105,13 +124,45 @@ class Sentinel3NativeTest(TestCase):
     def test_open_dataset_sen3_sl1rbt_subgroup(self):
         self._test_open_dataset_sen3_subgroup(
             sl1rbt_url,
-            "bnadir_s4_radiance_bn",
-            {"anadir_columns": 3000, "anadir_rows": 2400},
-            39,
+            "s4_radiance_bn",
+            "measurements/bnadir",
+            {"columns": 3000, "rows": 2400},
+            5,
+        )
+
+    def test_open_datatree_sen3_sl2lst(self):
+        self._test_open_datatree_sen3(
+            sl2lst_url,
+            13,
+            "measurements",
+            {"columns": 1500, "rows": 1200},
+            1,
+        )
+
+    def test_open_dataset_sen3_sl2lst(self):
+        self._test_open_dataset_sen3(
+            sl2lst_url,
+            "measurements_lst",
+            {"measurements_columns": 1500, "measurements_rows": 1200},
+            58,
+        )
+
+    def test_open_dataset_sen3_sl2lst_subgroup(self):
+        self._test_open_dataset_sen3_subgroup(
+            sl2lst_url,
+            "lst",
+            "measurements",
+            {"columns": 1500, "rows": 1200},
+            1,
         )
 
     def _test_open_datatree_sen3(
-        self, url: str, num_groups: int, ds_sizes: dict, num_data_vars: int
+        self,
+        url: str,
+        num_groups: int,
+        subgroup: str,
+        ds_sizes: dict,
+        num_data_vars: int,
     ):
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
@@ -119,13 +170,13 @@ class Sentinel3NativeTest(TestCase):
         self.assertTrue(result.time_delta < allowed_open_time)
         self.assertEqual(num_groups, len(dt.groups))
         self.assertIn(
-            "/measurements",
+            f"/{subgroup}",
             dt.groups,
         )
-        ds = dt.measurements
+        ds = dt[subgroup].ds
         self.assertEqual(ds_sizes, ds.sizes)
         self.assertEqual(num_data_vars, len(ds.data_vars))
-        assert_dataset_is_chunked(self, ds, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=False)
 
     def _test_open_dataset_sen3(
         self, url: str, name_data_var: str, ds_sizes: dict, num_data_vars: int
@@ -140,15 +191,20 @@ class Sentinel3NativeTest(TestCase):
             ds_sizes,
             ds[name_data_var].sizes,
         )
-        assert_dataset_is_chunked(self, ds, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=False)
 
     def _test_open_dataset_sen3_subgroup(
-        self, url: str, name_data_var: str, ds_sizes: dict, num_data_vars: int
+        self,
+        url: str,
+        name_data_var: str,
+        subgroup: str,
+        ds_sizes: dict,
+        num_data_vars: int,
     ):
-        with timeit("open " + f"{url}/measurements") as result:
+        with timeit("open " + f"{url}/{subgroup}") as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(
-                f"{url}/measurements",
+                f"{url}/{subgroup}",
                 engine="eopf-zarr",
                 op_mode="native",
                 chunks={},
@@ -157,4 +213,4 @@ class Sentinel3NativeTest(TestCase):
         self.assertEqual(num_data_vars, len(ds.data_vars))
         self.assertIn(name_data_var, ds.data_vars)
         self.assertEqual(ds_sizes, ds.sizes)
-        assert_dataset_is_chunked(self, ds, verbose=True)
+        assert_dataset_is_chunked(self, ds, verbose=False)

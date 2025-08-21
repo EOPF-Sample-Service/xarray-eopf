@@ -60,8 +60,8 @@ Now you can open EOPF sample products using xarray by specifying the
 import xarray as xr
 
 s2_l2a_url = (
-    "s3://e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil2a/15/products/cpm_v256/"
-    "S2B_MSIL2A_20250415T142749_N0511_R139_T25WEV_20250415T181516.zarr"
+    "https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a/"
+    "items/S2B_MSIL2A_20250821T084559_N0511_R107_T37VDD_20250821T095143"
 )
 s2_l2a_dataset = xr.open_dataset(s2_l2a_url, engine="eopf-zarr", resolution=10)
 ```
@@ -89,18 +89,20 @@ mamba activate eopf-xr
 pip install -ve .
 pytest
 ```
-By default, this will run all unit and integration tests. To run only the unit test
-suite, use:  
-
-```shell
-pytest tests
-```
-
-To run tests and generate a coverage report, use:
+By default, this will run all unit tests. To run unit tests and generate a coverage 
+report, use:
 
 ```shell
 pytest --cov xarray_eopf --cov-report html tests
 ```
+
+To run the integration tests, use:  
+
+```shell
+pytest integration
+```
+
+
 
 ### Setting up a documentation environment
 

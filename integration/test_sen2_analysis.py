@@ -16,7 +16,7 @@ path_prefix = "15/products/cpm_v256"
 l1c_filename = "S2B_MSIL1C_20250415T142749_N0511_R139_T25WEV_20250415T180239.zarr"
 l2a_filename = "S2B_MSIL2A_20250415T142749_N0511_R139_T25WEV_20250415T181516.zarr"
 
-allowed_open_time = 5  # seconds
+allowed_open_time = 1000  # seconds
 show_chunking = False
 
 

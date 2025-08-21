@@ -46,7 +46,13 @@ mamba env create
 and code coverage analysis.
 
 ```bash
-pytest tests/ --cov=xarray_eopf --cov-report html
+pytest --cov=xarray_eopf --cov-report html
+```
+
+To run the interation tests type:
+
+```bash
+pytest integration
 ```
 
 ### Code Style

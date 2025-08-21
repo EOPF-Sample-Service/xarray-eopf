@@ -30,8 +30,5 @@ def assert_dataset_is_chunked(
         if v.ndim > 1:
             test_case.assertIsNotNone(
                 v.chunks,
-                msg=(
-                    f"{k} with shape {v.shape} should be chunked,"
-                    f" but chunk sizes are {v.chunksizes}"
-                ),
+                msg=(f"{k} with shape {v.shape} should be chunked."),
             )

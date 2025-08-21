@@ -4,6 +4,7 @@
 
 from typing import Any
 
+import dask.array as da
 import numpy as np
 import xarray as xr
 
@@ -97,10 +98,10 @@ def make_s2_msi_scl(size: int) -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             "scl": xr.DataArray(
-                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
+                da.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={"proj:epsg": 32625},
-            ).chunk(x=4, y=4)
+            ).chunk(x=max(size // 10, 4), y=max(size // 10, 4))
         },
         coords=make_coords(size, size),
     )
@@ -111,15 +112,15 @@ def make_s2_msi_l2a_probs_r20m(r10m_size: int):
     return xr.Dataset(
         data_vars={
             "cld": xr.DataArray(
-                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
+                da.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={"proj:epsg": 32625},
-            ).chunk(x=4, y=4),
+            ).chunk(x=max(size // 10, 4), y=max(size // 10, 4)),
             "snw": xr.DataArray(
-                np.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
+                da.random.randint(0, 1 << 8, (size, size), dtype="uint8"),
                 dims=("y", "x"),
                 attrs={"proj:epsg": 32625},
-            ).chunk(x=4, y=4),
+            ).chunk(x=max(size // 10, 4), y=max(size // 10, 4)),
         },
         coords=make_coords(size, size),
     )
@@ -133,7 +134,7 @@ def make_s2_msi_rx0m(bands: list[str], size: int) -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             band: xr.DataArray(
-                np.random.randint(0, 1 << 16, (size, size), dtype="uint16"),
+                da.random.randint(0, 1 << 16, (size, size), dtype="uint16"),
                 dims=("y", "x"),
                 attrs={
                     "_FillValue": 0,
@@ -143,7 +144,7 @@ def make_s2_msi_rx0m(bands: list[str], size: int) -> xr.Dataset:
                     "valid_min": 1,
                     "proj:epsg": 32625,
                 },
-            ).chunk(x=4, y=4)
+            ).chunk(x=max(size // 10, 4), y=max(size // 10, 4))
             for band in bands
         },
         coords=make_coords(size, size),
@@ -159,7 +160,7 @@ def make_coords(w: int, h: int) -> dict[str, xr.DataArray]:
 
     return {
         "x": xr.DataArray(np.linspace(x1 + dx, y2 - dx, w), dims="x"),
-        "y": xr.DataArray(np.linspace(y1 + dy, y2 - dy, h), dims="y"),
+        "y": xr.DataArray(np.linspace(y2 - dy, y1 + dy, h), dims="y"),
     }
 
 

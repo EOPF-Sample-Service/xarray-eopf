@@ -71,6 +71,11 @@ EXTRA_VAR_ATTRS: dict[Hashable, dict[str, Any]] = {
         ),
     }
 }
+LONG_NAME_TRANSLATION = {
+    "cld": "Cloud probability, based on Sen2Cor processor",
+    "scl": "Scene classification data, based on Sen2Cor processor",
+    "snw": "Snow probability, based on Sen2Cor processor",
+}
 
 
 class MSI(AnalysisMode, ABC):
@@ -145,7 +150,9 @@ class MSI(AnalysisMode, ABC):
                 res_group = group[res_name]
                 res_ds = res_group.ds
                 for k, v in res_ds.data_vars.items():
-                    if name_filter.accept(str(k)) and (k not in variables):
+                    if name_filter.accept(str(k)) and not any(
+                        k in variables[sen2_res] for sen2_res in SEN2_RESOLUTIONS
+                    ):
                         variables[res][k] = v
 
         if all(len(v) == 0 for v in variables.values()):
@@ -193,6 +200,10 @@ class MSI(AnalysisMode, ABC):
             attrs = EXTRA_VAR_ATTRS.get(var_name)
             if attrs:
                 rescaled_ds[var_name].attrs.update(attrs)
+            if var_name in LONG_NAME_TRANSLATION.keys():
+                rescaled_ds[var_name].attrs["long_name"] = LONG_NAME_TRANSLATION[
+                    var_name
+                ]
 
         rescaled_ds.attrs = self.process_metadata(datatree)
         return rescaled_ds

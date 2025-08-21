@@ -98,7 +98,9 @@ class MSITestMixin:
         expected_var_names: list[str],
         expected_size: int,
     ):
-        ds = self.mode.convert_datatree(original_dt, resolution=10)
+        ds = self.mode.convert_datatree(
+            original_dt, includes=expected_var_names, resolution=10
+        )
         self.assertIsInstance(ds, xr.Dataset)
         self.assertEqual(
             expected_var_names,
@@ -165,6 +167,18 @@ class MSIL1CTest(MSITestMixin, TestCase):
             expected_size=48,
         )
 
+    def test_convert_datatree_no_refds(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=10000),
+            expected_var_names=[
+                "b05",
+                "b06",
+                "b07",
+                "b8a",
+            ],
+            expected_size=10000,
+        )
+
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s2_msi_l1c(r10m_size=48))
 
@@ -180,7 +194,7 @@ class MSIL2ATest(MSITestMixin, TestCase):
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s2_msi_l2a())
 
-    def test_convert_datatree_ok(self):
+    def test_convert_datatree(self):
         self.assert_convert_datatree_ok(
             make_s2_msi_l2a(r10m_size=48),
             expected_var_names=[
@@ -200,6 +214,21 @@ class MSIL2ATest(MSITestMixin, TestCase):
                 "snw",
             ],
             expected_size=48,
+        )
+
+    def test_convert_datatree_no_refds(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l2a(r10m_size=10000),
+            expected_var_names=[
+                "b05",
+                "b06",
+                "b07",
+                "b8a",
+                "cld",
+                "scl",
+                "snw",
+            ],
+            expected_size=10000,
         )
 
     def test_convert_datatree_fail(self):

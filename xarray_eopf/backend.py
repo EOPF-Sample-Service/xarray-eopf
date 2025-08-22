@@ -147,9 +147,9 @@ class EopfBackend(BackendEntrypoint):
             group_sep: Separator string used to concatenate groups names
                 to create prefixes for unique variable and dimension names.
                 Defaults to the underscore character (`"_"`)
-            resolution: Target resolution for all spatial data variables / bands.
-                Must be one of `10`, `20`, or `60`.
-                Only used if `op_mode="analysis"`.
+            resolution: Target resolution for all spatial
+                data variables / bands. For Sentinel-2 products it be one of
+                `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
             interp_methods: Optional interpolation method to be used if
                 `op_mode="analysis"`, for upsampling / interpolating
                 spatial data variables. Can be a single interpolation method for all
@@ -166,8 +166,8 @@ class EopfBackend(BackendEntrypoint):
                 else `1`.
             agg_methods: Optional aggregation methods to be used if
                 `op_mode="analysis"`, for downsampling spatial variables.
-                Can be a single method for all variables or a dictionary mapping variable
-                names or dtypes to methods. Supported methods include:
+                Can be a single method for all variables or a dictionary mapping
+                variable names or dtypes to methods. Supported methods include:
                     "center", "count", "first", "last", "max", "mean", "median",
                     "mode", "min", "prod", "std", "sum", and "var".
                 Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),

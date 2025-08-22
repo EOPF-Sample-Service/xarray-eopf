@@ -31,7 +31,7 @@ following features:
 * Open the deeply nested EOPF products as flat `xarray.Dataset` objects.
 * All bands and quality images resampled to a single, user provided 
   resolution, hence, spatial dimensions will be just `x` and `y`.
-* User-specified resampling by passing spline orders for up-scaling
+* User-specified resampling by passing interpolation methods for up-scaling
   and aggregation methods for downscaling.
 * CF-compliant spatial referencing of datasets using a shared grid 
   mapping variable `spatial_ref`.

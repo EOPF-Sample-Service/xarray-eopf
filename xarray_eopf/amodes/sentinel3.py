@@ -5,25 +5,21 @@
 import warnings
 from abc import ABC
 from collections.abc import Iterable
-from typing import Any, Hashable
+from typing import Any
 
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from xcube_resampling.constants import InterpMethod, AggMethods, FillValues
-from xcube_resampling.rectify import rectify_dataset
+from xcube_resampling.constants import AggMethods, InterpMethod
 from xcube_resampling.gridmapping import GridMapping
+from xcube_resampling.rectify import rectify_dataset
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
-
 from xarray_eopf.utils import (
     NameFilter,
     assert_arg_is_instance,
 )
-
-_SEN3_EPSG_CODE = 4326
-_SEN3_SPATIAL_REF_NAME = "spatial_ref"
 
 
 class SEN3(AnalysisMode, ABC):
@@ -40,6 +36,11 @@ class SEN3(AnalysisMode, ABC):
 
     def get_applicable_params(self, **kwargs) -> dict[str, any]:
         params = {}
+
+        resolution = kwargs.get("resolution")
+        if resolution is not None:
+            assert_arg_is_instance(resolution, "resolution", (int, float))
+            params.update(resolution=resolution)
 
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
@@ -71,7 +72,6 @@ class SEN3(AnalysisMode, ABC):
         interp_methods: InterpMethod | None = None,
         agg_methods: AggMethods | None = None,
     ) -> xr.Dataset:
-
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset = datatree.measurements.to_dataset()
@@ -116,12 +116,12 @@ class SEN3(AnalysisMode, ABC):
 
     # noinspection PyMethodMayBeStatic
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
-        crs = pyproj.CRS.from_epsg(_SEN3_EPSG_CODE)
+        crs = pyproj.CRS.from_epsg(4326)
         dataset = dataset.assign_coords(
             dict(spatial_ref=xr.DataArray(0, attrs=crs.to_cf()))
         )
         for var_name in dataset.data_vars:
-            dataset[var_name].attrs["grid_mapping"] = _SEN3_SPATIAL_REF_NAME
+            dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
 
         return dataset
 
@@ -134,17 +134,18 @@ class SEN3OL1EFR(SEN3):
     product_type = "OL_1_EFR"
 
 
-# STAC Item names look wrong: https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lrr?.language=en
+# Broken data in: https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lrr?.language=en
 # class SEN3OL2LRR(SEN3):
-#     product_type = "OL_1_LRR"
+#     product_type = "OL_2_LRR"
 
 
 class SEN3OL2LFR(SEN3):
-    product_type = "OL_1_LFR"
+    product_type = "OL_2_LFR"
 
 
-class SEN3SL1RBT(SEN3):
-    product_type = "SL_1_RBT"
+# complex data tree groups, implementation postponed;
+# class SEN3SL1RBT(SEN3):
+#     product_type = "SL_1_RBT"
 
 
 class SEN3SL2LST(SEN3):
@@ -155,5 +156,6 @@ def register(registry: AnalysisModeRegistry):
     registry.register(SEN3OL1ERR)
     registry.register(SEN3OL1EFR)
     registry.register(SEN3OL2LFR)
-    registry.register(SEN3SL1RBT)
+    # registry.register(SEN3OL2LRR)
+    # registry.register(SEN3SL1RBT)
     registry.register(SEN3SL2LST)

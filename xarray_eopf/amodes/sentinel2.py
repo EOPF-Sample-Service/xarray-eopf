@@ -2,7 +2,6 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-import collections
 import warnings
 from abc import ABC
 from collections.abc import Iterable
@@ -11,8 +10,9 @@ from typing import Any, Hashable
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from xcube_resampling.constants import AggMethods, InterpMethods
 from xcube_resampling.affine import affine_transform_dataset
+from xcube_resampling.constants import AggMethods, InterpMethods
+from xcube_resampling.gridmapping import GridMapping
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
@@ -22,7 +22,6 @@ from xarray_eopf.utils import (
     assert_arg_is_one_of,
     get_data_tree_item,
 )
-from xcube_resampling.gridmapping import GridMapping
 
 # Resolutions of bands and variables in the order they contribute
 # to a dataset (=value) for a target resolution (= key).
@@ -96,8 +95,8 @@ class MSI(AnalysisMode, ABC):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (int, float))
-            params.update(resolution=int(resolution))
+            assert_arg_is_one_of(resolution, "resolution", [10, 20, 60])
+            params.update(resolution=resolution)
 
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:

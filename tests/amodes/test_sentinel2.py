@@ -33,12 +33,11 @@ class MSITestMixin:
             self.mode.get_applicable_params(),
         )
         self.assertEqual(
-            {"resolution": 10, "interp_methods": 2, "agg_methods": {"scl": "mode"}},
+            {"resolution": 10, "interp_methods": 1, "agg_methods": {"scl": "mode"}},
             self.mode.get_applicable_params(
                 resolution=10,
-                interp_methods=2,
+                interp_methods=1,
                 agg_methods={"scl": "mode"},
-                temp_file=".",
             ),
         )
 

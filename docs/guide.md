@@ -2,6 +2,8 @@ The xarray backend for EOPF data products `"eopf-zarr"` has two modes of operati
 namely _analysis mode_ (the default) and _native mode_, which are described in 
 the following. 
 
+---
+
 ## Analysis Mode
 
 This mode aims at representing the EOPF data products in an analysis-ready and 
@@ -9,10 +11,11 @@ convenient form using the `xarray` data models `DataTree` and `Dataset`.
 For this reason, it is the default mode of operation when using the `"eopf-zarr"` 
 backend.
 
-The data products provided in this mode use a unified grid mapping 
+The data products provided in this mode use a unified regular grid mapping 
 for all their data variables. This means that selected variables are 
-spatially up-scaled or down-scaled as needed, so that the dataset can use a 
-single shared pair of `x` and `y` coordinates in the returned datasets.
+spatially resampled as needed, so that the dataset can use a 
+single shared pair of 1d `x` and `y` coordinates in the returned datasets.
+
 
 ### Function `open_dataset()`
 
@@ -33,34 +36,71 @@ form. All bands and quality flags are resampled to a unified, user-provided reso
 Parameters `**kwargs`:
 
 - `resolution`: Target resolution for all spatial data variables / bands.
-  Must be one of `10`, `20`, or `60`. 
-- `spline_orders`: Spline order to be used for resampling 
-  spatial data variables / bands.
-  Must be one of `0` (nearest neighbor), `1` (linear), `2` (bi-linear), or 
-  `3` (cubic). 
-- `spline_orders`: Optional spline orders to be used for upsampling
-  spatial data variables / bands. Can be a single spline order
-  for all variables or a dictionary that maps a spline order to
-  applicable variable names or array data types.
-  A spline order is given by one of `0` (nearest neighbor),
-  `1` (linear), `2` (bi-linear), or `3` (cubic).
-  The default is `3`, except for product specific overrides.
-  For example, the Sentinel-2 variable `scl` uses the default `0`.
+- `interp_methods`: for upsampling / interpolating
+    spatial data variables. Can be a single interpolation method for all
+    variables or a dictionary mapping variable names or dtypes to
+    interpolation method. Supported methods include:
+
+    - `0` (nearest neighbor)
+    - `1` (linear / bilinear)
+    - `"nearest"`
+    - `"triangular"`
+    - `"bilinear"`
+
+    The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
+    else `1`.
 - `agg_methods`: Optional aggregation methods to be used for downsampling
-  spatial data variables / bands. Can be a single aggregation method
-  for all variables or a dictionary that maps an aggregation method to
-  applicable variable names or array data types.
-  An aggregation method is one of
-  `"center"`, `"count"`, `"first"`, `"last"`, `"max"`,
-  `"mean"`, `"median"`, `"mode"`, `"min"`, `"prod"`,
-  `"std"`, `"sum"`, or `"var"`.
-  The default is `"mean"`, except for product specific overrides.
-  For example, the Sentinel-2 variable `scl` uses the default `"center"`.
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
+    `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
+  Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
 - `variables`: Variables to include in the dataset. Can be a name or regex pattern 
   or iterable of the latter.
-- `product_type`:  Product type name, such as `"S2B_MSIL1C"`. 
-  Only required if `filename_or_obj` is not a path or URL 
-  that refers to a product path adhering to EOPF naming conventions.
+- `product_type`: Product type name, such as `"MSIL1C"`. 
+  Only required if `filename_or_obj` is not a path or URL that refers to a product 
+  path adhering to EOPF naming conventions.
+
+The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
+Further explanation of the meaning and usage of these parameters for each Sentinel 
+mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
+
+### Remarks on Specific Sentinel Missions
+
+#### Sentinel-1
+
+Support for Sentinel-1 analysis mode will be added in a future release.
+
+
+#### Sentinel-2
+
+Sentinel-2 provides multi-spectral imagery at different native resolutions:
+
+- **10m**: `b02`, `b03`, `b04`, `b08`  
+- **20m**: `b05`, `b06`, `b07`, `b8a`, `b11`, `b12`  
+- **60m**: `b01`, `b09`, `b10`  
+
+The analysis mode enables resampling between these different resolutions, bringing 
+bands from multiple resolutions onto the same grid using [affine transformation via xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#1-affine-transformation).
+
+Users can set the resolution to **10m**, **20m**, or **60m**.  
+
+Examples:  
+- [Example notebook - open-sen2.ipynb](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen2.ipynb)  
+- [Notebook gallery - Introduction to xarray-eopf backend](https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction-xarray-eopf-plugin/)  
+- [Webinar 3 - Access EOPF Zarr Products with the New xarray EOPF Backend](https://zarr.eopf.copernicus.eu/webinars/webinar-3-access-eopf-zarr-products-with-the-new-xarray-eopf-backend/)  
+
+
+#### Sentinel-3
+
+Sentinel-3 products are provided on their **native grid mapping**, where each pixel 
+is defined by a latitude/longitude pair, forming a **2D irregular grid**.  
+
+The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification) to transform the irregular dataset into a **regular grid** with 1D latitude/longitude coordinates.  
+
+Example:  
+- [Example notebook (open-sen3.ipynb)](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen3.ipynb)  
+
 
 
 ### Function `open_datatree()`
@@ -78,6 +118,8 @@ datatree = xr.open_datatree(
 
 This function is currently not implemented for the analysis mode
 and will raise a `NotImplementedError`.
+
+---
 
 ## Native Mode
 

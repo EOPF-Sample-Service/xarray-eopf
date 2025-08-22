@@ -1,6 +1,16 @@
-## Changes in 0.1.3 (under development)
+## Changes in 0.2.0
 
-## Changes in 0.1.2
+* Spatial resampling is now performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).  
+  As part of this change, the parameter `spline_orders` has been renamed to 
+  `interp_methods` for consistency.
+* New **Sentinel-3 analysis mode**: performs rectification from the native 
+  irregular grid to a regular grid. Supported products include:  
+  - OLCI Level-1 EFR/ERR  
+  - OLCI Level-2 EFR  
+  - SLSTR Level-2 LST
+
+
+## Changes in 0.1.2 (from 2025-07-01)
 
 * Fixed a bug that prevented access to sub-groups within a Zarr `DataTree` via HTTPS  
   paths (e.g., `https://.../zarr/sub/group`), addressing the issue reported  

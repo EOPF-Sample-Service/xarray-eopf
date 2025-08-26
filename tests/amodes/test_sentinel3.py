@@ -12,7 +12,7 @@ import zarr
 
 from tests.helpers import make_s3_olci_erf
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel3 import SEN3OL1EFR, register
+from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, register
 
 
 class Sentinel3AnalysisModeTest(TestCase):
@@ -23,7 +23,7 @@ class Sentinel3AnalysisModeTest(TestCase):
 
 
 # noinspection PyUnresolvedReferences
-class MSITestMixin:
+class Sen3TestMixin:
     def test_get_applicable_params(self: TestCase):
         self.assertEqual(
             {},
@@ -110,8 +110,8 @@ class MSITestMixin:
             self.mode.convert_datatree(original_dt, includes="bibo")
 
 
-class OLCIERFTest(MSITestMixin, TestCase):
-    mode = SEN3OL1EFR()
+class OLCIERFTest(Sen3TestMixin, TestCase):
+    mode = Sen3Ol1Efr()
 
     def test_is_valid_source_ok(self):
         self.assertTrue(self.mode.is_valid_source("data/S3A_OL_1_EFR_20240201.zarr"))

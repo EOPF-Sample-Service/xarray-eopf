@@ -83,7 +83,15 @@ Sentinel-2 provides multi-spectral imagery at different native resolutions:
 The analysis mode enables resampling between these different resolutions, bringing 
 bands from multiple resolutions onto the same grid using [affine transformation via xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#1-affine-transformation).
 
-Users can set the resolution to **10m**, **20m**, or **60m**.  
+**Suported Products:**
+
+- [Sentinel-2 Level-1C](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l1c)
+- [Sentinel-2 Level-2A](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a)
+
+**Specific Sentinel-2 parameters `**kwargs`:**
+
+- `resolution`: Target resolution for all spatial data variables / bands.
+  Must be one of `10`, `20`, or `60`.  
 
 Examples:  
 - [Example notebook - open-sen2.ipynb](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen2.ipynb)  
@@ -97,6 +105,13 @@ Sentinel-3 products are provided on their **native grid mapping**, where each pi
 is defined by a latitude/longitude pair, forming a **2D irregular grid**.  
 
 The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification) to transform the irregular dataset into a **regular grid** with 1D latitude/longitude coordinates.  
+
+**Suported Products:**
+
+- [Sentinel-3 OLCI Level-1 EFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-efr)
+- [Sentinel-3 OLCI Level-1 ERR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-err)
+- [Sentinel-3 OLCI Level-2 LFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lfr)
+- [Sentinel-3 SLSTR Level-2 LST](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l2-lst)
 
 Example:  
 - [Example notebook (open-sen3.ipynb)](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen3.ipynb)  

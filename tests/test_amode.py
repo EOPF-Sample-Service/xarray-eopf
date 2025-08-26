@@ -9,7 +9,7 @@ import pytest
 import xarray as xr
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel2 import MSIL1C, MSIL2A
+from xarray_eopf.amodes.sentinel2 import MsiL1c, MsiL2a
 
 
 class TestMode(AnalysisMode):
@@ -79,14 +79,14 @@ class AnalysisModeRegistryTest(TestCase):
     # noinspection PyMethodMayBeStatic
     def get(self):
         reg = AnalysisModeRegistry()
-        reg.register(MSIL1C)
-        reg.register(MSIL2A)
+        reg.register(MsiL1c)
+        reg.register(MsiL2a)
         return reg
 
     def test_get(self):
         reg = self.get()
-        self.assertIsInstance(reg.get("MSIL1C"), MSIL1C)
-        self.assertIsInstance(reg.get("MSIL2A"), MSIL2A)
+        self.assertIsInstance(reg.get("MSIL1C"), MsiL1c)
+        self.assertIsInstance(reg.get("MSIL2A"), MsiL2a)
         self.assertIs(None, reg.get("MSIL2B"))
 
     def test_keys_and_values(self):
@@ -94,8 +94,8 @@ class AnalysisModeRegistryTest(TestCase):
         self.assertEqual(["MSIL1C", "MSIL2A"], list(reg.keys()))
         values = list(reg.values())
         self.assertEqual(2, len(values))
-        self.assertIsInstance(values[0], MSIL1C)
-        self.assertIsInstance(values[1], MSIL2A)
+        self.assertIsInstance(values[0], MsiL1c)
+        self.assertIsInstance(values[1], MsiL2a)
 
     def test_register_unregister(self):
         reg = self.get()

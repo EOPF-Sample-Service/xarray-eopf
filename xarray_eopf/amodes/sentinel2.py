@@ -77,7 +77,7 @@ LONG_NAME_TRANSLATION = {
 }
 
 
-class MSI(AnalysisMode, ABC):
+class Msi(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
         root_path = get_source_path(source)
         return (
@@ -248,14 +248,14 @@ class MSI(AnalysisMode, ABC):
         return dataset
 
 
-class MSIL1C(MSI):
+class MsiL1c(Msi):
     product_type = "MSIL1C"
 
 
-class MSIL2A(MSI):
+class MsiL2a(Msi):
     product_type = "MSIL2A"
 
 
 def register(registry: AnalysisModeRegistry):
-    registry.register(MSIL1C)
-    registry.register(MSIL2A)
+    registry.register(MsiL1c)
+    registry.register(MsiL2a)

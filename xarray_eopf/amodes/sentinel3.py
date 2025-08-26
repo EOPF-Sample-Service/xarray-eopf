@@ -22,7 +22,7 @@ from xarray_eopf.utils import (
 )
 
 
-class SEN3(AnalysisMode, ABC):
+class Sen3(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
         root_path = get_source_path(source)
         return (
@@ -126,36 +126,36 @@ class SEN3(AnalysisMode, ABC):
         return dataset
 
 
-class SEN3OL1ERR(SEN3):
+class Sen3Ol1Err(Sen3):
     product_type = "OL_1_ERR"
 
 
-class SEN3OL1EFR(SEN3):
+class Sen3Ol1Efr(Sen3):
     product_type = "OL_1_EFR"
 
 
 # Broken data in: https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lrr?.language=en
-# class SEN3OL2LRR(SEN3):
+# class Sen3Ol2Lrr(Sen3):
 #     product_type = "OL_2_LRR"
 
 
-class SEN3OL2LFR(SEN3):
+class Sen3Ol2Lfr(Sen3):
     product_type = "OL_2_LFR"
 
 
 # complex data tree groups, implementation postponed;
-# class SEN3SL1RBT(SEN3):
+# class Sen3Sl1Rbt(Sen3):
 #     product_type = "SL_1_RBT"
 
 
-class SEN3SL2LST(SEN3):
+class Sen3Sl2Lst(Sen3):
     product_type = "SL_2_LST"
 
 
 def register(registry: AnalysisModeRegistry):
-    registry.register(SEN3OL1ERR)
-    registry.register(SEN3OL1EFR)
-    registry.register(SEN3OL2LFR)
-    # registry.register(SEN3OL2LRR)
-    # registry.register(SEN3SL1RBT)
-    registry.register(SEN3SL2LST)
+    registry.register(Sen3Ol1Err)
+    registry.register(Sen3Ol1Efr)
+    registry.register(Sen3Ol2Lfr)
+    # registry.register(Sen3Ol2Lrr)
+    # registry.register(Sen3Sl1Rbt)
+    registry.register(Sen3Sl2Lst)

@@ -12,7 +12,7 @@ import zarr.storage
 
 from tests.helpers import make_s2_msi_l1c, make_s2_msi_l2a
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel2 import MSIL1C, MSIL2A, register
+from xarray_eopf.amodes.sentinel2 import MsiL1c, MsiL2a, register
 
 
 class Sentinel2AnalysisModeTest(TestCase):
@@ -23,7 +23,7 @@ class Sentinel2AnalysisModeTest(TestCase):
 
 
 # noinspection PyUnresolvedReferences
-class MSITestMixin:
+class MsiTestMixin:
     def test_is_valid_source(self: TestCase):
         pass
 
@@ -121,8 +121,8 @@ class MSITestMixin:
             self.mode.convert_datatree(original_dt, includes="bibo")
 
 
-class MSIL1CTest(MSITestMixin, TestCase):
-    mode = MSIL1C()
+class MsiL1CTest(MsiTestMixin, TestCase):
+    mode = MsiL1c()
 
     def test_is_valid_source_ok(self):
         self.assertTrue(self.mode.is_valid_source("data/S2A_MSIL1C_20240201.zarr"))
@@ -182,8 +182,8 @@ class MSIL1CTest(MSITestMixin, TestCase):
         self.assert_convert_datatree_fail(make_s2_msi_l1c(r10m_size=48))
 
 
-class MSIL2ATest(MSITestMixin, TestCase):
-    mode = MSIL2A()
+class MsiL2aTest(MsiTestMixin, TestCase):
+    mode = MsiL2a()
 
     def test_is_valid_source(self):
         self.assertTrue(self.mode.is_valid_source("S2A_MSIL2A_20240201.zarr"))

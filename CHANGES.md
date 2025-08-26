@@ -1,4 +1,4 @@
-## Changes in 0.2.0
+## Changes in 0.2.0 (from 2025-08-26)
 
 * Spatial resampling is now performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).  
   As part of this change, the parameter `spline_orders` has been renamed to 

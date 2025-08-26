@@ -1,3 +1,5 @@
+## Changes in 0.2.1 (under development)
+
 ## Changes in 0.2.0 (from 2025-08-26)
 
 * Spatial resampling is now performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).  

@@ -16,7 +16,7 @@ def filter_dataset(
     if not variables:
         return dataset
     name_filter = NameFilter(includes=variables)
-    names = set(map(str, dataset.variables.keys()))
+    names = set(map(str, dataset.data_vars.keys()))
     # find all dataset variables including respective coordinates
     drop_names = names - set(name_filter.filter(names))
     if drop_names:

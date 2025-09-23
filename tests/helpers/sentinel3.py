@@ -65,6 +65,9 @@ def make_coords(w: int, h: int) -> dict[str, xr.DataArray]:
     return {
         "latitude": xr.DataArray(lat_final, dims=("rows", "columns")),
         "longitude": xr.DataArray(lon_final, dims=("rows", "columns")),
+        "time_stamps": xr.DataArray(
+            np.arange(h).astype("datetime64[ns]"), dims=("rows")
+        ),
     }
 
 

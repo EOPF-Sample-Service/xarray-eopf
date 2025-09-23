@@ -81,6 +81,12 @@ class Sen3(AnalysisMode, ABC):
         if not variable_names:
             raise ValueError("No variables selected")
         dataset = dataset[variable_names]
+        # remove coordinates except for latitude and longitude
+        coords = []
+        for coord in dataset.coords:
+            if coord not in ["latitude", "longitude"]:
+                coords.append(coord)
+        dataset = dataset.drop_vars(coords)
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(

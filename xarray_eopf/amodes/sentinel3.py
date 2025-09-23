@@ -21,6 +21,8 @@ from xarray_eopf.utils import (
     assert_arg_is_instance,
 )
 
+_TILE_SIZE = 1024
+
 
 class Sen3(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
@@ -81,7 +83,9 @@ class Sen3(AnalysisMode, ABC):
         dataset = dataset[variable_names]
 
         # reproject dataset to regular grid
-        source_gm = GridMapping.from_dataset(dataset)
+        source_gm = GridMapping.from_dataset(
+            dataset, tile_size=(_TILE_SIZE, _TILE_SIZE)
+        )
         target_gm = source_gm.to_regular()
         if resolution is not None:
             resolution: int | tuple

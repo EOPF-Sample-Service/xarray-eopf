@@ -1,4 +1,9 @@
-## Changes in 0.2.1 (under development)
+## Changes in 0.2.1 (from 2025-09-23)
+
+* Sentinel-3 products in analysis mode are now chunked into (1024, 1024) blocks to 
+  align with the input chunk size. Previously, the data was presented as a single 
+  spatial chunk.
+
 
 ## Changes in 0.2.0 (from 2025-08-26)
 

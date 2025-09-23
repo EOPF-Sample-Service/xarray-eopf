@@ -23,7 +23,7 @@ def make_s3_olci_erf_meas(size: int) -> xr.Dataset:
         data_vars={
             band: xr.DataArray(
                 da.random.random((size, size)).astype("float32") * 65534,
-                dims=("y", "x"),
+                dims=("rows", "columns"),
                 attrs={
                     "long_name": "TOA radiance for OLCI acquisition band oa01",
                     "short_name": "oa01_radiance",
@@ -32,7 +32,7 @@ def make_s3_olci_erf_meas(size: int) -> xr.Dataset:
                     "valid_max": 65534,
                     "valid_min": 0,
                 },
-            ).chunk(x=max(size // 10, 4), y=max(size // 10, 4))
+            ).chunk(columns=max(size // 10, 4), rows=max(size // 10, 4))
             for band in bands
         },
         coords=make_coords(size, size),
@@ -63,8 +63,11 @@ def make_coords(w: int, h: int) -> dict[str, xr.DataArray]:
     lat_final = y_rot + lat0
 
     return {
-        "lat": xr.DataArray(lat_final, dims=("y", "x")),
-        "lon": xr.DataArray(lon_final, dims=("y", "x")),
+        "latitude": xr.DataArray(lat_final, dims=("rows", "columns")),
+        "longitude": xr.DataArray(lon_final, dims=("rows", "columns")),
+        "time_stamps": xr.DataArray(
+            np.arange(h).astype("datetime64[ns]"), dims=("rows")
+        ),
     }
 
 

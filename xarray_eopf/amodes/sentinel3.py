@@ -21,6 +21,8 @@ from xarray_eopf.utils import (
     assert_arg_is_instance,
 )
 
+_TILE_SIZE = 1024
+
 
 class Sen3(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
@@ -79,9 +81,17 @@ class Sen3(AnalysisMode, ABC):
         if not variable_names:
             raise ValueError("No variables selected")
         dataset = dataset[variable_names]
+        # remove coordinates except for latitude and longitude
+        coords = []
+        for coord in dataset.coords:
+            if coord not in ["latitude", "longitude"]:
+                coords.append(coord)
+        dataset = dataset.drop_vars(coords)
 
         # reproject dataset to regular grid
-        source_gm = GridMapping.from_dataset(dataset)
+        source_gm = GridMapping.from_dataset(
+            dataset, tile_size=(_TILE_SIZE, _TILE_SIZE)
+        )
         target_gm = source_gm.to_regular()
         if resolution is not None:
             resolution: int | tuple

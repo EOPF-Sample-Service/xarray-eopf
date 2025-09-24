@@ -1,4 +1,4 @@
-Changes in 0.2.2 (from 2025-09-24)
+## Changes in 0.2.2 (from 2025-09-24)
 
 * In analysis mode for Sentinel-3 products, coordinates are now filtered so that only
   `"lat"` and `"lon"` remain. Since the data is rectified, non-spatial coordinates lose 

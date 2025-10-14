@@ -111,6 +111,7 @@ The analysis mode applies the [rectification algorithm in xcube-resampling](http
 - [Sentinel-3 OLCI Level-1 EFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-efr)
 - [Sentinel-3 OLCI Level-1 ERR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-err)
 - [Sentinel-3 OLCI Level-2 LFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lfr)
+- [Sentinel-3 SLSTR Level-1 RBT](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l1-rbt)
 - [Sentinel-3 SLSTR Level-2 LST](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l2-lst)
 
 Example:  

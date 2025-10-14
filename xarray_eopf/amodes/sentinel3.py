@@ -21,6 +21,9 @@ from xarray_eopf.utils import (
     assert_arg_is_instance,
 )
 
+_CRS = "EPSG:4326"
+_CHUNKSIZE = (1024, 1024)
+
 
 class Sen3(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
@@ -104,15 +107,15 @@ class Sen3(AnalysisMode, ABC):
                 tile_size=target_gm.tile_size,
             )
 
-        rescaled_dataset = rectify_dataset(
+        rectified_dataset = rectify_dataset(
             dataset,
             source_gm=source_gm,
             target_gm=target_gm,
             interp_methods=interp_methods,
             agg_methods=agg_methods,
         )
-        rescaled_dataset.attrs = self.process_metadata(datatree)
-        return rescaled_dataset
+        rectified_dataset.attrs = self.process_metadata(datatree)
+        return rectified_dataset
 
     # noinspection PyMethodMayBeStatic
     def process_metadata(self, datatree: xr.DataTree | xr.Dataset):
@@ -149,9 +152,97 @@ class Sen3Ol2Lfr(Sen3):
     product_type = "OL_2_LFR"
 
 
-# complex data tree groups, implementation postponed;
-# class Sen3Sl1Rbt(Sen3):
-#     product_type = "SL_1_RBT"
+class Sen3Sl1Rbt(Sen3):
+    product_type = "SL_1_RBT"
+
+    def convert_datatree(
+        self,
+        datatree: xr.DataTree,
+        includes: str | Iterable[str] | None = None,
+        excludes: str | Iterable[str] | None = None,
+        resolution: float | tuple | None = None,
+        interp_methods: InterpMethod | None = None,
+        agg_methods: AggMethods | None = None,
+    ) -> xr.Dataset:
+        # filter dataset by variable names
+        name_filter = NameFilter(includes=includes, excludes=excludes)
+        sub_gruops = [
+            "anadir",
+            "aoblique",
+            "bnadir",
+            "boblique",
+            "fnadir",
+            "foblique",
+            "inadir",
+            "ioblique",
+        ]
+        dataset_map = {}
+        for sub_group in sub_gruops:
+            dataset = datatree.measurements[sub_group].to_dataset()
+            variable_names = [
+                k for k in dataset.data_vars if name_filter.accept(str(k))
+            ]
+            if variable_names:
+                dataset_sel = dataset[variable_names]
+                # remove coordinates except for latitude and longitude
+                coords = []
+                for coord in dataset_sel.coords:
+                    if coord not in ["latitude", "longitude"]:
+                        coords.append(coord)
+                dataset_sel = dataset_sel.drop_vars(coords)
+                dataset_map[sub_group] = (
+                    dataset_sel,
+                    GridMapping.from_dataset(dataset_sel),
+                )
+        if not dataset_map:
+            raise ValueError("No variables selected")
+
+        # get outer bounding box
+        bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
+        bbox = [
+            np.min(bboxs[:, 0]),
+            np.min(bboxs[:, 1]),
+            np.max(bboxs[:, 2]),
+            np.max(bboxs[:, 3]),
+        ]
+
+        # get resolution if not given
+        if resolution is None:
+            subgroups_res_1000 = ["fnadir", "foblique", "inadir", "ioblique"]
+            if all(key in subgroups_res_1000 for key in dataset_map.keys()):
+                resolution = 1000
+            else:
+                resolution = 500
+            center_lat = (bbox[1] + bbox[3]) / 2
+            resolution = (
+                resolution / 111320,
+                resolution / (111320 * np.cos(np.deg2rad(center_lat))),
+            )
+        x_size = np.ceil((bbox[2] - bbox[0]) / resolution[0])
+        y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution[1])
+        target_gm = GridMapping.regular(
+            size=(x_size, y_size),
+            xy_min=(bbox[0], bbox[1]),
+            xy_res=resolution,
+            crs=_CRS,
+            tile_size=_CHUNKSIZE,
+        )
+
+        final_dataset = None
+        for source_ds, source_gm in dataset_map.values():
+            rectified_dataset = rectify_dataset(
+                source_ds,
+                source_gm=source_gm,
+                target_gm=target_gm,
+                interp_methods=interp_methods,
+                agg_methods=agg_methods,
+            )
+            if final_dataset is None:
+                final_dataset = rectified_dataset
+            else:
+                final_dataset.update(rectified_dataset)
+        final_dataset.attrs = self.process_metadata(datatree)
+        return final_dataset
 
 
 class Sen3Sl2Lst(Sen3):
@@ -163,5 +254,5 @@ def register(registry: AnalysisModeRegistry):
     registry.register(Sen3Ol1Efr)
     registry.register(Sen3Ol2Lfr)
     # registry.register(Sen3Ol2Lrr)
-    # registry.register(Sen3Sl1Rbt)
+    registry.register(Sen3Sl1Rbt)
     registry.register(Sen3Sl2Lst)

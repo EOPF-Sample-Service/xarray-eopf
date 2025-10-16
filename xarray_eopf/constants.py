@@ -7,7 +7,9 @@ from typing import Final, Literal, TypeAlias
 OP_MODE_ANALYSIS: Final = "analysis"
 OP_MODE_NATIVE: Final = "native"
 OP_MODES: Final = OP_MODE_ANALYSIS, OP_MODE_NATIVE
+MEAN_EARTH_RADIUS = 6370997  # meter
 
+FloatInt = float | int
 OpMode: TypeAlias = Literal["analysis", "native"]
 
 # Keywords arguments passed to dataset.merge(other) when flattening

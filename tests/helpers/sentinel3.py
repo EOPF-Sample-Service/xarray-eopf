@@ -3,45 +3,74 @@
 #  https://opensource.org/license/apache-2-0.
 
 from typing import Any
+from collections.abc import Sequence
 
 import dask.array as da
 import numpy as np
 import xarray as xr
 
 
-def make_s3_olci_erf(size: int = 48) -> xr.DataTree:
+def make_s3_olci_efr(size: int = 48) -> xr.DataTree:
+
     return create_datatree(
         {
-            "measurements": make_s3_olci_erf_meas(size),
+            "measurements": make_s3_meas(
+                size, bands=[f"oa{i:02}_radiance" for i in range(1, 22)]
+            ),
         },
     )
 
 
-def make_s3_olci_erf_meas(size: int) -> xr.Dataset:
-    bands = [f"oa{i:02}_radiance" for i in range(1, 22)]
+def make_s3_slstr_rbt(size: int = 48) -> xr.DataTree:
+    return create_datatree(
+        {
+            "measurements/anadir": make_s3_meas(
+                size, bands=[f"s{i}_radiance_an" for i in range(1, 7)]
+            ),
+            "measurements/inadir": make_s3_meas(
+                size // 2, bands=[f"s{i}_bt_in" for i in range(7, 10)]
+            ),
+            "measurements/ioblique": make_s3_meas(
+                (int(size // 2 * 0.7), int(size // 2 * 0.5)),
+                bands=[f"s{i}_bt_io" for i in range(7, 10)],
+                oblique_view=True,
+            ),
+        },
+    )
+
+
+def make_s3_meas(
+    size: int | tuple[int, int], bands: Sequence[str], oblique_view=False
+) -> xr.Dataset:
+    if not isinstance(size, tuple):
+        size = (size, size)
+
     return xr.Dataset(
         data_vars={
             band: xr.DataArray(
-                da.random.random((size, size)).astype("float32") * 65534,
+                da.random.random((size[0], size[1])).astype("float32") * 65534,
                 dims=("rows", "columns"),
                 attrs={
-                    "long_name": "TOA radiance for OLCI acquisition band oa01",
-                    "short_name": "oa01_radiance",
-                    "standard_name": "toa_upwelling_spectral_radiance",
-                    "units": "mW.m-2.sr-1.nm-1",
-                    "valid_max": 65534,
-                    "valid_min": 0,
+                    "long_name": "long name",
+                    "short_name": "short name",
+                    "standard_name": "standard name",
+                    "units": "some units",
                 },
-            ).chunk(columns=max(size // 10, 4), rows=max(size // 10, 4))
+            ).chunk(columns=max(size[0] // 4, 4), rows=max(size[1] // 4, 4))
             for band in bands
         },
-        coords=make_coords(size, size),
+        coords=make_coords(size[1], size[0], oblique_view=oblique_view),
     )
 
 
-def make_coords(w: int, h: int) -> dict[str, xr.DataArray]:
-    lat = da.linspace(50, 60, h, chunks=max(h // 10, 4))
-    lon = da.linspace(-5, 5, w, chunks=max(w // 10, 4))
+def make_coords(w: int, h: int, oblique_view=False) -> dict[str, xr.DataArray]:
+    if oblique_view:
+        lat = da.linspace(51, 58, h, chunks=max(h // 10, 4))
+        lon = da.linspace(-4, 1, w, chunks=max(w // 10, 4))
+    else:
+        lat = da.linspace(50, 60, h, chunks=max(h // 10, 4))
+        lon = da.linspace(-5, 5, w, chunks=max(w // 10, 4))
+
     lon_grid, lat_grid = da.meshgrid(lon, lat)
     lon_grid /= da.cos(da.radians(lat_grid))
     lon_grid += 10

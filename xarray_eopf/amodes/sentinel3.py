@@ -3,18 +3,22 @@
 #  https://opensource.org/license/apache-2-0.
 
 import warnings
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Any
 
+import dask.array as da
 import numpy as np
 import pyproj.crs
+from scipy.interpolate import griddata
 import xarray as xr
 from xcube_resampling.constants import AggMethods, InterpMethod
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
+from xcube_resampling.utils import resolution_meters_to_degrees
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.constants import FloatInt, MEAN_EARTH_RADIUS
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
@@ -26,6 +30,10 @@ _CHUNKSIZE = (1024, 1024)
 
 
 class Sen3(AnalysisMode, ABC):
+
+    # Default resolution in meter for subclasses to override
+    default_resolution: int | None = None
+
     def is_valid_source(self, source: Any) -> bool:
         root_path = get_source_path(source)
         return (
@@ -71,7 +79,7 @@ class Sen3(AnalysisMode, ABC):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float | tuple | None = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         interp_methods: InterpMethod | None = None,
         agg_methods: AggMethods | None = None,
     ) -> xr.Dataset:
@@ -91,21 +99,17 @@ class Sen3(AnalysisMode, ABC):
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
-        target_gm = source_gm.to_regular()
-        if resolution is not None:
-            resolution: int | tuple
-            if not isinstance(resolution, tuple):
-                resolution = (resolution, resolution)
-            bbox = target_gm.xy_bbox
-            x_size = np.ceil((bbox[2] - bbox[0]) / resolution[0])
-            y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution[1])
-            target_gm = GridMapping.regular(
-                size=(x_size, y_size),
-                xy_min=(bbox[0], bbox[1]),
-                xy_res=resolution,
-                crs=target_gm.crs,
-                tile_size=target_gm.tile_size,
+        if resolution is None:
+            center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
+            resolution = resolution_meters_to_degrees(
+                self.default_resolution, center_lat
             )
+        target_gm = GridMapping.regular_from_bbox(
+            bbox=source_gm.xy_bbox,
+            xy_res=resolution,
+            crs=source_gm.crs,
+            tile_size=_CHUNKSIZE,
+        )
 
         rectified_dataset = rectify_dataset(
             dataset,
@@ -134,50 +138,54 @@ class Sen3(AnalysisMode, ABC):
 
         return dataset
 
+    @staticmethod
+    def orthorectify_geolocation(datatree: xr.DataTree) -> xr.DataTree:
+        return datatree
+
 
 class Sen3Ol1Err(Sen3):
     product_type = "OL_1_ERR"
+    default_resolution = 1200
 
 
 class Sen3Ol1Efr(Sen3):
     product_type = "OL_1_EFR"
+    default_resolution = 300
 
 
 # Broken data in: https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lrr?.language=en
 # class Sen3Ol2Lrr(Sen3):
 #     product_type = "OL_2_LRR"
+#     default_resolution = 1200
 
 
 class Sen3Ol2Lfr(Sen3):
     product_type = "OL_2_LFR"
+    default_resolution = 300
+
+
+class Sen3Sl2Lst(Sen3):
+    product_type = "SL_2_LST"
+    default_resolution = 1000
 
 
 class Sen3Sl1Rbt(Sen3):
     product_type = "SL_1_RBT"
+    default_resolution = None
 
     def convert_datatree(
         self,
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float | tuple | None = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         interp_methods: InterpMethod | None = None,
         agg_methods: AggMethods | None = None,
     ) -> xr.Dataset:
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
-        sub_gruops = [
-            "anadir",
-            "aoblique",
-            "bnadir",
-            "boblique",
-            "fnadir",
-            "foblique",
-            "inadir",
-            "ioblique",
-        ]
         dataset_map = {}
-        for sub_group in sub_gruops:
+        for sub_group in datatree.measurements.children.keys():
             dataset = datatree.measurements[sub_group].to_dataset()
             variable_names = [
                 k for k in dataset.data_vars if name_filter.accept(str(k))
@@ -199,12 +207,7 @@ class Sen3Sl1Rbt(Sen3):
 
         # get outer bounding box
         bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
-        bbox = [
-            np.min(bboxs[:, 0]),
-            np.min(bboxs[:, 1]),
-            np.max(bboxs[:, 2]),
-            np.max(bboxs[:, 3]),
-        ]
+        bbox = self._get_outer_bbox(bboxs)
 
         # get resolution if not given
         if resolution is None:
@@ -214,20 +217,15 @@ class Sen3Sl1Rbt(Sen3):
             else:
                 resolution = 500
             center_lat = (bbox[1] + bbox[3]) / 2
-            resolution = (
-                resolution / 111320,
-                resolution / (111320 * np.cos(np.deg2rad(center_lat))),
-            )
-        x_size = np.ceil((bbox[2] - bbox[0]) / resolution[0])
-        y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution[1])
-        target_gm = GridMapping.regular(
-            size=(x_size, y_size),
-            xy_min=(bbox[0], bbox[1]),
+            resolution = resolution_meters_to_degrees(resolution, center_lat)
+        target_gm = GridMapping.regular_from_bbox(
+            bbox=bbox,
             xy_res=resolution,
             crs=_CRS,
             tile_size=_CHUNKSIZE,
         )
 
+        # rectify each group and combine them into one dataset
         final_dataset = None
         for source_ds, source_gm in dataset_map.values():
             rectified_dataset = rectify_dataset(
@@ -244,9 +242,24 @@ class Sen3Sl1Rbt(Sen3):
         final_dataset.attrs = self.process_metadata(datatree)
         return final_dataset
 
-
-class Sen3Sl2Lst(Sen3):
-    product_type = "SL_2_LST"
+    @staticmethod
+    def _get_outer_bbox(bboxs: np.ndarray) -> list[FloatInt]:
+        if any(bboxs[:, 0] > bboxs[:, 2]):
+            # crossing anti-meridian
+            bbox = [
+                np.min(bboxs[:, 0][bboxs[:, 0] > 0]).item(),
+                np.min(bboxs[:, 1]).item(),
+                np.max(bboxs[:, 2][bboxs[:, 2] < 0]).item(),
+                np.max(bboxs[:, 3]).item(),
+            ]
+        else:
+            bbox = [
+                np.min(bboxs[:, 0]).item(),
+                np.min(bboxs[:, 1]).item(),
+                np.max(bboxs[:, 2]).item(),
+                np.max(bboxs[:, 3]).item(),
+            ]
+        return bbox
 
 
 def register(registry: AnalysisModeRegistry):
@@ -256,3 +269,91 @@ def register(registry: AnalysisModeRegistry):
     # registry.register(Sen3Ol2Lrr)
     registry.register(Sen3Sl1Rbt)
     registry.register(Sen3Sl2Lst)
+
+
+def orthorectify_geolocation(
+    dataset: xr.Dataset,
+    lat: xr.DataArray,
+    lon: xr.DataArray,
+    elev: xr.DataArray,
+    va_zenith: xr.DataArray,
+    va_azimuth: xr.DataArray,
+    interp_method: str = "linear",
+) -> xr.Dataset:
+    """Apply terrain-induced parallax correction to satellite geolocation coordinates.
+
+    This function adjusts latitude and longitude values based on viewing geometry
+    and surface elevation, accounting for the apparent displacement of ground
+    targets caused by non-zero terrain height when observed at an oblique angle.
+    The correction assumes a spherical Earth and a locally planar surface.
+
+    Args:
+        lat: Latitude coordinates in degrees (geodetic).
+        lon: Longitude coordinates in degrees (geodetic).
+        elev: Surface height above reference ellipsoid/sphere (meters).
+        va_zenith: Viewing zenith angle in degrees. Must be defined per pixel.
+        va_azimuth: Viewing azimuth angle in degrees. Convention of Sentinel-3 is
+            clockwise from North.
+
+    Returns:
+        Dataset containing the displacement in latitude and longitude
+
+    Notes:
+        - Assumes a mean spherical Earth radius of 6,370,997 meters.
+        - No correction is applied for atmospheric refraction or ellipsoidal geometry.
+        - Results may be inaccurate near the poles where `cos(latitude) → 0`.
+    """
+    # Convert everything to rad
+    phi_true = da.deg2rad(lat.data)
+    theta_v = da.deg2rad(va_zenith.data)
+    phi_v = da.deg2rad(va_azimuth.data)
+
+    # Horizontal displacement
+    t = elev.data * da.tan(theta_v)
+    delta_phi = t * da.cos(phi_v) / MEAN_EARTH_RADIUS
+    delta_lam = t * da.sin(phi_v) / (MEAN_EARTH_RADIUS * da.cos(phi_true))
+
+    # convert back to degree
+    lat_diff = da.rad2deg(delta_phi)
+    lon_diff = da.rad2deg(delta_lam)
+
+    # interpolate and correct the latitude and longitude of the dataset
+    def _interpolate(displacement, lat_source, lon_source, lat_target, lon_target):
+        points = np.stack([lat_source.ravel(), lon_source.ravel()], axis=-1)
+        return griddata(
+            points, displacement.ravel(), (lat_target, lon_target), method=interp_method
+        )
+
+    lat_diff_interp = xr.apply_ufunc(
+        _interpolate,
+        lat_diff,
+        lat.data,
+        lon.data,
+        dataset.latitude.data,
+        dataset.longitude.data,
+        input_core_dims=[[], [], [], [], []],
+        output_core_dims=[],
+        vectorize=True,
+        dask="parallelized",
+        output_dtypes=[lat_diff.dtype],
+    )
+    lon_diff_interp = xr.apply_ufunc(
+        _interpolate,
+        lon_diff,
+        lat.data,
+        lon.data,
+        dataset.latitude.data,
+        dataset.longitude.data,
+        input_core_dims=[[], [], [], [], []],
+        output_core_dims=[],
+        vectorize=True,
+        dask="parallelized",
+        output_dtypes=[lat_diff.dtype],
+    )
+
+    return dataset.assign_coords(
+        dict(
+            latitude=dataset.latitude - lat_diff_interp,
+            longitude=dataset.longitude - lon_diff_interp,
+        )
+    )

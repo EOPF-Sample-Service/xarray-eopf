@@ -10,9 +10,9 @@ import pytest
 import xarray as xr
 import zarr
 
-from tests.helpers import make_s3_olci_efr, make_s3_slstr_rbt
+from tests.helpers import make_s3_olci_efr, make_s3_slstr_rbt, make_s3_slstr_lst
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, Sen3Sl1Rbt, register
+from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, Sen3Sl1Rbt, Sen3Sl2Lst, register
 from xarray_eopf.constants import FloatInt
 
 
@@ -175,7 +175,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_transform_datatree(self):
-        self.assert_transform_datatree_ok(make_s3_olci_efr)
+        self.assert_transform_datatree_ok(make_s3_slstr_rbt)
 
     def test_convert_datatree(self):
         self.assert_convert_datatree_ok(
@@ -189,14 +189,25 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
             resolution=0.1,
         )
 
-    def test_convert_datatree_default_res(self):
+    def test_convert_datatree_default_res_1000(self):
         self.assert_convert_datatree_ok(
             make_s3_slstr_rbt(size=1000),
             expected_var_names=[
                 "s7_bt_in",
                 "s7_bt_io",
             ],
-            expected_size=(1839, 1434),
+            expected_size=(1839, 1433),
+        )
+
+    def test_convert_datatree_default_res_500(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_rbt(size=1000),
+            expected_var_names=[
+                "s1_radiance_an",
+                "s7_bt_in",
+                "s7_bt_io",
+            ],
+            expected_size=(2 * 1839, 2 * 1433),
         )
 
     def test_convert_datatree_fail(self):
@@ -210,3 +221,40 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
         bboxs = np.array([[175, 10, -175, 20], [179, 12, -165, 25]])
         expected = [175, 10, -165, 25]
         self.assertEqual(expected, self.mode._get_outer_bbox(bboxs))
+
+
+class SlstrLstTest(Sen3TestMixin, TestCase):
+    mode = Sen3Sl2Lst()
+
+    def test_is_valid_source_ok(self):
+        self.assertTrue(self.mode.is_valid_source("data/S3A_SL_2_LST_20240201.zarr"))
+        self.assertTrue(
+            self.mode.is_valid_source(
+                zarr.storage.DirectoryStore("data/S3B_SL_2_LST_20240201.zarr")
+            )
+        )
+
+    def test_is_no_valid_source(self):
+        self.assertFalse(self.mode.is_valid_source("data/S3C_SL_2_LST_20240201.zarr"))
+        self.assertFalse(self.mode.is_valid_source(dict()))
+
+    def test_transform_datatree(self):
+        self.assert_transform_datatree_ok(make_s3_slstr_lst)
+
+    def test_convert_datatree(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_lst(size=100),
+            expected_var_names=["lst"],
+            expected_size=(166, 207),
+            resolution=0.1,
+        )
+
+    def test_convert_datatree_default_res(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_lst(size=1000),
+            expected_var_names=["lst"],
+            expected_size=(1838, 1433),
+        )
+
+    def test_convert_datatree_fail(self):
+        self.assert_convert_datatree_fail(make_s3_slstr_lst(size=48))

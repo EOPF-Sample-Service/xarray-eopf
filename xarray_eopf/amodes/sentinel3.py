@@ -3,11 +3,10 @@
 #  https://opensource.org/license/apache-2-0.
 
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Iterable
 from typing import Any
 
-import dask.array as da
 import numpy as np
 import pyproj.crs
 from scipy.interpolate import griddata
@@ -97,6 +96,9 @@ class Sen3(AnalysisMode, ABC):
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
 
+        # orthorectify geolocation for elevation and viewing geometry
+        data = self._apply_orthorectification(dataset, datatree)
+
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
         if resolution is None:
@@ -138,9 +140,13 @@ class Sen3(AnalysisMode, ABC):
 
         return dataset
 
-    @staticmethod
-    def orthorectify_geolocation(datatree: xr.DataTree) -> xr.DataTree:
-        return datatree
+    def _apply_orthorectification(
+        self, dataset: xr.Dataset, datatree: xr.DataTree
+    ) -> xr.Dataset:
+        """Placeholder method to be overwritten by product-specific subclasses
+        handling SLSTR datasets.
+        """
+        return dataset
 
 
 class Sen3Ol1Err(Sen3):
@@ -168,6 +174,22 @@ class Sen3Sl2Lst(Sen3):
     product_type = "SL_2_LST"
     default_resolution = 1000
 
+    def _apply_orthorectification(
+        self, dataset: xr.Dataset, datatree: xr.DataTree
+    ) -> xr.Dataset:
+        elevation = datatree.conditions.auxiliary.elevation.persist()
+        valid_cols = ~elevation.isnull().any(dim="rows").values
+        dataset = dataset.isel(columns=valid_cols)
+        elevation = elevation.isel(columns=valid_cols)
+        return orthorectify_geolocation(
+            dataset,
+            elevation,
+            datatree.conditions.meteorology.latitude,
+            datatree.conditions.meteorology.longitude,
+            datatree.conditions.geometry.sat_zenith_tn,
+            datatree.conditions.geometry.sat_azimuth_tn,
+        )
+
 
 class Sen3Sl1Rbt(Sen3):
     product_type = "SL_1_RBT"
@@ -191,6 +213,9 @@ class Sen3Sl1Rbt(Sen3):
                 k for k in dataset.data_vars if name_filter.accept(str(k))
             ]
             if variable_names:
+                # orthorectify dataset
+                dataset = self._apply_orthorectification(dataset, datatree)
+                # elevation is needed for the orthorectification
                 dataset_sel = dataset[variable_names]
                 # remove coordinates except for latitude and longitude
                 coords = []
@@ -261,6 +286,29 @@ class Sen3Sl1Rbt(Sen3):
             ]
         return bbox
 
+    def _apply_orthorectification(
+        self, dataset: xr.Dataset, datatree: xr.DataTree
+    ) -> xr.Dataset:
+        elevation = dataset.elevation.persist()
+        valid_cols = ~elevation.isnull().any(dim="rows").values
+        dataset = dataset.isel(columns=valid_cols)
+        elevation = elevation.isel(columns=valid_cols)
+        if any(var.endswith("o") for var in dataset.data_vars.keys()):
+            sat_zenith = datatree.conditions.geometry_to.sat_zenith_to
+            sat_azimuth = datatree.conditions.geometry_to.sat_azimuth_to
+        else:
+            sat_zenith = datatree.conditions.geometry_tn.sat_zenith_tn
+            sat_azimuth = datatree.conditions.geometry_tn.sat_azimuth_tn
+
+        return orthorectify_geolocation(
+            dataset,
+            elevation,
+            datatree.conditions.meteorology.latitude,
+            datatree.conditions.meteorology.longitude,
+            sat_zenith,
+            sat_azimuth,
+        )
+
 
 def register(registry: AnalysisModeRegistry):
     registry.register(Sen3Ol1Err)
@@ -273,87 +321,98 @@ def register(registry: AnalysisModeRegistry):
 
 def orthorectify_geolocation(
     dataset: xr.Dataset,
+    elev: xr.DataArray,
     lat: xr.DataArray,
     lon: xr.DataArray,
-    elev: xr.DataArray,
-    va_zenith: xr.DataArray,
-    va_azimuth: xr.DataArray,
-    interp_method: str = "linear",
+    sat_zenith: xr.DataArray,
+    sat_azimuth: xr.DataArray,
 ) -> xr.Dataset:
-    """Apply terrain-induced parallax correction to satellite geolocation coordinates.
-
-    This function adjusts latitude and longitude values based on viewing geometry
-    and surface elevation, accounting for the apparent displacement of ground
-    targets caused by non-zero terrain height when observed at an oblique angle.
-    The correction assumes a spherical Earth and a locally planar surface.
+    """
+    Apply terrain-induced parallax correction to satellite geolocation coordinates.
 
     Args:
-        lat: Latitude coordinates in degrees (geodetic).
-        lon: Longitude coordinates in degrees (geodetic).
-        elev: Surface height above reference ellipsoid/sphere (meters).
-        va_zenith: Viewing zenith angle in degrees. Must be defined per pixel.
-        va_azimuth: Viewing azimuth angle in degrees. Convention of Sentinel-3 is
+        dataset: Dataset containing geolocation coordinates to be corrected. Must
+            include `latitude` and `longitude` coordinates.
+        elev: Surface elevation in meters above the reference ellipsoid or sphere.
+        lat: Latitude values defining the source grid for satellite angle variables.
+        lon: Longitude values defining the source grid for satellite angle variables.
+        sat_zenith: Viewing zenith angle in degrees.
+        sat_azimuth: Viewing azimuth angle in degrees. Sentinel-3 convention is
             clockwise from North.
 
     Returns:
-        Dataset containing the displacement in latitude and longitude
+        A new dataset with corrected `latitude` and `longitude` coordinates.
 
     Notes:
-        - Assumes a mean spherical Earth radius of 6,370,997 meters.
-        - No correction is applied for atmospheric refraction or ellipsoidal geometry.
-        - Results may be inaccurate near the poles where `cos(latitude) → 0`.
+    This function adjusts latitude and longitude coordinates in the input dataset to
+    compensate for horizontal displacement effects caused by viewing elevated terrain
+    from an oblique angle. The correction accounts for local surface height and
+    satellite viewing geometry, estimating the apparent pixel shift under the
+    assumption of a spherical Earth.
+
+    Satellite zenith and azimuth angles are first interpolated from their native
+    grid to the geolocation grid of the dataset using `scipy.interpolate.griddata`.
+    Displacements are computed in radians and then applied to produce corrected
+    latitude and longitude coordinates.
+
+    The following assumptions are made:
+
+        - Assumes a spherical Earth with a fixed radius of 6,370,997 meters.
+        - Atmospheric refraction and ellipsoidal geometry effects are not considered.
+        - Accuracy may degrade near the poles where `cos(latitude) → 0`.
     """
-    # Convert everything to rad
-    phi_true = da.deg2rad(lat.data)
-    theta_v = da.deg2rad(va_zenith.data)
-    phi_v = da.deg2rad(va_azimuth.data)
+    # load coordinates of dataset
+    ds_lat = dataset.latitude.values
+    ds_lon = dataset.longitude.values
 
-    # Horizontal displacement
-    t = elev.data * da.tan(theta_v)
-    delta_phi = t * da.cos(phi_v) / MEAN_EARTH_RADIUS
-    delta_lam = t * da.sin(phi_v) / (MEAN_EARTH_RADIUS * da.cos(phi_true))
-
-    # convert back to degree
-    lat_diff = da.rad2deg(delta_phi)
-    lon_diff = da.rad2deg(delta_lam)
-
-    # interpolate and correct the latitude and longitude of the dataset
-    def _interpolate(displacement, lat_source, lon_source, lat_target, lon_target):
-        points = np.stack([lat_source.ravel(), lon_source.ravel()], axis=-1)
-        return griddata(
-            points, displacement.ravel(), (lat_target, lon_target), method=interp_method
+    # interpolate satellite zenith and azimuth angle
+    def _interpolate(
+        angle: np.ndarray,
+        lat_source: np.ndarray,
+        lon_source: np.ndarray,
+        lat_target: np.ndarray,
+        lon_target: np.ndarray,
+    ) -> np.ndarray:
+        pts_source = np.stack([lat_source.ravel(), lon_source.ravel()], axis=-1)
+        pts_target = np.stack([lat_target.ravel(), lon_target.ravel()], axis=-1)
+        angle_interp = np.asarray(
+            griddata(pts_source, angle.ravel(), pts_target, method="linear")
         )
 
-    lat_diff_interp = xr.apply_ufunc(
-        _interpolate,
-        lat_diff,
-        lat.data,
-        lon.data,
-        dataset.latitude.data,
-        dataset.longitude.data,
-        input_core_dims=[[], [], [], [], []],
-        output_core_dims=[],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[lat_diff.dtype],
+        # Identify NaNs (outside convex hull)
+        mask = np.isnan(angle_interp)
+        if np.any(mask):
+            # Second pass: nearest fill for NaNs only
+            angle_interp[mask] = griddata(
+                pts_source, angle.ravel(), pts_target[mask], method="nearest"
+            )
+
+        return angle_interp.reshape(lat_target.shape)
+
+    sat_zenith_interp = _interpolate(
+        sat_zenith.values, lat.values, lon.values, ds_lat, ds_lon
     )
-    lon_diff_interp = xr.apply_ufunc(
-        _interpolate,
-        lon_diff,
-        lat.data,
-        lon.data,
-        dataset.latitude.data,
-        dataset.longitude.data,
-        input_core_dims=[[], [], [], [], []],
-        output_core_dims=[],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[lat_diff.dtype],
+    sat_azimuth_interp = _interpolate(
+        sat_azimuth.values, lat.values, lon.values, ds_lat, ds_lon
     )
+
+    # Convert everything to rad
+    phi_true = np.deg2rad(ds_lat)
+    theta_v = np.deg2rad(sat_zenith_interp)
+    phi_v = np.deg2rad(sat_azimuth_interp)
+
+    # Horizontal displacement
+    t = elev.values * np.tan(theta_v)
+    delta_phi = t * np.cos(phi_v) / MEAN_EARTH_RADIUS
+    delta_lam = t * np.sin(phi_v) / (MEAN_EARTH_RADIUS * np.cos(phi_true))
+
+    # convert back to degree
+    lat_diff = np.rad2deg(delta_phi)
+    lon_diff = np.rad2deg(delta_lam)
 
     return dataset.assign_coords(
         dict(
-            latitude=dataset.latitude - lat_diff_interp,
-            longitude=dataset.longitude - lon_diff_interp,
+            latitude=(dataset.latitude.dims, ds_lat - lat_diff),
+            longitude=(dataset.latitude.dims, ds_lon - lon_diff),
         )
     )

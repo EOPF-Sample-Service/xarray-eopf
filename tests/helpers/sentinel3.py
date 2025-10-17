@@ -21,18 +21,40 @@ def make_s3_olci_efr(size: int = 48) -> xr.DataTree:
     )
 
 
+def make_s3_slstr_lst(size: int = 48) -> xr.DataTree:
+    return create_datatree(
+        {
+            "conditions/auxiliary": make_s3_meas(size, bands=["elevation"]),
+            "conditions/meteorology": make_s3_meas((size, size // 10), bands=["s2m"]),
+            "conditions/geometry": make_s3_meas(
+                (size, size // 10), bands=["sat_azimuth_tn", "sat_zenith_tn"]
+            ),
+            "measurements": make_s3_meas(size, bands=["lst"]),
+        },
+    )
+
+
 def make_s3_slstr_rbt(size: int = 48) -> xr.DataTree:
     return create_datatree(
         {
+            "conditions/geometry_tn": make_s3_meas(
+                (size // 2, size // 20), bands=["sat_azimuth_tn", "sat_zenith_tn"]
+            ),
+            "conditions/geometry_to": make_s3_meas(
+                (size // 2, size // 20), bands=["sat_azimuth_to", "sat_zenith_to"]
+            ),
+            "conditions/meteorology": make_s3_meas(
+                (size // 2, size // 20), bands=["s2m"]
+            ),
             "measurements/anadir": make_s3_meas(
-                size, bands=[f"s{i}_radiance_an" for i in range(1, 7)]
+                size, bands=[f"s{i}_radiance_an" for i in range(1, 7)] + ["elevation"]
             ),
             "measurements/inadir": make_s3_meas(
-                size // 2, bands=[f"s{i}_bt_in" for i in range(7, 10)]
+                size // 2, bands=[f"s{i}_bt_in" for i in range(7, 10)] + ["elevation"]
             ),
             "measurements/ioblique": make_s3_meas(
                 (int(size // 2 * 0.7), int(size // 2 * 0.5)),
-                bands=[f"s{i}_bt_io" for i in range(7, 10)],
+                bands=[f"s{i}_bt_io" for i in range(7, 10)] + ["elevation"],
                 oblique_view=True,
             ),
         },
@@ -48,7 +70,7 @@ def make_s3_meas(
     return xr.Dataset(
         data_vars={
             band: xr.DataArray(
-                da.random.random((size[0], size[1])).astype("float32") * 65534,
+                da.ones((size[0], size[1])).astype("float32") * 1000,
                 dims=("rows", "columns"),
                 attrs={
                     "long_name": "long name",

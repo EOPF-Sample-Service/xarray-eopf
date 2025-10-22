@@ -10,7 +10,7 @@ import xarray as xr
 from xarray.backends import AbstractDataStore, BackendEntrypoint
 from xarray.coding.times import CFTimedeltaCoder
 from xarray.core.types import ReadBuffer
-from xcube_resampling.constants import AggMethods, InterpMethods
+from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 
 from .amode import AnalysisMode
 from .amodes import register_analysis_modes
@@ -121,8 +121,8 @@ class EopfBackend(BackendEntrypoint):
         # params for op_mode=analysis
         product_type: str | None = None,
         resolution: int | float | None = None,
-        interp_methods: InterpMethods | None = None,
-        agg_methods: AggMethods | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons

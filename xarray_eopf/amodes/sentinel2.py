@@ -11,7 +11,7 @@ import numpy as np
 import pyproj.crs
 import xarray as xr
 from xcube_resampling.affine import affine_transform_dataset
-from xcube_resampling.constants import AggMethods, InterpMethods
+from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
@@ -125,8 +125,8 @@ class Msi(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
-        interp_methods: InterpMethods | None = None,
-        agg_methods: AggMethods | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         # Important note: rescale_spatial_vars() may take very long
         # for some variables!

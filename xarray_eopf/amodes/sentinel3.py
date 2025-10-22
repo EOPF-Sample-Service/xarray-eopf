@@ -11,7 +11,7 @@ import numpy as np
 import pyproj.crs
 from scipy.interpolate import griddata
 import xarray as xr
-from xcube_resampling.constants import AggMethods, InterpMethod
+from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
 from xcube_resampling.utils import resolution_meters_to_degrees
@@ -79,8 +79,8 @@ class Sen3(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
-        interp_methods: InterpMethod | None = None,
-        agg_methods: AggMethods | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
@@ -201,8 +201,8 @@ class Sen3Sl1Rbt(Sen3):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
-        interp_methods: InterpMethod | None = None,
-        agg_methods: AggMethods | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)

@@ -253,7 +253,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
-            expected_size=(1838, 1433),
+            expected_size=(1838, 1432),
         )
 
     def test_convert_datatree_fail(self):

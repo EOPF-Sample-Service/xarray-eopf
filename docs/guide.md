@@ -102,9 +102,21 @@ Examples:
 #### Sentinel-3
 
 Sentinel-3 products are provided on their **native grid mapping**, where each pixel 
-is defined by a latitude/longitude pair, forming a **2D irregular grid**.  
+is defined by a latitude/longitude pair, forming a **2D irregular grid**.
 
-The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification) to transform the irregular dataset into a **regular grid** with 1D latitude/longitude coordinates.  
+The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification)
+to transform the irregular dataset into a **regular grid** with 1D latitude/longitude
+coordinates.
+
+For SLSTR products, a terrain correction is applied during this process. This is
+necessary because the original geolocation is corrected only for Earth curvature,
+but not for terrain variability caused by topography. See See the
+[SLSTR product description](https://sentiwiki.copernicus.eu/web/slstr-products)
+for details.
+
+For OLCI products, no additional terrain correction is required, as it is already
+incorporated in the Level-1 data. See the [OLCI Level-1 product description](https://sentiwiki.copernicus.eu/web/olci-products#OLCIProducts-L1BProducts-ObservationModeS3-OLCI-Products-L1B-OM)
+for details.
 
 **Suported Products:**
 

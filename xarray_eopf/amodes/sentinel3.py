@@ -25,7 +25,7 @@ from xarray_eopf.utils import (
 )
 
 _CRS = "EPSG:4326"
-_CHUNKSIZE = (1024, 1024)
+_CHUNKSIZE = (2048, 2048)
 
 
 class Sen3(AnalysisMode, ABC):
@@ -97,7 +97,7 @@ class Sen3(AnalysisMode, ABC):
         dataset = dataset.drop_vars(coords)
 
         # orthorectify geolocation for elevation and viewing geometry
-        data = self._apply_orthorectification(dataset, datatree)
+        dataset = self._apply_orthorectification(dataset, datatree)
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
@@ -215,7 +215,6 @@ class Sen3Sl1Rbt(Sen3):
             if variable_names:
                 # orthorectify dataset
                 dataset = self._apply_orthorectification(dataset, datatree)
-                # elevation is needed for the orthorectification
                 dataset_sel = dataset[variable_names]
                 # remove coordinates except for latitude and longitude
                 coords = []

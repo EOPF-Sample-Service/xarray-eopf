@@ -1,7 +1,7 @@
 ## Changes in 0.2.3 (under development)
 
 - **Sentinel-3 SLSTR Level-1 RBT products** are now supported in analysis mode. This
-  allows data from bands A, B, F, and I — in both nadir and oblique viewing
+  allows data from grids a, b, f, and i — in both nadir and oblique viewing
   geometries — to be represented on a unified grid within a single dataset.
 - **Sentinel-3 SLSTR datasets** are now terrain-corrected using the elevation
   information provided within the product itself.

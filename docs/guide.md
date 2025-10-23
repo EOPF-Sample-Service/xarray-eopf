@@ -110,7 +110,7 @@ coordinates.
 
 For SLSTR products, a terrain correction is applied during this process. This is
 necessary because the original geolocation is corrected only for Earth curvature,
-but not for terrain variability caused by topography. See See the
+but not for terrain variability caused by topography. See the
 [SLSTR product description](https://sentiwiki.copernicus.eu/web/slstr-products)
 for details.
 

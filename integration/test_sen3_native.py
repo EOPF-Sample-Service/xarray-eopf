@@ -10,31 +10,31 @@ from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.utils import timeit
 
 ol1efr_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03olcefr/"
-    "19/products/cpm_v256/S3B_OL_1_EFR____20250819T074058_20250819T074358_"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03olcefr/19/"
+    "products/cpm_v256/S3B_OL_1_EFR____20250819T074058_20250819T074358_"
     "20250819T092155_0179_110_106_3420_ESA_O_NR_004.zarr"
 )
 
 ol1err_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03olcerr/"
-    "20/products/cpm_v256/S3B_OL_1_ERR____20250820T082222_20250820T090603_"
-    "20250820T113046_2621_110_121______ESA_O_NR_004.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03olcerr-global/"
+    "19/products/cpm_v256/S3A_OL_1_ERR____20251019T145533_20251019T153950_"
+    "20251019T165332_2657_131_353______PS1_O_NR_004.zarr"
 )
 
 ol2lfr_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03olclfr/"
-    "20/products/cpm_v256/S3A_OL_2_LFR____20250820T110024_20250820T110324_"
-    "20250820T125434_0179_129_265_2520_PS1_O_NR_003.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03olclfr-"
+    "global/15/products/cpm_v256/S3A_OL_2_LFR____20251015T050206_20251015T050506_"
+    "20251015T070316_0179_131_290_2340_PS1_O_NR_003.zarr"
 )
 sl1rbt_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03slsrbt/"
-    "20/products/cpm_v256/S3A_SL_1_RBT____20250820T074725_20250820T075025_"
-    "20250820T095144_0180_129_263_3060_PS1_O_NR_004.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slsrbt-global/"
+    "16/products/cpm_v256/S3B_SL_1_RBT____20251016T072510_20251016T072810_"
+    "20251016T092049_0179_112_163_2700_ESA_O_NR_004.zarr"
 )
 sl2lst_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202508-s03slslst/"
-    "21/products/cpm_v256/S3A_SL_2_LST____20250821T085614_20250821T085914_"
-    "20250821T110745_0179_129_278_2700_PS1_O_NR_004.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slslst-eu/16/"
+    "products/cpm_v256/S3B_SL_2_LST____20251016T215803_20251016T220103_"
+    "20251017T004323_0179_112_172_0540_ESA_O_NR_004.zarr"
 )
 
 allowed_open_time = 5  # seconds
@@ -65,14 +65,14 @@ class Sentinel3NativeTest(TestCase):
 
     def test_open_datatree_sen3_ol1err(self):
         self._test_open_datatree_sen3(
-            ol1err_url, 8, "measurements", {"columns": 1217, "rows": 14893}, 21
+            ol1err_url, 8, "measurements", {"columns": 1217, "rows": 15098}, 21
         )
 
     def test_open_dataset_sen3_ol1err(self):
         self._test_open_dataset_sen3(
             ol1err_url,
             "measurements_oa21_radiance",
-            {"measurements_columns": 1217, "measurements_rows": 14893},
+            {"measurements_columns": 1217, "measurements_rows": 15098},
             59,
         )
 
@@ -81,7 +81,7 @@ class Sentinel3NativeTest(TestCase):
             ol1err_url,
             "oa21_radiance",
             "measurements",
-            {"columns": 1217, "rows": 14893},
+            {"columns": 1217, "rows": 15098},
             21,
         )
 

@@ -1,7 +1,16 @@
+## Changes in 0.2.3 (under development)
+
+- **Sentinel-3 SLSTR Level-1 RBT products** are now supported in analysis mode. This
+  allows data from grids a, b, f, and i — in both nadir and oblique viewing
+  geometries — to be represented on a unified grid within a single dataset.
+- **Sentinel-3 SLSTR datasets** are now terrain-corrected using the elevation
+  information provided within the product itself.
+
+
 ## Changes in 0.2.2 (from 2025-09-24)
 
 * In analysis mode for Sentinel-3 products, coordinates are now filtered so that only
-  `"lat"` and `"lon"` remain. Since the data is rectified, non-spatial coordinates lose 
+  `"lat"` and `"lon"` remain. Since the data is rectified, non-spatial coordinates loose
   their association with the data after rectification.
 
 

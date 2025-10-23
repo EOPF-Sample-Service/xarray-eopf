@@ -10,7 +10,7 @@ import xarray as xr
 from xarray.backends import AbstractDataStore, BackendEntrypoint
 from xarray.coding.times import CFTimedeltaCoder
 from xarray.core.types import ReadBuffer
-from xcube_resampling.constants import AggMethods, InterpMethods
+from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 
 from .amode import AnalysisMode
 from .amodes import register_analysis_modes
@@ -121,8 +121,8 @@ class EopfBackend(BackendEntrypoint):
         # params for op_mode=analysis
         product_type: str | None = None,
         resolution: int | float | None = None,
-        interp_methods: InterpMethods | None = None,
-        agg_methods: AggMethods | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons
@@ -228,6 +228,8 @@ class EopfBackend(BackendEntrypoint):
                 dataset = analysis_mode.convert_datatree(
                     datatree, includes=variables, **params
                 )
+                # add preferred chunking to encoding
+                dataset = add_chunking_encoding(dataset)
 
         return dataset
 
@@ -259,6 +261,19 @@ def _assert_dataset_is_chunked(dataset: xr.Dataset, name: str | None = None):
     ds_name = name or "dataset"
     for var_name, var in dataset.data_vars.items():
         assert var.chunks is not None, f"{ds_name}.{var_name}: no chunks"
+
+
+def add_chunking_encoding(dataset: xr.Dataset) -> xr.Dataset:
+    for var in dataset.data_vars.keys():
+        chunksizes = (chunks[0] for chunks in dataset[var].chunks)
+        dataset[var].encoding = dict(
+            chunks=chunksizes,
+            preferred_chunks={
+                dim: chunksize
+                for (dim, chunksize) in zip(dataset[var].dims, chunksizes)
+            },
+        )
+    return dataset
 
 
 register_analysis_modes()

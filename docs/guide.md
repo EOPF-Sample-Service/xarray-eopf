@@ -102,15 +102,28 @@ Examples:
 #### Sentinel-3
 
 Sentinel-3 products are provided on their **native grid mapping**, where each pixel 
-is defined by a latitude/longitude pair, forming a **2D irregular grid**.  
+is defined by a latitude/longitude pair, forming a **2D irregular grid**.
 
-The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification) to transform the irregular dataset into a **regular grid** with 1D latitude/longitude coordinates.  
+The analysis mode applies the [rectification algorithm in xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification)
+to transform the irregular dataset into a **regular grid** with 1D latitude/longitude
+coordinates.
+
+For SLSTR products, a terrain correction is applied during this process. This is
+necessary because the original geolocation is corrected only for Earth curvature,
+but not for terrain variability caused by topography. See the
+[SLSTR product description](https://sentiwiki.copernicus.eu/web/slstr-products)
+for details.
+
+For OLCI products, no additional terrain correction is required, as it is already
+incorporated in the Level-1 data. See the [OLCI Level-1 product description](https://sentiwiki.copernicus.eu/web/olci-products#OLCIProducts-L1BProducts-ObservationModeS3-OLCI-Products-L1B-OM)
+for details.
 
 **Suported Products:**
 
 - [Sentinel-3 OLCI Level-1 EFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-efr)
 - [Sentinel-3 OLCI Level-1 ERR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-err)
 - [Sentinel-3 OLCI Level-2 LFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l2-lfr)
+- [Sentinel-3 SLSTR Level-1 RBT](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l1-rbt)
 - [Sentinel-3 SLSTR Level-2 LST](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l2-lst)
 
 Example:  

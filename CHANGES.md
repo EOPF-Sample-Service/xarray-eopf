@@ -1,4 +1,4 @@
-## Changes in 0.2.3 (under development)
+## Changes in 0.2.3 (from 2025-10-23)
 
 - **Sentinel-3 SLSTR Level-1 RBT products** are now supported in analysis mode. This
   allows data from grids a, b, f, and i — in both nadir and oblique viewing

@@ -22,24 +22,34 @@ show_chunking = False
 
 class Sentinel2AnalysisTest(TestCase):
     def test_open_dataset_sen2_l1c_s3(self):
-        self._test_open_dataset_sen2_l1c(f"s3://{s02msil1c_bucket}/{path_prefix}")
+        self._test_open_dataset_sen2_l1c(
+            f"s3://{s02msil1c_bucket}/{path_prefix}/{l1c_filename}"
+        )
 
     def test_open_dataset_sen2_l2a_s3(self):
-        self._test_open_dataset_sen2_l2a(f"s3://{s02msil2a_bucket}/{path_prefix}")
+        self._test_open_dataset_sen2_l2a(
+            f"s3://{s02msil2a_bucket}/{path_prefix}/{l2a_filename}"
+        )
 
     def test_open_dataset_sen2_l1c_https(self):
         self._test_open_dataset_sen2_l1c(
-            f"{DEFAULT_ENDPOINT_URL}/{s02msil1c_bucket}/{path_prefix}"
+            f"{DEFAULT_ENDPOINT_URL}/{s02msil1c_bucket}/{path_prefix}/{l1c_filename}"
         )
 
     def test_open_dataset_sen2_l2a_https(self):
         self._test_open_dataset_sen2_l2a(
-            f"{DEFAULT_ENDPOINT_URL}/{s02msil2a_bucket}/{path_prefix}"
+            f"{DEFAULT_ENDPOINT_URL}/{s02msil2a_bucket}/{path_prefix}/{l2a_filename}"
         )
 
-    def _test_open_dataset_sen2_l1c(self, url_prefix):
+    def test_open_dataset_sen2_l2a_https_cpm_v262(self):
+        self._test_open_dataset_sen2_l2a(
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202511-"
+            "s02msil2a-eu/09/products/cpm_v262/S2C_MSIL2A_20251109T112321_N0511_"
+            "R037_T29TNF_20251109T130709.zarr"
+        )
+
+    def _test_open_dataset_sen2_l1c(self, url):
         # See https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l1c/items/S2B_MSIL1C_20250415T142749_N0511_R139_T25WEV_20250415T180239
-        url = f"{url_prefix}/{l1c_filename}"
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(
@@ -58,8 +68,7 @@ class Sentinel2AnalysisTest(TestCase):
         for var_name in ds.data_vars:
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
 
-    def _test_open_dataset_sen2_l2a(self, url_prefix):
-        url = f"{url_prefix}/{l2a_filename}"
+    def _test_open_dataset_sen2_l2a(self, url):
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker
             ds = xr.open_dataset(

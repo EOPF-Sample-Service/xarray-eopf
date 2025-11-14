@@ -2,8 +2,8 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from typing import Any
 from collections.abc import Sequence
+from typing import Any
 
 import dask.array as da
 import numpy as np

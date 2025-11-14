@@ -10,7 +10,7 @@ import pytest
 import xarray as xr
 import zarr
 
-from tests.helpers import make_s3_olci_efr, make_s3_slstr_rbt, make_s3_slstr_lst
+from tests.helpers import make_s3_olci_efr, make_s3_slstr_lst, make_s3_slstr_rbt
 from xarray_eopf.amode import AnalysisModeRegistry
 from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, Sen3Sl1Rbt, Sen3Sl2Lst, register
 from xarray_eopf.constants import FloatInt

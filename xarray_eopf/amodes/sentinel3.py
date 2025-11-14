@@ -9,15 +9,15 @@ from typing import Any
 
 import numpy as np
 import pyproj.crs
-from scipy.interpolate import griddata
 import xarray as xr
+from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
 from xcube_resampling.utils import resolution_meters_to_degrees
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.constants import FloatInt, MEAN_EARTH_RADIUS
+from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
@@ -124,12 +124,6 @@ class Sen3(AnalysisMode, ABC):
         return rectified_dataset
 
     # noinspection PyMethodMayBeStatic
-    def process_metadata(self, datatree: xr.DataTree | xr.Dataset):
-        # TODO: process metadata and try adhering to CF conventions
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
-
-    # noinspection PyMethodMayBeStatic
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
         crs = pyproj.CRS.from_epsg(4326)
         dataset = dataset.assign_coords(
@@ -139,6 +133,11 @@ class Sen3(AnalysisMode, ABC):
             dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
 
         return dataset
+
+    # noinspection PyMethodMayBeStatic
+    def process_metadata(self, datatree: xr.DataTree) -> dict:
+        other_metadata = datatree.attrs.get("other_metadata", {})
+        return other_metadata
 
     def _apply_orthorectification(
         self, dataset: xr.Dataset, datatree: xr.DataTree

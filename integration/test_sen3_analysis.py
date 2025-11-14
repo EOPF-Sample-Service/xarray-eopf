@@ -8,9 +8,7 @@ from unittest import TestCase
 import xarray as xr
 
 from integration.helpers import assert_dataset_is_chunked
-from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
 from xarray_eopf.utils import timeit
-
 
 allowed_open_time = 1000  # seconds
 show_chunking = False
@@ -28,15 +26,17 @@ ol1err_url = (
 )
 
 ol2lfr_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03olclfr-"
-    "global/15/products/cpm_v256/S3A_OL_2_LFR____20251015T050206_20251015T050506_"
-    "20251015T070316_0179_131_290_2340_PS1_O_NR_003.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202505-s03olclfr/27/"
+    "products/cpm_v256/S3B_OL_2_LFR____20250527T084123_20250527T084423_20250606T"
+    "121000_0179_107_064_2340_ESA_O_NT_003.zarr"
 )
+
 sl1rbt_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slsrbt-global/"
-    "16/products/cpm_v256/S3B_SL_1_RBT____20251016T072510_20251016T072810_"
-    "20251016T092049_0179_112_163_2700_ESA_O_NR_004.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202505-s03slsrbt/30/"
+    "products/cpm_v256/S3B_SL_1_RBT____20250530T072251_20250530T072551_20250623T2"
+    "24053_0179_107_106_2340_ESA_O_NT_004.zarr"
 )
+
 sl2lst_url = (
     "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slslst-eu/16/"
     "products/cpm_v256/S3B_SL_2_LST____20251016T215803_20251016T220103_20251017T004323_"
@@ -57,12 +57,12 @@ class Sentinel3AnalysisTest(TestCase):
 
     def test_open_dataset_sen3_olci_l2_lfr(self):
         expected_vars = ["gifapar", "iwv", "otci"]
-        expected_size = (4790, 5125)
+        expected_size = (4789, 5125)
         self._test_sen3(ol2lfr_url, expected_vars, expected_size)
 
     def test_open_dataset_sen3_slstr_l1_rbt(self):
         expected_vars = ["s1_radiance_an", "s7_bt_in", "s7_bt_io"]
-        expected_size = (2959, 3308)
+        expected_size = (2944, 3313)
         self._test_sen3(sl1rbt_url, expected_vars, expected_size)
 
     def test_open_dataset_sen3_slstr_l2_lst(self):

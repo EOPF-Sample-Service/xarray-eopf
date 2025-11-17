@@ -75,6 +75,22 @@ LONG_NAME_TRANSLATION = {
     "scl": "Scene classification data, based on Sen2Cor processor",
     "snw": "Snow probability, based on Sen2Cor processor",
 }
+COMMON_BAND_NAMES = {
+    "coastal": "b01",
+    "blue": "b02",
+    "green": "b03",
+    "red": "b04",
+    "rededge071": "b05",
+    "rededge075": "b06",
+    "rededge078": "b07",
+    "nir": "b08",
+    "nir08": "b8a",
+    "nir09": "b09",
+    "cirrus": "b10",
+    "swir16": "b11",
+    "swir22": "b12",
+}
+COMMON_BAND_NAMES_REVERSE = {v: k for k, v in COMMON_BAND_NAMES.items()}
 
 
 class Msi(AnalysisMode, ABC):
@@ -135,8 +151,20 @@ class Msi(AnalysisMode, ABC):
         # - "conditions_geometry_viewing_incidence_angles"
         #   with shape (13, 7, 2, 23, 23) takes 140 seconds
 
-        name_filter = NameFilter(includes=includes, excludes=excludes)
+        # rename variable names if given as common band names
+        use_common_bands = False
+        if includes:
+            if isinstance(includes, str) and includes in COMMON_BAND_NAMES:
+                use_common_bands = True
+                includes = COMMON_BAND_NAMES[includes]
+            elif any(name in COMMON_BAND_NAMES.keys() for name in includes):
+                use_common_bands = True
+                includes = [
+                    COMMON_BAND_NAMES[name] if name in COMMON_BAND_NAMES else name
+                    for name in includes
+                ]
 
+        name_filter = NameFilter(includes=includes, excludes=excludes)
         variables: dict[int, dict[Hashable, xr.DataArray]] = {10: {}, 20: {}, 60: {}}
         for group_path in GROUP_PATHS:
             group = get_data_tree_item(datatree, group_path)
@@ -152,7 +180,15 @@ class Msi(AnalysisMode, ABC):
                     if name_filter.accept(str(k)) and not any(
                         k in variables[sen2_res] for sen2_res in SEN2_RESOLUTIONS
                     ):
-                        variables[res][k] = v
+                        if use_common_bands:
+                            k_mod = (
+                                COMMON_BAND_NAMES_REVERSE[k]
+                                if k in COMMON_BAND_NAMES_REVERSE
+                                else k
+                            )
+                            variables[res][k_mod] = v
+                        else:
+                            variables[res][k] = v
 
         if all(len(v) == 0 for v in variables.values()):
             raise ValueError("No variables selected")

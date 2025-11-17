@@ -90,6 +90,8 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 
 **Specific Sentinel-2 parameters `**kwargs`:**
 
+- `variables`: The common spectral band names specified in the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names)
+  are supported for the Sentinel-2 analysis mode.
 - `resolution`: Target resolution for all spatial data variables / bands.
   Must be one of `10`, `20`, or `60`.  
 

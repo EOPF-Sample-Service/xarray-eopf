@@ -94,17 +94,16 @@ class MsiTestMixin:
     def assert_convert_datatree_ok(
         self,
         original_dt: xr.DataTree,
-        expected_var_names: list[str],
+        expected_var_names: str | list[str],
         expected_size: int,
     ):
         ds = self.mode.convert_datatree(
             original_dt, includes=expected_var_names, resolution=10
         )
         self.assertIsInstance(ds, xr.Dataset)
-        self.assertEqual(
-            expected_var_names,
-            sorted(ds.data_vars.keys()),
-        )
+        if isinstance(expected_var_names, str):
+            expected_var_names = [expected_var_names]
+        self.assertCountEqual(expected_var_names, ds.data_vars.keys())
         for var_name, var in ds.data_vars.items():
             self.assertEqual((expected_size, expected_size), var.shape, msg=var_name)
 
@@ -166,6 +165,34 @@ class MsiL1CTest(MsiTestMixin, TestCase):
             expected_size=48,
         )
 
+    def test_convert_datatree_common_bandname(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=48),
+            expected_var_names="blue",
+            expected_size=48,
+        )
+
+    def test_convert_datatree_common_bandnames(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=48),
+            expected_var_names=[
+                "coastal",
+                "blue",
+                "green",
+                "red",
+                "rededge071",
+                "rededge075",
+                "rededge078",
+                "nir",
+                "nir08",
+                "nir09",
+                "cirrus",
+                "swir16",
+                "swir22",
+            ],
+            expected_size=48,
+        )
+
     def test_convert_datatree_no_refds(self):
         self.assert_convert_datatree_ok(
             make_s2_msi_l1c(r10m_size=10000),
@@ -208,6 +235,28 @@ class MsiL2aTest(MsiTestMixin, TestCase):
                 "b11",
                 "b12",
                 "b8a",
+                "cld",
+                "scl",
+                "snw",
+            ],
+            expected_size=48,
+        )
+
+    def test_convert_datatree_common_bandnames(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l2a(r10m_size=48),
+            expected_var_names=[
+                "coastal",
+                "blue",
+                "green",
+                "red",
+                "rededge071",
+                "rededge075",
+                "rededge078",
+                "nir",
+                "nir08",
+                "swir16",
+                "swir22",
                 "cld",
                 "scl",
                 "snw",

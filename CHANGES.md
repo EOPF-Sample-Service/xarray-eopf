@@ -3,7 +3,7 @@
 * Added support for **common band names** from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names)
   in **Sentinel-2 analysis mode**.  The `variables` parameter now accepts standard
   spectral names such as `blue`, `green`, `red`, `nir`, and others.
-* Bug fix: CRS information is missing in Sentinel-2 product data variables since
+* Fix: CRS information is missing in Sentinel-2 product data variables since
   CPM v2.6.2. CRS is now correctly read from the dataset’s `other_metadata`
   attributes in the datatree.
 

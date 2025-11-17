@@ -14,22 +14,20 @@ ol1efr_url = (
     "products/cpm_v256/S3B_OL_1_EFR____20250819T074058_20250819T074358_"
     "20250819T092155_0179_110_106_3420_ESA_O_NR_004.zarr"
 )
-
 ol1err_url = (
     "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03olcerr-global/"
     "19/products/cpm_v256/S3A_OL_1_ERR____20251019T145533_20251019T153950_"
     "20251019T165332_2657_131_353______PS1_O_NR_004.zarr"
 )
-
 ol2lfr_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03olclfr-"
-    "global/15/products/cpm_v256/S3A_OL_2_LFR____20251015T050206_20251015T050506_"
-    "20251015T070316_0179_131_290_2340_PS1_O_NR_003.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202511-s03olclfr-eu/11/"
+    "products/cpm_v262/S3B_OL_2_LFR____20251111T092324_20251111T092624_20251111"
+    "T113927_0179_113_150_2160_ESA_O_NR_003.zarr"
 )
 sl1rbt_url = (
-    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slsrbt-global/"
-    "16/products/cpm_v256/S3B_SL_1_RBT____20251016T072510_20251016T072810_"
-    "20251016T092049_0179_112_163_2700_ESA_O_NR_004.zarr"
+    "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202511-s03slsrbt-eu/03/"
+    "products/cpm_v262/S3A_SL_1_RBT____20251103T083134_20251103T083434_20251103T104711"
+    "_0179_132_178_2340_PS1_O_NR_004.zarr"
 )
 sl2lst_url = (
     "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202510-s03slslst-eu/16/"
@@ -87,7 +85,7 @@ class Sentinel3NativeTest(TestCase):
 
     def test_open_datatree_sen3_ol2lfr(self):
         self._test_open_datatree_sen3(
-            ol2lfr_url, 9, "measurements", {"columns": 4865, "rows": 4091}, 5
+            ol2lfr_url, 8, "measurements", {"columns": 4865, "rows": 4091}, 5
         )
 
     def test_open_dataset_sen3_ol2lfr(self):

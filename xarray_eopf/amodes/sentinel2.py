@@ -195,7 +195,9 @@ class Msi(AnalysisMode, ABC):
         datasets = dict()
         for res, da_mapping in variables.items():
             if da_mapping:
-                datasets[res] = self.assign_grid_mapping(xr.Dataset(da_mapping))
+                ds = xr.Dataset(da_mapping)
+                ds.attrs.update(self.process_metadata(datatree))
+                datasets[res] = self.assign_grid_mapping(ds)
 
         # resample data set via affine transform
         if resolution in SEN2_RESOLUTIONS and resolution in datasets:
@@ -240,48 +242,40 @@ class Msi(AnalysisMode, ABC):
                     var_name
                 ]
 
-        rescaled_ds.attrs = self.process_metadata(datatree)
         return rescaled_ds
 
     # noinspection PyMethodMayBeStatic
-    def process_metadata(self, datatree: xr.DataTree | xr.Dataset):
-        # TODO: process metadata and try adhering to CF conventions
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
-
-    # noinspection PyMethodMayBeStatic
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
-        code_to_crs: dict[int, pyproj.CRS] = {}
-        var_name_to_code: dict[Hashable, int] = {}
-        for var_name, var in dataset.data_vars.items():
-            code = var.attrs.get("proj:epsg")
-            if isinstance(code, int):
-                crs = code_to_crs.get(code)
-                if crs is None:
-                    try:
-                        crs = pyproj.CRS.from_epsg(code)
-                        code_to_crs[code] = crs
-                    except pyproj.exceptions.CRSError:
-                        crs = None
-                if crs:
-                    var_name_to_code[var_name] = code
+        crs = None
+        try:
+            crs_code = dataset.attrs.get("horizontal_CRS_code", "EPSG:-1")
+            epsg_int = int(crs_code.split(":")[1])
+            crs = pyproj.CRS.from_epsg(epsg_int)
+        except pyproj.exceptions.CRSError:
+            pass
+        try:
+            for var_name, var in dataset.data_vars.items():
+                epsg_int = var.attrs.get("proj:epsg")
+                if isinstance(epsg_int, int):
+                    crs = pyproj.CRS.from_epsg(epsg_int)
+                    break
+        except pyproj.exceptions.CRSError:
+            pass
 
-        if code_to_crs:
-            is_single = len(code_to_crs) == 1
-            spatial_ref_names: dict[int, Hashable] = {}
-            spatial_refs: dict[Hashable, xr.DataArray] = {}
-            for i, (code, crs) in enumerate(code_to_crs.items()):
-                spatial_ref_name = (
-                    "spatial_ref" if is_single else f"spatial_ref_{i + 1}"
-                )
-                spatial_refs[spatial_ref_name] = xr.DataArray(0, attrs=crs.to_cf())
-                spatial_ref_names[code] = spatial_ref_name
-            dataset = dataset.assign_coords(spatial_refs)
-            for var_name, code in var_name_to_code.items():
-                spatial_ref_name = spatial_ref_names[code]
-                dataset[var_name].attrs["grid_mapping"] = spatial_ref_name
+        if crs:
+            dataset = dataset.assign_coords(
+                {"spatial_ref": xr.DataArray(0, attrs=crs.to_cf())}
+            )
+            for var_name, data_var in dataset.data_vars.items():
+                if data_var.ndim == 2 and data_var.dims == ("y", "x"):
+                    dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
 
         return dataset
+
+    # noinspection PyMethodMayBeStatic
+    def process_metadata(self, datatree: xr.DataTree) -> dict:
+        other_metadata = datatree.attrs.get("other_metadata", {})
+        return other_metadata
 
 
 class MsiL1c(Msi):

@@ -46,9 +46,7 @@ class MsiTestMixin:
 
     def test_assign_grid_mapping(self: TestCase):
         def make_band():
-            return xr.DataArray(
-                np.zeros((10, 10)), dims=("y", "x"), attrs={"proj:epsg": 32632}
-            )
+            return xr.DataArray(np.zeros((10, 10)), dims=("y", "x"))
 
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
@@ -57,6 +55,7 @@ class MsiTestMixin:
                     b02=make_band(),
                     b03=make_band(),
                 ),
+                attrs={"horizontal_CRS_code": "ESPG:32632"},
             )
         )
         self.assertIn("spatial_ref", dataset)
@@ -69,9 +68,7 @@ class MsiTestMixin:
 
     def test_assign_grid_mapping_fail(self: TestCase):
         def make_band():
-            return xr.DataArray(
-                np.zeros((10, 10)), dims=("y", "x"), attrs={"proj:epsg": -1}
-            )
+            return xr.DataArray(np.zeros((10, 10)), dims=("y", "x"))
 
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
@@ -80,6 +77,29 @@ class MsiTestMixin:
                     b02=make_band(),
                     b03=make_band(),
                 ),
+                attrs={"horizontal_CRS_code": "ESPG:-1"},
+            )
+        )
+        self.assertNotIn("spatial_ref", dataset)
+        self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
+        self.assertEqual(None, dataset.b02.attrs.get("grid_mapping"))
+        self.assertEqual(None, dataset.b03.attrs.get("grid_mapping"))
+
+        # test with wrong parameters in data variable attributes
+        def make_band():
+            return xr.DataArray(
+                np.zeros((10, 10)),
+                dims=("y", "x"),
+                attrs={"proj:epsg": -1},
+            )
+
+        dataset = self.mode.assign_grid_mapping(
+            xr.Dataset(
+                dict(
+                    b01=make_band(),
+                    b02=make_band(),
+                    b03=make_band(),
+                )
             )
         )
         self.assertNotIn("spatial_ref", dataset)

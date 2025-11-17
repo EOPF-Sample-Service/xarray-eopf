@@ -3,7 +3,7 @@
 #  https://opensource.org/license/apache-2-0.
 
 from .sentinel2 import make_s2_msi, make_s2_msi_l1c, make_s2_msi_l2a
-from .sentinel3 import make_s3_olci_efr, make_s3_slstr_rbt, make_s3_slstr_lst
+from .sentinel3 import make_s3_olci_efr, make_s3_slstr_lst, make_s3_slstr_rbt
 
 __all__ = [
     "make_s2_msi",

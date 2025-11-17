@@ -137,6 +137,17 @@ class AnalysisMode(ABC):
             A transformed data tree.
         """
 
+    @abstractmethod
+    def process_metadata(self, datatree: xr.DataTree) -> dict:
+        """Extracts metadata from DataTree's attributes
+
+        Args:
+            datatree: The DataTree containing metadata in its attributes.
+
+        Returns:
+            Dictionary containing the metadata.
+        """
+
 
 class AnalysisModeRegistry:
     """A simple registry for `AnalysisMode` instances."""

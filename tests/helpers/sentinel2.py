@@ -10,32 +10,31 @@ import xarray as xr
 
 
 def make_s2_msi(r10m_size: int = 48) -> xr.DataTree:
-    return create_datatree(
+    dt = create_datatree(
         {
             "r10m": make_s2_msi_r10m(r10m_size),
             "r20m": make_s2_msi_l1c_r20m(r10m_size),
             "r60m": make_s2_msi_l1c_r60m(r10m_size),
         }
     )
+    dt.attrs["other_metadata"] = {"horizontal_CRS_code": "EPSG:32632"}
+    return dt
 
 
 def make_s2_msi_l1c(r10m_size: int = 48) -> xr.DataTree:
-    return create_datatree(
+    dt = create_datatree(
         {
             "measurements/reflectance/r10m": make_s2_msi_l1c_r10m(r10m_size),
             "measurements/reflectance/r20m": make_s2_msi_l1c_r20m(r10m_size),
             "measurements/reflectance/r60m": make_s2_msi_l1c_r60m(r10m_size),
-        },
-        attrs={
-            "other_metadata": {
-                "horizontal_CRS_code": "EPSG:32632",
-            }
-        },
+        }
     )
+    dt.attrs["other_metadata"] = {"horizontal_CRS_code": "EPSG:32632"}
+    return dt
 
 
 def make_s2_msi_l2a(r10m_size: int = 48) -> xr.DataTree:
-    return create_datatree(
+    dt = create_datatree(
         {
             "conditions/mask/l2a_classification/r20m": make_s2_msi_l2a_scl_r20m(
                 r10m_size
@@ -48,12 +47,9 @@ def make_s2_msi_l2a(r10m_size: int = 48) -> xr.DataTree:
             "measurements/reflectance/r60m": make_s2_msi_l2a_r60m(r10m_size),
             "quality/probability/r20m": make_s2_msi_l2a_probs_r20m(r10m_size),
         },
-        attrs={
-            "other_metadata": {
-                "horizontal_CRS_code": "EPSG:32632",
-            }
-        },
     )
+    dt.attrs["other_metadata"] = {"horizontal_CRS_code": "EPSG:32632"}
+    return dt
 
 
 def make_s2_msi_l1c_r10m(r10m_size: int) -> xr.Dataset:

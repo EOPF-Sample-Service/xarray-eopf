@@ -40,7 +40,9 @@ class Sentinel1NativeTest(TestCase):
             "/S01SIWSLC_20231119T170635_0027_A293_178F_063021_VH_IW1_249411/measurements",
             dt.groups,
         )
-        ds = dt.S01SIWSLC_20231119T170635_0027_A293_178F_063021_VH_IW1_249411.measurements
+        ds = (
+            dt.S01SIWSLC_20231119T170635_0027_A293_178F_063021_VH_IW1_249411.measurements
+        )
         self.assertEqual({"azimuth_time": 1501, "slant_range_time": 22694}, ds.sizes)
 
     def test_open_datatree_sen1_onc(self):

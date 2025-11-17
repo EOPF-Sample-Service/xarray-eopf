@@ -3,14 +3,17 @@
 * Added support for **common band names** from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names)
   in **Sentinel-2 analysis mode**.  The `variables` parameter now accepts standard
   spectral names such as `blue`, `green`, `red`, `nir`, and others.
+* Fix: CRS information is missing in Sentinel-2 product data variables since
+  CPM v2.6.2. CRS is now correctly read from the dataset’s `other_metadata`
+  attributes in the datatree.
 
 
 ## Changes in 0.2.3 (from 2025-10-23)
 
-- **Sentinel-3 SLSTR Level-1 RBT products** are now supported in analysis mode. This
+* **Sentinel-3 SLSTR Level-1 RBT products** are now supported in analysis mode. This
   allows data from grids a, b, f, and i — in both nadir and oblique viewing
   geometries — to be represented on a unified grid within a single dataset.
-- **Sentinel-3 SLSTR datasets** are now terrain-corrected using the elevation
+* **Sentinel-3 SLSTR datasets** are now terrain-corrected using the elevation
   information provided within the product itself.
 
 

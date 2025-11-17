@@ -36,6 +36,9 @@ class TestMode(AnalysisMode):
     ) -> xr.Dataset:
         return datatree.dataset
 
+    def process_metadata(self, datatree: xr.DataTree) -> dict:
+        return {}
+
 
 class AnalysisModeTest(TestCase):
     def setUp(self):

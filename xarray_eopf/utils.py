@@ -4,9 +4,8 @@
 import re
 import time
 from collections.abc import Collection, Iterable
-from typing import Any, Generic, Hashable, Type, TypeAlias, TypeVar
+from typing import Any, Type, TypeAlias, TypeVar
 
-import numpy as np
 import xarray as xr
 
 T = TypeVar("T")

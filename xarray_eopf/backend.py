@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping, Sequence
 from typing import Any, Iterable
 
+import pyproj
 import xarray as xr
 from xarray.backends import AbstractDataStore, BackendEntrypoint
 from xarray.coding.times import CFTimedeltaCoder
@@ -122,6 +123,7 @@ class EopfBackend(BackendEntrypoint):
         product_type: str | None = None,
         resolution: int | float | None = None,
         bbox: Sequence[int | float] | None = None,
+        crs: pyproj.CRS | str | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
         # params required by xarray backend interface
@@ -152,6 +154,7 @@ class EopfBackend(BackendEntrypoint):
                 data variables / bands. For Sentinel-2 products it be one of
                 `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
             bbox: Bounding box [west, south, east, north], used for subsetting.
+            crs: coordinate reference system of output dataset.
             interp_methods: Optional interpolation method to be used if
                 `op_mode="analysis"`, for upsampling / interpolating
                 spatial data variables. Can be a single interpolation method for all
@@ -225,6 +228,7 @@ class EopfBackend(BackendEntrypoint):
                 params = analysis_mode.get_applicable_params(
                     resolution=resolution,
                     bbox=bbox,
+                    crs=crs,
                     interp_methods=interp_methods,
                     agg_methods=agg_methods,
                 )

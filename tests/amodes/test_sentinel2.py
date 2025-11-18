@@ -5,6 +5,7 @@
 from collections.abc import Sequence
 from unittest import TestCase
 
+import pyproj
 import fsspec
 import numpy as np
 import pytest
@@ -38,12 +39,14 @@ class MsiTestMixin:
                 "resolution": 10,
                 "interp_methods": 1,
                 "bbox": [1, 3, 4, 5],
+                "crs": pyproj.CRS.from_string("EPSG:4326"),
                 "agg_methods": {"scl": "mode"},
             },
             self.mode.get_applicable_params(
                 resolution=10,
                 interp_methods=1,
                 bbox=[1, 3, 4, 5],
+                crs="EPSG:4326",
                 agg_methods={"scl": "mode"},
             ),
         )
@@ -122,26 +125,38 @@ class MsiTestMixin:
         self,
         original_dt: xr.DataTree,
         expected_var_names: str | list[str],
-        expected_size: int,
+        expected_size: int | tuple[int, int],
         bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | str | None = None,
+        resolution: int | float | None = None,
     ):
         ds = self.mode.convert_datatree(
-            original_dt, includes=expected_var_names, resolution=10, bbox=bbox
+            original_dt,
+            includes=expected_var_names,
+            resolution=resolution,
+            bbox=bbox,
+            crs=crs,
         )
         self.assertIsInstance(ds, xr.Dataset)
         if isinstance(expected_var_names, str):
             expected_var_names = [expected_var_names]
         self.assertCountEqual(expected_var_names, ds.data_vars.keys())
+        if isinstance(expected_size, int):
+            expected_size = (expected_size, expected_size)
         for var_name, var in ds.data_vars.items():
-            self.assertEqual((expected_size, expected_size), var.shape, msg=var_name)
+            self.assertEqual(
+                (expected_size[0], expected_size[1]), var.shape, msg=var_name
+            )
 
         # noinspection PyTypeChecker
-        self.assertEqual(
-            ["spatial_ref", "x", "y"],
-            sorted(ds.coords.keys()),
-        )
-        self.assertEqual((expected_size,), ds.x.shape, msg="x")
-        self.assertEqual((expected_size,), ds.y.shape, msg="y")
+        if crs is not None and crs.is_geographic:
+            self.assertCountEqual(["spatial_ref", "lat", "lon"], ds.coords.keys())
+            self.assertEqual((expected_size[1],), ds.lon.shape, msg="x")
+            self.assertEqual((expected_size[0],), ds.lat.shape, msg="y")
+        else:
+            self.assertCountEqual(["spatial_ref", "x", "y"], ds.coords.keys())
+            self.assertEqual((expected_size[1],), ds.x.shape, msg="x")
+            self.assertEqual((expected_size[0],), ds.y.shape, msg="y")
 
     def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
         with pytest.raises(ValueError, match="No variables selected"):
@@ -235,14 +250,26 @@ class MsiL1CTest(MsiTestMixin, TestCase):
 
     def test_convert_datatree_bbox(self):
         self.assert_convert_datatree_ok(
-            make_s2_msi_l1c(r10m_size=100),
+            make_s2_msi_l1c(r10m_size=10000),
             expected_var_names=[
                 "b02",
                 "b03",
                 "b04",
             ],
-            expected_size=20,
+            expected_size=2000,
             bbox=[20000, 40000, 40000, 60000],
+        )
+
+    def test_convert_datatree_crs(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=10000),
+            expected_var_names=[
+                "b02",
+                "b03",
+                "b04",
+            ],
+            expected_size=(10052, 9986),
+            crs=pyproj.CRS.from_string("EPSG:4326"),
         )
 
     def test_convert_datatree_fail(self):
@@ -321,13 +348,13 @@ class MsiL2aTest(MsiTestMixin, TestCase):
 
     def test_convert_datatree_bbox(self):
         self.assert_convert_datatree_ok(
-            make_s2_msi_l2a(r10m_size=100),
+            make_s2_msi_l2a(r10m_size=10000),
             expected_var_names=[
                 "b02",
                 "b03",
                 "b04",
             ],
-            expected_size=20,
+            expected_size=2000,
             bbox=[20000, 40000, 40000, 60000],
         )
 

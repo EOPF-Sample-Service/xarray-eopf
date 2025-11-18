@@ -8,6 +8,7 @@ OP_MODE_ANALYSIS: Final = "analysis"
 OP_MODE_NATIVE: Final = "native"
 OP_MODES: Final = OP_MODE_ANALYSIS, OP_MODE_NATIVE
 MEAN_EARTH_RADIUS = 6370997  # meter
+CONVERSION_FACTOR_DEG_METER = 111320
 
 FloatInt = float | int
 OpMode: TypeAlias = Literal["analysis", "native"]

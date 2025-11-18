@@ -21,7 +21,7 @@ from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
 
-_CRS = "EPSG:4326"
+_CRS = pyproj.CRS.from_string("EPSG:4326")
 _CHUNKSIZE = (2048, 2048)
 
 
@@ -55,6 +55,13 @@ class Sen3(AnalysisMode, ABC):
             assert_arg_has_length(bbox, "bbox", 4)
             params.update(bbox=bbox)
 
+        crs = kwargs.get("crs")
+        if crs is not None:
+            if isinstance(crs, str):
+                crs = pyproj.CRS.from_string(crs)
+            assert_arg_is_instance(crs, "crs", (pyproj.CRS,))
+            params.update(crs=crs)
+
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
             assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
@@ -83,6 +90,7 @@ class Sen3(AnalysisMode, ABC):
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
@@ -99,7 +107,6 @@ class Sen3(AnalysisMode, ABC):
         dataset = dataset.drop_vars(coords)
         dataset["latitude"] = dataset["latitude"].persist()
         dataset["longitude"] = dataset["longitude"].persist()
-
         if bbox:
             dataset = clip_dataset_by_bbox(dataset, bbox, ("longitude", "latitude"))
 
@@ -114,16 +121,18 @@ class Sen3(AnalysisMode, ABC):
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
+        if crs is None:
+            crs = _CRS
+        if bbox is None:
+            bbox = source_gm.xy_bbox
         if resolution is None:
-            center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
-            resolution = resolution_meters_to_degrees(
-                self.default_resolution, center_lat
-            )
+            resolution = self.default_resolution
+            if crs.is_geographic:
+                center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
+                resolution = resolution_meters_to_degrees(resolution, center_lat)
+
         target_gm = GridMapping.regular_from_bbox(
-            bbox=source_gm.xy_bbox,
-            xy_res=resolution,
-            crs=source_gm.crs,
-            tile_size=_CHUNKSIZE,
+            bbox=bbox, xy_res=resolution, crs=crs, tile_size=_CHUNKSIZE
         )
 
         rectified_dataset = rectify_dataset(
@@ -227,6 +236,7 @@ class Sen3Sl1Rbt(Sen3):
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
@@ -265,23 +275,23 @@ class Sen3Sl1Rbt(Sen3):
             raise ValueError("No variables selected")
 
         # get outer bounding box
+
+        # get target grid mapping
+        if crs is None:
+            crs = _CRS
         bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
         bbox = self._get_outer_bbox(bboxs)
-
-        # get resolution if not given
         if resolution is None:
             subgroups_res_1000 = ["fnadir", "foblique", "inadir", "ioblique"]
             if all(key in subgroups_res_1000 for key in dataset_map.keys()):
                 resolution = 1000
             else:
                 resolution = 500
-            center_lat = (bbox[1] + bbox[3]) / 2
-            resolution = resolution_meters_to_degrees(resolution, center_lat)
+            if crs.is_geographic:
+                center_lat = (bbox[1] + bbox[3]) / 2
+                resolution = resolution_meters_to_degrees(resolution, center_lat)
         target_gm = GridMapping.regular_from_bbox(
-            bbox=bbox,
-            xy_res=resolution,
-            crs=_CRS,
-            tile_size=_CHUNKSIZE,
+            bbox=bbox, xy_res=resolution, crs=crs, tile_size=_CHUNKSIZE
         )
 
         # rectify each group and combine them into one dataset

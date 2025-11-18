@@ -5,6 +5,7 @@
 from collections.abc import Sequence
 from unittest import TestCase
 
+import pyproj
 import fsspec
 import numpy as np
 import pytest
@@ -32,12 +33,14 @@ class Sen3TestMixin:
                 "resolution": 10,
                 "interp_methods": 1,
                 "bbox": [1, 3, 4, 5],
+                "crs": pyproj.CRS.from_string("EPSG:4326"),
                 "agg_methods": {"scl": "mode"},
             },
             self.mode.get_applicable_params(
                 resolution=10,
                 interp_methods=1,
                 bbox=[1, 3, 4, 5],
+                crs="EPSG:4326",
                 agg_methods={"scl": "mode"},
             ),
         )
@@ -160,7 +163,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
                 "oa02_radiance",
                 "oa03_radiance",
             ],
-            expected_size=(804, 383),
+            expected_size=(372, 421),
             bbox=[1, 55, 3, 56],
         )
 
@@ -292,7 +295,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
-            expected_size=(250, 116),
+            expected_size=(112, 127),
             bbox=[1, 55, 3, 56],
         )
 

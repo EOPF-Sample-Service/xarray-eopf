@@ -5,9 +5,9 @@
 from collections.abc import Sequence
 from unittest import TestCase
 
-import pyproj
 import fsspec
 import numpy as np
+import pyproj
 import pytest
 import xarray as xr
 import zarr

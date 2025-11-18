@@ -10,21 +10,20 @@ from typing import Any, Hashable
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from xcube_resampling.spatial import resample_in_space
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
-from xcube_resampling.utils import clip_dataset_by_bbox, reproject_bbox
+from xcube_resampling.spatial import resample_in_space
+from xcube_resampling.utils import reproject_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.constants import CONVERSION_FACTOR_DEG_METER
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
     assert_arg_has_length,
     assert_arg_is_instance,
-    assert_arg_is_one_of,
     get_data_tree_item,
 )
-from xcube_eopf.constants import CONVERSION_FACTOR_DEG_METER
 
 # Resolutions of bands and variables in the order they contribute
 # to a dataset (=value) for a target resolution (= key).

@@ -1,3 +1,7 @@
+## Changes in 0.2.5 (under development)
+
+* Added subsetting in analysis mode via parameter `bbox`.
+
 ## Changes in 0.2.4 (from 2025-11-17)
 
 * Added support for **common band names** from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names)

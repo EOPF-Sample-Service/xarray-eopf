@@ -4,7 +4,7 @@
 
 import warnings
 from abc import ABC
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any, Hashable
 
 import numpy as np
@@ -13,11 +13,13 @@ import xarray as xr
 from xcube_resampling.affine import affine_transform_dataset
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
+from xcube_resampling.utils import clip_dataset_by_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
+    assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
@@ -114,6 +116,12 @@ class Msi(AnalysisMode, ABC):
             assert_arg_is_one_of(resolution, "resolution", [10, 20, 60])
             params.update(resolution=resolution)
 
+        bbox = kwargs.get("bbox")
+        if bbox is not None:
+            assert_arg_is_instance(bbox, "bbox", (Sequence,))
+            assert_arg_has_length(bbox, "bbox", 4)
+            params.update(bbox=bbox)
+
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
             assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
@@ -141,6 +149,7 @@ class Msi(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: int = 10,
+        bbox: Sequence[float | int] | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
@@ -205,15 +214,20 @@ class Msi(AnalysisMode, ABC):
         else:
             res, ds = next(iter(datasets.items()))
             resh = res / 2
-            bbox = [ds.x[0] - resh, ds.y[-1] - resh, ds.x[-1] + resh, ds.y[0] + resh]
-            x_size = np.ceil((bbox[2] - bbox[0]) / resolution)
-            y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution)
+            bbox_data = [
+                ds.x[0] - resh,
+                ds.y[-1] - resh,
+                ds.x[-1] + resh,
+                ds.y[0] + resh,
+            ]
+            x_size = np.ceil((bbox_data[2] - bbox_data[0]) / resolution)
+            y_size = np.ceil(abs(bbox_data[3] - bbox_data[1]) / resolution)
             chunk_size = RESOLUTION_CHUNKSIZE[
                 min(SEN2_RESOLUTIONS, key=lambda x: abs(x - resolution))
             ]
             target_gm = GridMapping.regular(
                 size=(x_size, y_size),
-                xy_min=(bbox[0], bbox[1]),
+                xy_min=(bbox_data[0], bbox_data[1]),
                 xy_res=resolution,
                 crs=pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"]),
                 tile_size=chunk_size,
@@ -231,6 +245,12 @@ class Msi(AnalysisMode, ABC):
                 rescaled_ds = ds
             else:
                 rescaled_ds.update(ds)
+
+        # apply subsetting
+        if bbox:
+            rescaled_ds = clip_dataset_by_bbox(
+                rescaled_ds, bbox, spatial_coords=("x", "y")
+            )
 
         # Assign extra variable attributes
         for var_name in rescaled_ds.data_vars:

@@ -52,6 +52,27 @@ def assert_arg_is_instance(value: Any, name: str, data_type: Type | tuple[Type, 
         )
 
 
+def assert_arg_has_length(value: Any, name: str, length: int):
+    """
+    Ensure that argument `name` has a length equal to `length`.
+    Raises:
+        TypeError: if `value` has no length.
+        ValueError: if `value` length is not equal to `length`.
+    """
+    try:
+        actual_length = len(value)
+    except TypeError:
+        raise TypeError(
+            f"{name} argument must be a sequence with length {length}, "
+            f"but got object of type {type(value).__name__!r} with no length."
+        )
+
+    if actual_length != length:
+        raise ValueError(
+            f"{name} argument must have length {length}, but has {actual_length}."
+        )
+
+
 def assert_arg_is_one_of(value: Any, name: str, collection: Collection):
     """Check if the `value` of the argument `name` is one of the items in `collection`.
     If not, raise `ValueError`.

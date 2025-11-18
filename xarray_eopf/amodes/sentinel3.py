@@ -4,7 +4,7 @@
 
 import warnings
 from abc import ABC
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import numpy as np
@@ -14,15 +14,12 @@ from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import resolution_meters_to_degrees
+from xcube_resampling.utils import clip_dataset_by_bbox, resolution_meters_to_degrees
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
-from xarray_eopf.utils import (
-    NameFilter,
-    assert_arg_is_instance,
-)
+from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
 
 _CRS = "EPSG:4326"
 _CHUNKSIZE = (2048, 2048)
@@ -52,6 +49,12 @@ class Sen3(AnalysisMode, ABC):
             assert_arg_is_instance(resolution, "resolution", (int, float))
             params.update(resolution=resolution)
 
+        bbox = kwargs.get("bbox")
+        if bbox is not None:
+            assert_arg_is_instance(bbox, "bbox", (Sequence,))
+            assert_arg_has_length(bbox, "bbox", 4)
+            params.update(bbox=bbox)
+
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
             assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
@@ -79,25 +82,35 @@ class Sen3(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
+        bbox: Sequence[float | int] | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset = datatree.measurements.to_dataset()
-        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
-        if not variable_names:
-            raise ValueError("No variables selected")
-        dataset = dataset[variable_names]
+        dataset = self._add_elevation(dataset, datatree)
+
         # remove coordinates except for latitude and longitude
         coords = []
         for coord in dataset.coords:
             if coord not in ["latitude", "longitude"]:
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
+        dataset["latitude"] = dataset["latitude"].persist()
+        dataset["longitude"] = dataset["longitude"].persist()
+
+        if bbox:
+            dataset = clip_dataset_by_bbox(dataset, bbox, ("longitude", "latitude"))
 
         # orthorectify geolocation for elevation and viewing geometry
         dataset = self._apply_orthorectification(dataset, datatree)
+
+        # select variables
+        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No variables selected")
+        dataset = dataset[variable_names]
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
@@ -147,6 +160,12 @@ class Sen3(AnalysisMode, ABC):
         """
         return dataset
 
+    def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
+        """Placeholder method to be overwritten by product-specific subclasses
+        handling SLSTR Level-2 LST product.
+        """
+        return dataset
+
 
 class Sen3Ol1Err(Sen3):
     product_type = "OL_1_ERR"
@@ -176,7 +195,7 @@ class Sen3Sl2Lst(Sen3):
     def _apply_orthorectification(
         self, dataset: xr.Dataset, datatree: xr.DataTree
     ) -> xr.Dataset:
-        elevation = datatree.conditions.auxiliary.elevation.persist()
+        elevation = dataset.elevation.persist()
         valid_cols = ~elevation.isnull().any(dim="rows").values
         dataset = dataset.isel(columns=valid_cols)
         elevation = elevation.isel(columns=valid_cols)
@@ -189,6 +208,13 @@ class Sen3Sl2Lst(Sen3):
             datatree.conditions.geometry.sat_azimuth_tn,
         )
 
+    def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
+        """Placeholder method to be overwritten by product-specific subclasses
+        handling SLSTR Level-2 LST product.
+        """
+        dataset["elevation"] = datatree.conditions.auxiliary.elevation
+        return dataset
+
 
 class Sen3Sl1Rbt(Sen3):
     product_type = "SL_1_RBT"
@@ -200,6 +226,7 @@ class Sen3Sl1Rbt(Sen3):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
+        bbox: Sequence[float | int] | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
@@ -221,6 +248,15 @@ class Sen3Sl1Rbt(Sen3):
                     if coord not in ["latitude", "longitude"]:
                         coords.append(coord)
                 dataset_sel = dataset_sel.drop_vars(coords)
+                dataset_sel["latitude"] = dataset_sel["latitude"].persist()
+                dataset_sel["longitude"] = dataset_sel["longitude"].persist()
+
+                # clip dataset by bbox
+                if bbox:
+                    dataset_sel = clip_dataset_by_bbox(
+                        dataset_sel, bbox, ("longitude", "latitude")
+                    )
+
                 dataset_map[sub_group] = (
                     dataset_sel,
                     GridMapping.from_dataset(dataset_sel),

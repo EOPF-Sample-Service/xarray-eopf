@@ -2,6 +2,7 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
+from collections.abc import Sequence
 from unittest import TestCase
 
 import fsspec
@@ -33,10 +34,16 @@ class MsiTestMixin:
             self.mode.get_applicable_params(),
         )
         self.assertEqual(
-            {"resolution": 10, "interp_methods": 1, "agg_methods": {"scl": "mode"}},
+            {
+                "resolution": 10,
+                "interp_methods": 1,
+                "bbox": [1, 3, 4, 5],
+                "agg_methods": {"scl": "mode"},
+            },
             self.mode.get_applicable_params(
                 resolution=10,
                 interp_methods=1,
+                bbox=[1, 3, 4, 5],
                 agg_methods={"scl": "mode"},
             ),
         )
@@ -116,9 +123,10 @@ class MsiTestMixin:
         original_dt: xr.DataTree,
         expected_var_names: str | list[str],
         expected_size: int,
+        bbox: Sequence[float | int] | None = None,
     ):
         ds = self.mode.convert_datatree(
-            original_dt, includes=expected_var_names, resolution=10
+            original_dt, includes=expected_var_names, resolution=10, bbox=bbox
         )
         self.assertIsInstance(ds, xr.Dataset)
         if isinstance(expected_var_names, str):
@@ -225,6 +233,18 @@ class MsiL1CTest(MsiTestMixin, TestCase):
             expected_size=10000,
         )
 
+    def test_convert_datatree_bbox(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l1c(r10m_size=100),
+            expected_var_names=[
+                "b02",
+                "b03",
+                "b04",
+            ],
+            expected_size=20,
+            bbox=[20000, 40000, 40000, 60000],
+        )
+
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s2_msi_l1c(r10m_size=48))
 
@@ -297,6 +317,18 @@ class MsiL2aTest(MsiTestMixin, TestCase):
                 "snw",
             ],
             expected_size=10000,
+        )
+
+    def test_convert_datatree_bbox(self):
+        self.assert_convert_datatree_ok(
+            make_s2_msi_l2a(r10m_size=100),
+            expected_var_names=[
+                "b02",
+                "b03",
+                "b04",
+            ],
+            expected_size=20,
+            bbox=[20000, 40000, 40000, 60000],
         )
 
     def test_convert_datatree_fail(self):

@@ -3,7 +3,7 @@
 #  https://opensource.org/license/apache-2-0.
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Iterable
 
 import xarray as xr
@@ -121,6 +121,7 @@ class EopfBackend(BackendEntrypoint):
         # params for op_mode=analysis
         product_type: str | None = None,
         resolution: int | float | None = None,
+        bbox: Sequence[int | float] | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
         # params required by xarray backend interface
@@ -150,6 +151,7 @@ class EopfBackend(BackendEntrypoint):
             resolution: Target resolution for all spatial
                 data variables / bands. For Sentinel-2 products it be one of
                 `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
+            bbox: Bounding box [west, south, east, north], used for subsetting.
             interp_methods: Optional interpolation method to be used if
                 `op_mode="analysis"`, for upsampling / interpolating
                 spatial data variables. Can be a single interpolation method for all
@@ -222,6 +224,7 @@ class EopfBackend(BackendEntrypoint):
                 # product level, so we convert the tree into a dataset
                 params = analysis_mode.get_applicable_params(
                     resolution=resolution,
+                    bbox=bbox,
                     interp_methods=interp_methods,
                     agg_methods=agg_methods,
                 )

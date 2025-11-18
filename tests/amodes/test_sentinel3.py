@@ -2,6 +2,7 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
+from collections.abc import Sequence
 from unittest import TestCase
 
 import fsspec
@@ -27,10 +28,16 @@ class Sentinel3AnalysisModeTest(TestCase):
 class Sen3TestMixin:
     def test_get_applicable_params(self: TestCase):
         self.assertEqual(
-            {"resolution": 10, "interp_methods": 1, "agg_methods": {"scl": "mode"}},
+            {
+                "resolution": 10,
+                "interp_methods": 1,
+                "bbox": [1, 3, 4, 5],
+                "agg_methods": {"scl": "mode"},
+            },
             self.mode.get_applicable_params(
                 resolution=10,
                 interp_methods=1,
+                bbox=[1, 3, 4, 5],
                 agg_methods={"scl": "mode"},
             ),
         )
@@ -83,9 +90,10 @@ class Sen3TestMixin:
         expected_var_names: list[str],
         expected_size: (int, int),
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
+        bbox: Sequence[float | int] | None = None,
     ):
         ds = self.mode.convert_datatree(
-            original_dt, includes=expected_var_names, resolution=resolution
+            original_dt, includes=expected_var_names, resolution=resolution, bbox=bbox
         )
         self.assertIsInstance(ds, xr.Dataset)
         self.assertEqual(
@@ -144,6 +152,18 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
             resolution=0.1,
         )
 
+    def test_convert_datatree_bbox(self):
+        self.assert_convert_datatree_ok(
+            make_s3_olci_efr(size=100),
+            expected_var_names=[
+                "oa01_radiance",
+                "oa02_radiance",
+                "oa03_radiance",
+            ],
+            expected_size=(804, 383),
+            bbox=[1, 55, 3, 56],
+        )
+
     def test_convert_datatree_default_res(self):
         self.assert_convert_datatree_ok(
             make_s3_olci_efr(size=3000),
@@ -187,6 +207,18 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
             ],
             expected_size=(168, 208),
             resolution=0.1,
+        )
+
+    def test_convert_datatree_bbox(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_rbt(size=1000),
+            expected_var_names=[
+                "s1_radiance_an",
+                "s7_bt_in",
+                "s7_bt_io",
+            ],
+            expected_size=(572, 357),
+            bbox=[5, 52, 7, 53],
         )
 
     def test_convert_datatree_default_res_1000(self):
@@ -254,6 +286,14 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
             expected_size=(1838, 1432),
+        )
+
+    def test_convert_datatree_bbox(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_lst(size=1000),
+            expected_var_names=["lst"],
+            expected_size=(250, 116),
+            bbox=[1, 55, 3, 56],
         )
 
     def test_convert_datatree_fail(self):

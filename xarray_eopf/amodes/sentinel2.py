@@ -188,7 +188,7 @@ class Msi(AnalysisMode, ABC):
                 resolution = 10
 
         name_filter = NameFilter(includes=includes, excludes=excludes)
-        native_res = _get_native_res(resolution, crs=crs)
+        native_res = get_native_res(resolution, crs=crs)
         variables: dict[int, dict[Hashable, xr.DataArray]] = {10: {}, 20: {}, 60: {}}
         for group_path in GROUP_PATHS:
             group = get_data_tree_item(datatree, group_path)
@@ -320,7 +320,7 @@ def register(registry: AnalysisModeRegistry):
     registry.register(MsiL2a)
 
 
-def _get_native_res(resolution: int | float, crs: pyproj.CRS | None = None) -> int:
+def get_native_res(resolution: int | float, crs: pyproj.CRS | None = None) -> int:
     """Return the nearest equal or coarser Sentinel-2 spatial resolution.
 
     Args:

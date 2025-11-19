@@ -93,10 +93,17 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 - [Sentinel-2 Level-1C](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l1c)
 - [Sentinel-2 Level-2A](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a)
 
+**Supported Variables**
+
+- **Surface reflectance bands**:
+  `b01`, `b02`, `b03`, `b04`, `b05`, `b06`, `b07`, `b08`, `b8a`, `b09`, `b11`, `b12`
+- **Classification/Quality layers** (L2A only):
+  `cld`, `scl`, `snw`
+
 **Specific Sentinel-2 parameters `**kwargs`:**
 
-- `variables`: Select specific spectral bands using the names listed above.
-  Common spectral band names from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names) are also supported for Sentinel-2 analysis mode.
+- `variables`: Select specific spectral bands using the names listed above in
+  *Suported Variables*. Common spectral band names from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names) are also supported for Sentinel-2 analysis mode.
 - `crs`: Coordinate reference system of the output dataset.
   If not specified, the UTM grid of the native data is used.
 - `resolution`: Target resolution for all spatial variables/bands.
@@ -136,8 +143,30 @@ for details.
 - [Sentinel-3 SLSTR Level-1 RBT](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l1-rbt)
 - [Sentinel-3 SLSTR Level-2 LST](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-slstr-l2-lst)
 
+
+**Supported Variables:**
+- `sentinel-3-olci-l1-efr`:
+  `oa01_radiance`, `oa02_radiance`, `oa03_radiance`, `oa04_radiance`, `oa05_radiance`,
+  `oa06_radiance`, `oa07_radiance`, `oa08_radiance`, `oa09_radiance`, `oa10_radiance`,
+  `oa11_radiance`, `oa12_radiance`, `oa13_radiance`, `oa14_radiance`, `oa15_radiance`,
+  `oa16_radiance`, `oa17_radiance`, `oa18_radiance`, `oa19_radiance`, `oa20_radiance`,
+  `oa21_radiance`
+- `sentinel-3-olci-l2-lfr`:
+  `gifapar`, `iwv`, `otci`, `rc681`, `rc865`
+- `sentinel-3-slstr-l1-rbt`:
+  `s1_radiance_an`, `s2_radiance_an`, `s3_radiance_an`, `s4_radiance_an`,
+  `s5_radiance_an`, `s6_radiance_an`, `s1_radiance_ao`, `s2_radiance_ao`,
+  `s3_radiance_ao`, `s4_radiance_ao`, `s5_radiance_ao`, `s6_radiance_ao`,
+  `s4_radiance_bn`, `s5_radiance_bn`, `s6_radiance_bn`, `s4_radiance_bo`,
+  `s5_radiance_bo`, `s6_radiance_bo`, `f1_bt_fn`, `f1_bt_fo`, `f2_bt_in`,
+  `f2_bt_io`, `s7_bt_in`, `s8_bt_in`, `s9_bt_in`, `s7_bt_io`, `s8_bt_io`,
+  `s9_bt_io`
+- `sentinel-3-slstr-l2-lst`:
+  `lst`
+
 **Specific Sentinel-2 parameters `**kwargs`:**
 
+- `variables`: Select varaibles using the names listed above om *Supported Variables*.
 - `crs`: Coordinate reference system of the output dataset.
   If not specified, [EPSG:4326](https://epsg.io/4326) is used.
 - `resolution`: Target resolution for all spatial variables/bands.

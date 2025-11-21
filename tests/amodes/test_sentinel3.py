@@ -181,9 +181,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
     def test_convert_datatree_raise_warning(self):
         dt = make_s3_olci_efr(size=3000)
         with self.assertWarns(UserWarning) as cm:
-            _ = self.mode.convert_datatree(
-                dt, bbox=[130, 20, 140, 30]
-            )
+            _ = self.mode.convert_datatree(dt, bbox=[130, 20, 140, 30])
         self.assertIn("Clipping with the specified bounding", str(cm.warning))
 
     def test_convert_datatree_fail(self):
@@ -256,9 +254,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
     def test_convert_datatree_raise_warning(self):
         dt = make_s3_slstr_rbt(size=1000)
         with self.assertWarns(UserWarning) as cm:
-            _ = self.mode.convert_datatree(
-                dt, bbox=[130, 20, 140, 30]
-            )
+            _ = self.mode.convert_datatree(dt, bbox=[130, 20, 140, 30])
         self.assertIn("Clipping with the specified bounding", str(cm.warning))
 
     def test_convert_datatree_fail(self):

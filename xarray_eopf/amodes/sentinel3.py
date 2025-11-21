@@ -14,7 +14,11 @@ from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import clip_dataset_by_bbox, resolution_meters_to_degrees, reproject_bbox
+from xcube_resampling.utils import (
+    clip_dataset_by_bbox,
+    reproject_bbox,
+    resolution_meters_to_degrees,
+)
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
@@ -77,7 +81,7 @@ class Sen3(AnalysisMode, ABC):
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
             "Analysis mode not implemented for given source, return data tree as-is.",
-            UserWarning
+            UserWarning,
         )
         return datatree
 
@@ -123,12 +127,14 @@ class Sen3(AnalysisMode, ABC):
         # clip by bounding box
         if bbox:
             bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-            dataset = clip_dataset_by_bbox(dataset, bbox_wgs84, ("longitude", "latitude"))
+            dataset = clip_dataset_by_bbox(
+                dataset, bbox_wgs84, ("longitude", "latitude")
+            )
             if any(size <= 1 for size in dataset.sizes.values()):
                 warnings.warn(
                     "Clipping with the specified bounding box resulted in a dataset too small "
                     "to compute a valid grid mapping. Returning clipped dataset as-is.",
-                    UserWarning
+                    UserWarning,
                 )
                 return dataset
 
@@ -280,14 +286,15 @@ class Sen3Sl1Rbt(Sen3):
                 # clip dataset by bbox
                 if bbox:
                     bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-                    dataset = clip_dataset_by_bbox(dataset, bbox_wgs84,
-                                                   ("longitude", "latitude"))
+                    dataset = clip_dataset_by_bbox(
+                        dataset, bbox_wgs84, ("longitude", "latitude")
+                    )
                     if any(size <= 1 for size in dataset.sizes.values()):
                         warnings.warn(
                             "Clipping with the specified bounding box "
                             "resulted in a dataset too small to compute a valid grid "
                             "mapping. Returning clipped dataset as-is.",
-                            UserWarning
+                            UserWarning,
                         )
                         return dataset
 

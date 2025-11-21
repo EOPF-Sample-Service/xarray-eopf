@@ -14,7 +14,7 @@ from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import clip_dataset_by_bbox, resolution_meters_to_degrees
+from xcube_resampling.utils import clip_dataset_by_bbox, resolution_meters_to_degrees, reproject_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
@@ -76,7 +76,8 @@ class Sen3(AnalysisMode, ABC):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is."
+            "Analysis mode not implemented for given source, return data tree as-is.",
+            UserWarning
         )
         return datatree
 
@@ -94,9 +95,16 @@ class Sen3(AnalysisMode, ABC):
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
+        if crs is None:
+            crs = _CRS
+
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset = datatree.measurements.to_dataset()
+        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No variables selected")
+        dataset = dataset[variable_names]
         dataset = self._add_elevation(dataset, datatree)
 
         # remove coordinates except for latitude and longitude
@@ -107,22 +115,25 @@ class Sen3(AnalysisMode, ABC):
         dataset = dataset.drop_vars(coords)
         dataset["latitude"] = dataset["latitude"].persist()
         dataset["longitude"] = dataset["longitude"].persist()
-        if bbox:
-            dataset = clip_dataset_by_bbox(dataset, bbox, ("longitude", "latitude"))
 
         # orthorectify geolocation for elevation and viewing geometry
         dataset = self._apply_orthorectification(dataset, datatree)
-
-        # select variables
-        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
-        if not variable_names:
-            raise ValueError("No variables selected")
         dataset = dataset[variable_names]
+
+        # clip by bounding box
+        if bbox:
+            bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+            dataset = clip_dataset_by_bbox(dataset, bbox_wgs84, ("longitude", "latitude"))
+            if any(size <= 1 for size in dataset.sizes.values()):
+                warnings.warn(
+                    "Clipping with the specified bounding box resulted in a dataset too small "
+                    "to compute a valid grid mapping. Returning clipped dataset as-is.",
+                    UserWarning
+                )
+                return dataset
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
-        if crs is None:
-            crs = _CRS
         if bbox is None:
             bbox = source_gm.xy_bbox
         if resolution is None:
@@ -240,6 +251,8 @@ class Sen3Sl1Rbt(Sen3):
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
+        if crs is None:
+            crs = _CRS
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset_map = {}
@@ -249,38 +262,46 @@ class Sen3Sl1Rbt(Sen3):
                 k for k in dataset.data_vars if name_filter.accept(str(k))
             ]
             if variable_names:
-                # orthorectify dataset
-                dataset = self._apply_orthorectification(dataset, datatree)
-                dataset_sel = dataset[variable_names]
+                if "elevation" not in variable_names:
+                    variable_names += ["elevation"]
+                dataset = dataset[variable_names]
                 # remove coordinates except for latitude and longitude
                 coords = []
-                for coord in dataset_sel.coords:
+                for coord in dataset.coords:
                     if coord not in ["latitude", "longitude"]:
                         coords.append(coord)
-                dataset_sel = dataset_sel.drop_vars(coords)
-                dataset_sel["latitude"] = dataset_sel["latitude"].persist()
-                dataset_sel["longitude"] = dataset_sel["longitude"].persist()
-
+                dataset = dataset.drop_vars(coords)
+                dataset["latitude"] = dataset["latitude"].persist()
+                dataset["longitude"] = dataset["longitude"].persist()
+                # orthorectify dataset
+                dataset = self._apply_orthorectification(dataset, datatree)
+                if includes is None or "elevation" not in includes:
+                    dataset = dataset.drop_vars("elevation")
                 # clip dataset by bbox
                 if bbox:
-                    dataset_sel = clip_dataset_by_bbox(
-                        dataset_sel, bbox, ("longitude", "latitude")
-                    )
+                    bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+                    dataset = clip_dataset_by_bbox(dataset, bbox_wgs84,
+                                                   ("longitude", "latitude"))
+                    if any(size <= 1 for size in dataset.sizes.values()):
+                        warnings.warn(
+                            "Clipping with the specified bounding box "
+                            "resulted in a dataset too small to compute a valid grid "
+                            "mapping. Returning clipped dataset as-is.",
+                            UserWarning
+                        )
+                        return dataset
 
                 dataset_map[sub_group] = (
-                    dataset_sel,
-                    GridMapping.from_dataset(dataset_sel),
+                    dataset,
+                    GridMapping.from_dataset(dataset),
                 )
         if not dataset_map:
             raise ValueError("No variables selected")
 
-        # get outer bounding box
-
         # get target grid mapping
-        if crs is None:
-            crs = _CRS
-        bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
-        bbox = self._get_outer_bbox(bboxs)
+        if bbox is None:
+            bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
+            bbox = self._get_outer_bbox(bboxs)
         if resolution is None:
             subgroups_res_1000 = ["fnadir", "foblique", "inadir", "ioblique"]
             if all(key in subgroups_res_1000 for key in dataset_map.keys()):

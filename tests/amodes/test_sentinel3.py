@@ -141,7 +141,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_transform_datatree(self):
-        self.assert_transform_datatree_ok(make_s3_olci_efr)
+        self.assert_transform_datatree_ok(make_s3_olci_efr(size=100))
 
     def test_convert_datatree(self):
         self.assert_convert_datatree_ok(
@@ -178,6 +178,14 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
             expected_size=(6122, 4773),
         )
 
+    def test_convert_datatree_raise_warning(self):
+        dt = make_s3_olci_efr(size=3000)
+        with self.assertWarns(UserWarning) as cm:
+            _ = self.mode.convert_datatree(
+                dt, bbox=[130, 20, 140, 30]
+            )
+        self.assertIn("Clipping with the specified bounding", str(cm.warning))
+
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_olci_efr(size=48))
 
@@ -198,7 +206,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_transform_datatree(self):
-        self.assert_transform_datatree_ok(make_s3_slstr_rbt)
+        self.assert_transform_datatree_ok(make_s3_slstr_rbt(size=100))
 
     def test_convert_datatree(self):
         self.assert_convert_datatree_ok(
@@ -220,7 +228,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
                 "s7_bt_in",
                 "s7_bt_io",
             ],
-            expected_size=(572, 357),
+            expected_size=(223, 272),
             bbox=[5, 52, 7, 53],
         )
 
@@ -244,6 +252,14 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
             ],
             expected_size=(2 * 1839, 2 * 1433),
         )
+
+    def test_convert_datatree_raise_warning(self):
+        dt = make_s3_slstr_rbt(size=1000)
+        with self.assertWarns(UserWarning) as cm:
+            _ = self.mode.convert_datatree(
+                dt, bbox=[130, 20, 140, 30]
+            )
+        self.assertIn("Clipping with the specified bounding", str(cm.warning))
 
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_slstr_rbt(size=48))
@@ -274,21 +290,21 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_transform_datatree(self):
-        self.assert_transform_datatree_ok(make_s3_slstr_lst)
+        self.assert_transform_datatree_ok(make_s3_slstr_lst(size=100))
 
     def test_convert_datatree(self):
+        self.assert_convert_datatree_ok(
+            make_s3_slstr_lst(size=1000),
+            expected_var_names=["lst"],
+            expected_size=(1838, 1432),
+        )
+
+    def test_convert_datatree_default_res(self):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=100),
             expected_var_names=["lst"],
             expected_size=(166, 207),
             resolution=0.1,
-        )
-
-    def test_convert_datatree_default_res(self):
-        self.assert_convert_datatree_ok(
-            make_s3_slstr_lst(size=1000),
-            expected_var_names=["lst"],
-            expected_size=(1838, 1432),
         )
 
     def test_convert_datatree_bbox(self):

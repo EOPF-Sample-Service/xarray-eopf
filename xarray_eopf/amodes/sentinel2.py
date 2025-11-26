@@ -4,22 +4,24 @@
 
 import warnings
 from abc import ABC
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any, Hashable
 
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from xcube_resampling.affine import affine_transform_dataset
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
+from xcube_resampling.spatial import resample_in_space
+from xcube_resampling.utils import reproject_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.constants import CONVERSION_FACTOR_DEG_METER
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
+    assert_arg_has_length,
     assert_arg_is_instance,
-    assert_arg_is_one_of,
     get_data_tree_item,
 )
 
@@ -111,8 +113,21 @@ class Msi(AnalysisMode, ABC):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_one_of(resolution, "resolution", [10, 20, 60])
+            assert_arg_is_instance(resolution, "resolution", (float, int))
             params.update(resolution=resolution)
+
+        bbox = kwargs.get("bbox")
+        if bbox is not None:
+            assert_arg_is_instance(bbox, "bbox", (Sequence,))
+            assert_arg_has_length(bbox, "bbox", 4)
+            params.update(bbox=bbox)
+
+        crs = kwargs.get("crs")
+        if crs is not None:
+            if isinstance(crs, str):
+                crs = pyproj.CRS.from_string(crs)
+            assert_arg_is_instance(crs, "crs", (pyproj.CRS,))
+            params.update(crs=crs)
 
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
@@ -140,7 +155,9 @@ class Msi(AnalysisMode, ABC):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: int = 10,
+        resolution: int = None,
+        bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
@@ -164,13 +181,20 @@ class Msi(AnalysisMode, ABC):
                     for name in includes
                 ]
 
+        if resolution is None:
+            if crs is not None and crs.is_geographic:
+                resolution = 10 / CONVERSION_FACTOR_DEG_METER
+            else:
+                resolution = 10
+
         name_filter = NameFilter(includes=includes, excludes=excludes)
+        native_res = get_native_res(resolution, crs=crs)
         variables: dict[int, dict[Hashable, xr.DataArray]] = {10: {}, 20: {}, 60: {}}
         for group_path in GROUP_PATHS:
             group = get_data_tree_item(datatree, group_path)
             if group is None:
                 continue
-            for res in RESOLUTION_ORDERS[resolution]:
+            for res in RESOLUTION_ORDERS[native_res]:
                 res_name = f"r{res}m"
                 if res_name not in group:
                     continue
@@ -199,29 +223,34 @@ class Msi(AnalysisMode, ABC):
                 ds.attrs.update(self.process_metadata(datatree))
                 datasets[res] = self.assign_grid_mapping(ds)
 
-        # resample data set via affine transform
-        if resolution in SEN2_RESOLUTIONS and resolution in datasets:
+        # resample dataset
+        if resolution in datasets and crs is None and bbox is None:
             target_gm = GridMapping.from_dataset(datasets[resolution])
         else:
-            res, ds = next(iter(datasets.items()))
-            resh = res / 2
-            bbox = [ds.x[0] - resh, ds.y[-1] - resh, ds.x[-1] + resh, ds.y[0] + resh]
-            x_size = np.ceil((bbox[2] - bbox[0]) / resolution)
-            y_size = np.ceil(abs(bbox[3] - bbox[1]) / resolution)
+            if crs is None:
+                ds = next(iter(datasets.values()))
+                crs = pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"])
+            if bbox is None:
+                res, ds = next(iter(datasets.items()))
+                source_crs = pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"])
+                resh = res / 2
+                bbox = [
+                    ds.x[0] - resh,
+                    ds.y[-1] - resh,
+                    ds.x[-1] + resh,
+                    ds.y[0] + resh,
+                ]
+                bbox = reproject_bbox(bbox, source_crs, crs)
             chunk_size = RESOLUTION_CHUNKSIZE[
                 min(SEN2_RESOLUTIONS, key=lambda x: abs(x - resolution))
             ]
-            target_gm = GridMapping.regular(
-                size=(x_size, y_size),
-                xy_min=(bbox[0], bbox[1]),
-                xy_res=resolution,
-                crs=pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"]),
-                tile_size=chunk_size,
+            target_gm = GridMapping.regular_from_bbox(
+                bbox, resolution, crs, tile_size=chunk_size
             )
 
         rescaled_ds = None
         for res, ds in datasets.items():
-            ds = affine_transform_dataset(
+            ds = resample_in_space(
                 ds,
                 target_gm=target_gm,
                 interp_methods=interp_methods,
@@ -289,3 +318,24 @@ class MsiL2a(Msi):
 def register(registry: AnalysisModeRegistry):
     registry.register(MsiL1c)
     registry.register(MsiL2a)
+
+
+def get_native_res(resolution: int | float, crs: pyproj.CRS | None = None) -> int:
+    """Return the nearest equal or coarser Sentinel-2 spatial resolution.
+
+    Args:
+        resolution: Desired spatial resolution
+        crs: Coordinate reference system
+
+
+    Returns:
+        Selected native Sentinel-2 spatial resolution
+    """
+    if crs is not None and crs.is_geographic:
+        res_native = resolution * CONVERSION_FACTOR_DEG_METER
+    else:
+        res_native = resolution
+    idx = np.searchsorted(SEN2_RESOLUTIONS, res_native, side="left")
+    return int(
+        SEN2_RESOLUTIONS[idx] if idx < len(SEN2_RESOLUTIONS) else SEN2_RESOLUTIONS[-1]
+    )

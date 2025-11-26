@@ -10,6 +10,7 @@ import xarray as xr
 from tests.helpers import make_s2_msi
 from xarray_eopf.utils import (
     NameFilter,
+    assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     get_data_tree_item,
@@ -38,6 +39,17 @@ class AssertionTest(TestCase):
             TypeError, match="order argument must have type int or float, was str"
         ):
             self.assertIsNone(assert_arg_is_instance("4", "order", (int, float)))
+
+    def test_assert_arg_has_length(self):
+        self.assertIsNone(assert_arg_has_length([1, 2, 3], "test_arg", 3))
+        with pytest.raises(
+            ValueError, match="test_arg argument must have length 3, but has 2."
+        ):
+            self.assertIsNone(assert_arg_has_length([1, 2], "test_arg", 3))
+        with pytest.raises(
+            TypeError, match="test_arg argument must be a sequence with length "
+        ):
+            self.assertIsNone(assert_arg_has_length(123, "test_arg", 3))
 
 
 class TimeitTest(TestCase):

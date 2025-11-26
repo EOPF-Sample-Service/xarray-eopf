@@ -4,7 +4,7 @@
 
 import warnings
 from abc import ABC
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import numpy as np
@@ -14,17 +14,18 @@ from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import resolution_meters_to_degrees
+from xcube_resampling.utils import (
+    clip_dataset_by_bbox,
+    reproject_bbox,
+    resolution_meters_to_degrees,
+)
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
-from xarray_eopf.utils import (
-    NameFilter,
-    assert_arg_is_instance,
-)
+from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
 
-_CRS = "EPSG:4326"
+_CRS = pyproj.CRS.from_string("EPSG:4326")
 _CHUNKSIZE = (2048, 2048)
 
 
@@ -52,6 +53,19 @@ class Sen3(AnalysisMode, ABC):
             assert_arg_is_instance(resolution, "resolution", (int, float))
             params.update(resolution=resolution)
 
+        bbox = kwargs.get("bbox")
+        if bbox is not None:
+            assert_arg_is_instance(bbox, "bbox", (Sequence,))
+            assert_arg_has_length(bbox, "bbox", 4)
+            params.update(bbox=bbox)
+
+        crs = kwargs.get("crs")
+        if crs is not None:
+            if isinstance(crs, str):
+                crs = pyproj.CRS.from_string(crs)
+            assert_arg_is_instance(crs, "crs", (pyproj.CRS,))
+            params.update(crs=crs)
+
         interp_methods = kwargs.get("interp_methods")
         if interp_methods is not None:
             assert_arg_is_instance(interp_methods, "interp_methods", (str, int, dict))
@@ -66,7 +80,8 @@ class Sen3(AnalysisMode, ABC):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is."
+            "Analysis mode not implemented for given source, return data tree as-is.",
+            UserWarning,
         )
         return datatree
 
@@ -79,9 +94,14 @@ class Sen3(AnalysisMode, ABC):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
+        bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
+        if crs is None:
+            crs = _CRS
+
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset = datatree.measurements.to_dataset()
@@ -89,28 +109,47 @@ class Sen3(AnalysisMode, ABC):
         if not variable_names:
             raise ValueError("No variables selected")
         dataset = dataset[variable_names]
+        dataset = self._add_elevation(dataset, datatree)
+
         # remove coordinates except for latitude and longitude
         coords = []
         for coord in dataset.coords:
             if coord not in ["latitude", "longitude"]:
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
+        dataset["latitude"] = dataset["latitude"].persist()
+        dataset["longitude"] = dataset["longitude"].persist()
 
         # orthorectify geolocation for elevation and viewing geometry
         dataset = self._apply_orthorectification(dataset, datatree)
+        dataset = dataset[variable_names]
+
+        # clip by bounding box
+        if bbox:
+            bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+            dataset = clip_dataset_by_bbox(
+                dataset, bbox_wgs84, ("longitude", "latitude")
+            )
+            if any(size <= 1 for size in dataset.sizes.values()):
+                warnings.warn(
+                    "Clipping with the specified bounding box resulted in a dataset too small "
+                    "to compute a valid grid mapping. Returning clipped dataset as-is.",
+                    UserWarning,
+                )
+                return dataset
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
+        if bbox is None:
+            bbox = source_gm.xy_bbox
         if resolution is None:
-            center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
-            resolution = resolution_meters_to_degrees(
-                self.default_resolution, center_lat
-            )
+            resolution = self.default_resolution
+            if crs.is_geographic:
+                center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
+                resolution = resolution_meters_to_degrees(resolution, center_lat)
+
         target_gm = GridMapping.regular_from_bbox(
-            bbox=source_gm.xy_bbox,
-            xy_res=resolution,
-            crs=source_gm.crs,
-            tile_size=_CHUNKSIZE,
+            bbox=bbox, xy_res=resolution, crs=crs, tile_size=_CHUNKSIZE
         )
 
         rectified_dataset = rectify_dataset(
@@ -147,6 +186,12 @@ class Sen3(AnalysisMode, ABC):
         """
         return dataset
 
+    def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
+        """Placeholder method to be overwritten by product-specific subclasses
+        handling SLSTR Level-2 LST product.
+        """
+        return dataset
+
 
 class Sen3Ol1Err(Sen3):
     product_type = "OL_1_ERR"
@@ -176,7 +221,7 @@ class Sen3Sl2Lst(Sen3):
     def _apply_orthorectification(
         self, dataset: xr.Dataset, datatree: xr.DataTree
     ) -> xr.Dataset:
-        elevation = datatree.conditions.auxiliary.elevation.persist()
+        elevation = dataset.elevation.persist()
         valid_cols = ~elevation.isnull().any(dim="rows").values
         dataset = dataset.isel(columns=valid_cols)
         elevation = elevation.isel(columns=valid_cols)
@@ -189,6 +234,13 @@ class Sen3Sl2Lst(Sen3):
             datatree.conditions.geometry.sat_azimuth_tn,
         )
 
+    def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
+        """Placeholder method to be overwritten by product-specific subclasses
+        handling SLSTR Level-2 LST product.
+        """
+        dataset["elevation"] = datatree.conditions.auxiliary.elevation
+        return dataset
+
 
 class Sen3Sl1Rbt(Sen3):
     product_type = "SL_1_RBT"
@@ -200,9 +252,13 @@ class Sen3Sl1Rbt(Sen3):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
+        bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
+        if crs is None:
+            crs = _CRS
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset_map = {}
@@ -212,40 +268,58 @@ class Sen3Sl1Rbt(Sen3):
                 k for k in dataset.data_vars if name_filter.accept(str(k))
             ]
             if variable_names:
-                # orthorectify dataset
-                dataset = self._apply_orthorectification(dataset, datatree)
-                dataset_sel = dataset[variable_names]
+                if "elevation" not in variable_names:
+                    variable_names += ["elevation"]
+                dataset = dataset[variable_names]
                 # remove coordinates except for latitude and longitude
                 coords = []
-                for coord in dataset_sel.coords:
+                for coord in dataset.coords:
                     if coord not in ["latitude", "longitude"]:
                         coords.append(coord)
-                dataset_sel = dataset_sel.drop_vars(coords)
+                dataset = dataset.drop_vars(coords)
+                dataset["latitude"] = dataset["latitude"].persist()
+                dataset["longitude"] = dataset["longitude"].persist()
+                # orthorectify dataset
+                dataset = self._apply_orthorectification(dataset, datatree)
+                if includes is None or "elevation" not in includes:
+                    dataset = dataset.drop_vars("elevation")
+                # clip dataset by bbox
+                if bbox:
+                    bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+                    dataset = clip_dataset_by_bbox(
+                        dataset, bbox_wgs84, ("longitude", "latitude")
+                    )
+                    if any(size <= 1 for size in dataset.sizes.values()):
+                        warnings.warn(
+                            "Clipping with the specified bounding box "
+                            "resulted in a dataset too small to compute a valid grid "
+                            "mapping. Returning clipped dataset as-is.",
+                            UserWarning,
+                        )
+                        return dataset
+
                 dataset_map[sub_group] = (
-                    dataset_sel,
-                    GridMapping.from_dataset(dataset_sel),
+                    dataset,
+                    GridMapping.from_dataset(dataset),
                 )
         if not dataset_map:
             raise ValueError("No variables selected")
 
-        # get outer bounding box
-        bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
-        bbox = self._get_outer_bbox(bboxs)
-
-        # get resolution if not given
+        # get target grid mapping
+        if bbox is None:
+            bboxs = np.array([gm.xy_bbox for (_, gm) in dataset_map.values()])
+            bbox = self._get_outer_bbox(bboxs)
         if resolution is None:
             subgroups_res_1000 = ["fnadir", "foblique", "inadir", "ioblique"]
             if all(key in subgroups_res_1000 for key in dataset_map.keys()):
                 resolution = 1000
             else:
                 resolution = 500
-            center_lat = (bbox[1] + bbox[3]) / 2
-            resolution = resolution_meters_to_degrees(resolution, center_lat)
+            if crs.is_geographic:
+                center_lat = (bbox[1] + bbox[3]) / 2
+                resolution = resolution_meters_to_degrees(resolution, center_lat)
         target_gm = GridMapping.regular_from_bbox(
-            bbox=bbox,
-            xy_res=resolution,
-            crs=_CRS,
-            tile_size=_CHUNKSIZE,
+            bbox=bbox, xy_res=resolution, crs=crs, tile_size=_CHUNKSIZE
         )
 
         # rectify each group and combine them into one dataset

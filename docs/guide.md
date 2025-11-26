@@ -103,7 +103,7 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 **Specific Sentinel-2 parameters `**kwargs`:**
 
 - `variables`: Select specific spectral bands using the names listed above in
-  *Suported Variables*. Common spectral band names from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names) are also supported for Sentinel-2 analysis mode.
+  *Supported Variables*. Common spectral band names from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names) are also supported for Sentinel-2 analysis mode.
 - `crs`: Coordinate reference system of the output dataset.
   If not specified, the UTM grid of the native data is used.
 - `resolution`: Target resolution for all spatial variables/bands.

@@ -1,4 +1,4 @@
-## Changes in 0.2.5 (under development)
+## Changes in 0.2.5 (from 2025-11-26)
 
 * Added subsetting and reprojection in analysis mode via parameters `crs`,
   `resolution`, and `bbox`.

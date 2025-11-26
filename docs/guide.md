@@ -166,7 +166,7 @@ for details.
 
 **Specific Sentinel-2 parameters `**kwargs`:**
 
-- `variables`: Select varaibles using the names listed above om *Supported Variables*.
+- `variables`: Select variables using the names listed above in *Supported Variables*.
 - `crs`: Coordinate reference system of the output dataset.
   If not specified, [EPSG:4326](https://epsg.io/4326) is used.
 - `resolution`: Target resolution for all spatial variables/bands.

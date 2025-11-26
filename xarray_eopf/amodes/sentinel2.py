@@ -232,7 +232,7 @@ class Msi(AnalysisMode, ABC):
                 crs = pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"])
             if bbox is None:
                 res, ds = next(iter(datasets.items()))
-                crs_data = pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"])
+                source_crs = pyproj.CRS.from_wkt(ds.spatial_ref.attrs["crs_wkt"])
                 resh = res / 2
                 bbox = [
                     ds.x[0] - resh,
@@ -240,7 +240,7 @@ class Msi(AnalysisMode, ABC):
                     ds.x[-1] + resh,
                     ds.y[0] + resh,
                 ]
-                bbox = reproject_bbox(bbox, crs_data, crs)
+                bbox = reproject_bbox(bbox, source_crs, crs)
             chunk_size = RESOLUTION_CHUNKSIZE[
                 min(SEN2_RESOLUTIONS, key=lambda x: abs(x - resolution))
             ]

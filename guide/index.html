@@ -388,7 +388,8 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Function open_dataset()">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#remarks-on-specific-sentinel-missions" class="md-nav__link">
@@ -432,6 +433,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -602,7 +608,8 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Function open_dataset()">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#remarks-on-specific-sentinel-missions" class="md-nav__link">
@@ -646,6 +653,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -793,10 +805,10 @@ form. All bands and quality flags are resampled to a unified, user-provided reso
 <p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
 Further explanation of the meaning and usage of these parameters for each Sentinel 
 mission is provided in <a href="#remark-to-specific-sentinel-missions-">Remarks on Specific Sentinel Missions</a>.</p>
-<h3 id="remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</h3>
-<h4 id="sentinel-1">Sentinel-1</h4>
+<h4 id="remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</h4>
+<h5 id="sentinel-1">Sentinel-1</h5>
 <p>Support for Sentinel-1 analysis mode will be added in a future release.</p>
-<h4 id="sentinel-2">Sentinel-2</h4>
+<h5 id="sentinel-2">Sentinel-2</h5>
 <p>Sentinel-2 provides multi-spectral imagery at different native resolutions:</p>
 <ul>
 <li><strong>10m</strong>: <code>b02</code>, <code>b03</code>, <code>b04</code>, <code>b08</code>  </li>
@@ -831,7 +843,7 @@ bands from multiple resolutions onto the same grid using <a href="https://xcube-
 - <a href="https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen2.ipynb">Example notebook - open-sen2.ipynb</a><br />
 - <a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction-xarray-eopf-plugin/">Notebook gallery - Introduction to xarray-eopf backend</a><br />
 - <a href="https://zarr.eopf.copernicus.eu/webinars/webinar-3-access-eopf-zarr-products-with-the-new-xarray-eopf-backend/">Webinar 3 - Access EOPF Zarr Products with the New xarray EOPF Backend</a>  </p>
-<h4 id="sentinel-3">Sentinel-3</h4>
+<h5 id="sentinel-3">Sentinel-3</h5>
 <p>Sentinel-3 products are provided on their <strong>native grid mapping</strong>, where each pixel 
 is defined by a latitude/longitude pair, forming a <strong>2D irregular grid</strong>.</p>
 <p>The analysis mode applies the <a href="https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification">rectification algorithm in xcube-resampling</a>
@@ -872,7 +884,7 @@ for details.</p>
   <code>s9_bt_io</code>
 - <code>sentinel-3-slstr-l2-lst</code>:
   <code>lst</code></p>
-<p><strong>Specific Sentinel-2 parameters <code>**kwargs</code>:</strong></p>
+<p><strong>Specific Sentinel-3 parameters <code>**kwargs</code>:</strong></p>
 <ul>
 <li><code>variables</code>: Select variables using the names listed above in <em>Supported Variables</em>.</li>
 <li><code>crs</code>: Coordinate reference system of the output dataset.

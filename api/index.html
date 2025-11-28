@@ -15,8 +15,11 @@
         <link rel="next" href="../about/">
       
       
+        
+      
+      
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
     
     
       
@@ -24,10 +27,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.84d31ad4.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -52,7 +55,6 @@
     
       
 
-    
     
     
   </head>
@@ -261,9 +263,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Overview
+  
+
     
   </span>
+  
   
 
       </a>
@@ -283,9 +290,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Getting Started
+  
+
     
   </span>
+  
   
 
       </a>
@@ -305,9 +317,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     User Guide
+  
+
     
   </span>
+  
   
 
       </a>
@@ -334,9 +351,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Python API
+  
+
     
   </span>
+  
   
 
           <span class="md-nav__icon md-icon"></span>
@@ -347,9 +369,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Python API
+  
+
     
   </span>
+  
   
 
       </a>
@@ -370,7 +397,9 @@
         <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend" class="md-nav__link">
     <span class="md-ellipsis">
-      EopfBackend
+      
+        EopfBackend
+      
     </span>
   </a>
   
@@ -380,7 +409,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.open_datatree" class="md-nav__link">
     <span class="md-ellipsis">
-      open_datatree
+      
+        open_datatree
+      
     </span>
   </a>
   
@@ -389,7 +420,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.open_dataset" class="md-nav__link">
     <span class="md-ellipsis">
-      open_dataset
+      
+        open_dataset
+      
     </span>
   </a>
   
@@ -398,7 +431,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.guess_can_open" class="md-nav__link">
     <span class="md-ellipsis">
-      guess_can_open
+      
+        guess_can_open
+      
     </span>
   </a>
   
@@ -429,9 +464,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     About
+  
+
     
   </span>
+  
   
 
       </a>
@@ -466,7 +506,9 @@
         <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend" class="md-nav__link">
     <span class="md-ellipsis">
-      EopfBackend
+      
+        EopfBackend
+      
     </span>
   </a>
   
@@ -476,7 +518,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.open_datatree" class="md-nav__link">
     <span class="md-ellipsis">
-      open_datatree
+      
+        open_datatree
+      
     </span>
   </a>
   
@@ -485,7 +529,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.open_dataset" class="md-nav__link">
     <span class="md-ellipsis">
-      open_dataset
+      
+        open_dataset
+      
     </span>
   </a>
   
@@ -494,7 +540,9 @@
           <li class="md-nav__item">
   <a href="#xarray_eopf.backend.EopfBackend.guess_can_open" class="md-nav__link">
     <span class="md-ellipsis">
-      guess_can_open
+      
+        guess_can_open
+      
     </span>
   </a>
   
@@ -515,6 +563,7 @@
           
           
             <div class="md-content" data-md-component="content">
+              
               <article class="md-content__inner md-typeset">
                 
                   
@@ -542,6 +591,7 @@
               Bases: <code><span title="xarray.backends.BackendEntrypoint">BackendEntrypoint</span></code></p>
 
 
+
         <p>Backend for EOPF Data Products using the Zarr format.</p>
 <p>Note, that the <code>chunks</code> parameter passed to xarray top level functions
 <code>xr.open_datatree()</code> and <code>xr.open_dataset()</code> is <em>not</em> passed to
@@ -555,10 +605,9 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
 
 
-              <details class="quote">
+              <details class="mkdocstrings-source">
                 <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
-<span class="normal"> 30</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 30</span>
 <span class="normal"> 31</span>
 <span class="normal"> 32</span>
 <span class="normal"> 33</span>
@@ -780,7 +829,14 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
-<span class="normal">252</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
@@ -875,6 +931,8 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="c1"># params for op_mode=analysis</span>
         <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params required by xarray backend interface</span>
@@ -904,6 +962,8 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">            resolution: Target resolution for all spatial</span>
 <span class="sd">                data variables / bands. For Sentinel-2 products it be one of</span>
 <span class="sd">                `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">            bbox: Bounding box [west, south, east, north], used for subsetting.</span>
+<span class="sd">            crs: coordinate reference system of output dataset.</span>
 <span class="sd">            interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">                `op_mode=&quot;analysis&quot;`, for upsampling / interpolating</span>
 <span class="sd">                spatial data variables. Can be a single interpolation method for all</span>
@@ -976,6 +1036,8 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
                 <span class="c1"># product level, so we convert the tree into a dataset</span>
                 <span class="n">params</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">get_applicable_params</span><span class="p">(</span>
                     <span class="n">resolution</span><span class="o">=</span><span class="n">resolution</span><span class="p">,</span>
+                    <span class="n">bbox</span><span class="o">=</span><span class="n">bbox</span><span class="p">,</span>
+                    <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">,</span>
                     <span class="n">interp_methods</span><span class="o">=</span><span class="n">interp_methods</span><span class="p">,</span>
                     <span class="n">agg_methods</span><span class="o">=</span><span class="n">agg_methods</span><span class="p">,</span>
                 <span class="p">)</span>
@@ -1179,10 +1241,9 @@ to drop from the underlying file. See
     </table>
 
 
-            <details class="quote">
+            <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 38</span>
-<span class="normal"> 39</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 39</span>
 <span class="normal"> 40</span>
 <span class="normal"> 41</span>
 <span class="normal"> 42</span>
@@ -1253,7 +1314,8 @@ to drop from the underlying file. See
 <span class="normal">107</span>
 <span class="normal">108</span>
 <span class="normal">109</span>
-<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
+<span class="normal">110</span>
+<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1336,7 +1398,7 @@ to drop from the underlying file. See
 
 
 <h3 id="xarray_eopf.backend.EopfBackend.open_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1458,6 +1520,38 @@ Defaults to the underscore character (<code>"_"</code>)</p>
                 <p>Target resolution for all spatial
 data variables / bands. For Sentinel-2 products it be one of
 <code>10</code>, <code>20</code>, or <code>60</code>. Only used if <code>op_mode="analysis"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bbox</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="int">int</span> | <span title="float">float</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bounding box [west, south, east, north], used for subsetting.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>crs</code>
+            </td>
+            <td>
+                  <code><span title="pyproj.CRS">CRS</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>coordinate reference system of output dataset.</p>
               </div>
             </td>
             <td>
@@ -1595,10 +1689,9 @@ to drop from the underlying file. See
     </table>
 
 
-            <details class="quote">
+            <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
-<span class="normal">113</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -1719,7 +1812,14 @@ to drop from the underlying file. See
 <span class="normal">231</span>
 <span class="normal">232</span>
 <span class="normal">233</span>
-<span class="normal">234</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1731,6 +1831,8 @@ to drop from the underlying file. See
     <span class="c1"># params for op_mode=analysis</span>
     <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params required by xarray backend interface</span>
@@ -1760,6 +1862,8 @@ to drop from the underlying file. See
 <span class="sd">        resolution: Target resolution for all spatial</span>
 <span class="sd">            data variables / bands. For Sentinel-2 products it be one of</span>
 <span class="sd">            `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">        bbox: Bounding box [west, south, east, north], used for subsetting.</span>
+<span class="sd">        crs: coordinate reference system of output dataset.</span>
 <span class="sd">        interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">            `op_mode=&quot;analysis&quot;`, for upsampling / interpolating</span>
 <span class="sd">            spatial data variables. Can be a single interpolation method for all</span>
@@ -1832,6 +1936,8 @@ to drop from the underlying file. See
             <span class="c1"># product level, so we convert the tree into a dataset</span>
             <span class="n">params</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">get_applicable_params</span><span class="p">(</span>
                 <span class="n">resolution</span><span class="o">=</span><span class="n">resolution</span><span class="p">,</span>
+                <span class="n">bbox</span><span class="o">=</span><span class="n">bbox</span><span class="p">,</span>
+                <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">,</span>
                 <span class="n">interp_methods</span><span class="o">=</span><span class="n">interp_methods</span><span class="p">,</span>
                 <span class="n">agg_methods</span><span class="o">=</span><span class="n">agg_methods</span><span class="p">,</span>
             <span class="p">)</span>
@@ -1919,16 +2025,9 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
     </table>
 
 
-            <details class="quote">
+            <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
@@ -1937,7 +2036,14 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 <span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
-<span class="normal">252</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -2046,10 +2152,11 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
     
     
       
-      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
       
     
   </body>

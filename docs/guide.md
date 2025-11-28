@@ -70,14 +70,14 @@ The spatial resampling of datasets is performed using [xcube-resampling](https:/
 Further explanation of the meaning and usage of these parameters for each Sentinel 
 mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
 
-### Remarks on Specific Sentinel Missions
+#### Remarks on Specific Sentinel Missions
 
-#### Sentinel-1
+##### Sentinel-1
 
 Support for Sentinel-1 analysis mode will be added in a future release.
 
 
-#### Sentinel-2
+##### Sentinel-2
 
 Sentinel-2 provides multi-spectral imagery at different native resolutions:
 
@@ -116,7 +116,7 @@ Examples:
 - [Webinar 3 - Access EOPF Zarr Products with the New xarray EOPF Backend](https://zarr.eopf.copernicus.eu/webinars/webinar-3-access-eopf-zarr-products-with-the-new-xarray-eopf-backend/)  
 
 
-#### Sentinel-3
+##### Sentinel-3
 
 Sentinel-3 products are provided on their **native grid mapping**, where each pixel 
 is defined by a latitude/longitude pair, forming a **2D irregular grid**.
@@ -164,7 +164,7 @@ for details.
 - `sentinel-3-slstr-l2-lst`:
   `lst`
 
-**Specific Sentinel-2 parameters `**kwargs`:**
+**Specific Sentinel-3 parameters `**kwargs`:**
 
 - `variables`: Select variables using the names listed above in *Supported Variables*.
 - `crs`: Coordinate reference system of the output dataset.

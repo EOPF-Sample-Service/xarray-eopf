@@ -6,56 +6,54 @@ from unittest import TestCase
 
 import xarray as xr
 
-# TODO: adjust path to new locations
-bucket = "e05ab01a9d56408d82ac32d69a5aae2a:sample-data"
-path_prefix = "tutorial_data/cpm_v253"
-url_prefix = f"s3://{bucket}/{path_prefix}"
-
 
 class Sentinel1NativeTest(TestCase):
     def test_open_datatree_sen1_grd(self):
         path = (
-            f"{url_prefix}/"
-            "S1A_IW_GRDH_1SDV_20240201T164915_20240201T164940_052368_065517_750E.zarr"
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202603-"
+            "s01siwgrh-global/19/products/cpm_v262/S1A_IW_GRDH_1SDV_20260319"
+            "T102725_20260319T102758_063695_0801D3_2EC6.zarr"
         )
         # noinspection PyTypeChecker
         dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native")
-        self.assertEqual(33, len(dt.groups))
+        self.assertEqual(25, len(dt.groups))
         self.assertIn(
-            "/S01SIWGRD_20240201T164915_0025_A299_750E_065517_VH/measurements",
+            "/S01SIWGRD_20260319T102725_0033_A364_2EC6_0801D3_VH/measurements",
             dt.groups,
         )
-        ds = dt.S01SIWGRD_20240201T164915_0025_A299_750E_065517_VH.measurements
-        self.assertEqual({"azimuth_time": 16675, "ground_range": 26456}, ds.sizes)
+        ds = dt.S01SIWGRD_20260319T102725_0033_A364_2EC6_0801D3_VH.measurements
+        self.assertEqual({"azimuth_time": 22290, "ground_range": 25223}, ds.sizes)
 
     def test_open_datatree_sen1_slc(self):
         path = (
-            f"{url_prefix}/"
-            "S1A_IW_SLC__1SDV_20231119T170635_20231119T170702_051289_063021_178F.zarr"
+            "https://objectstore.eodc.eu:2222/e05ab01a9d56408d82ac32d69a5aae2a:"
+            "sample-data/tutorial_data/cpm_v253/S1A_IW_SLC__1SDV_20240205T051225"
+            "_20240205T051253_052419_0656D8_454B.zarr"
         )
         # noinspection PyTypeChecker
         dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native")
-        self.assertEqual(919, len(dt.groups))
+        self.assertEqual(953, len(dt.groups))
         self.assertIn(
-            "/S01SIWSLC_20231119T170635_0027_A293_178F_063021_VH_IW1_249411/measurements",
+            "/S01SIWSLC_20240205T051225_0028_A300_454B_0656D8_VH_IW3_459410/measurements",
             dt.groups,
         )
         ds = (
-            dt.S01SIWSLC_20231119T170635_0027_A293_178F_063021_VH_IW1_249411.measurements
+            dt.S01SIWSLC_20240205T051225_0028_A300_454B_0656D8_VH_IW3_459410.measurements
         )
-        self.assertEqual({"azimuth_time": 1501, "slant_range_time": 22694}, ds.sizes)
+        self.assertEqual({"azimuth_time": 1525, "slant_range_time": 25710}, ds.sizes)
 
     def test_open_datatree_sen1_onc(self):
         path = (
-            f"{url_prefix}/"
-            "S1A_IW_OCN__2SDV_20250224T054940_20250224T055005_058034_072A26_160E.zarr"
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202507-s01siwocn"
+            "/31/products/cpm_v256/S1A_IW_OCN__2SDV_20250731T213433_20250731T213458_"
+            "060333_077FA7_8163.zarr"
         )
         # noinspection PyTypeChecker
         dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native", chunks={})
         self.assertEqual(16, len(dt.groups))
         self.assertIn(
-            "/owi/S01SIWOCN_20250224T054940_0025_A332_160E_072A26_VV/measurements",
+            "/owi/S01SIWOCN_20250731T213433_0025_A345_8163_077FA7_VV/measurements",
             dt.groups,
         )
-        ds = dt.owi.S01SIWOCN_20250224T054940_0025_A332_160E_072A26_VV.measurements
-        self.assertEqual({"azimuth": 166, "range": 264}, ds.sizes)
+        ds = dt.owi.S01SIWOCN_20250731T213433_0025_A345_8163_077FA7_VV.measurements
+        self.assertEqual({"azimuth": 168, "range": 255}, ds.sizes)

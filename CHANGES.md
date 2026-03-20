@@ -1,3 +1,9 @@
+## Changes in 0.2.7 (under development)
+
+- Add the CRS information from the STAC metadata stored in the datatree's attributes;
+  Temporally fixes the issue https://gitlab.eopf.copernicus.eu/cpm/eopf-cpm/-/issues/932
+
+
 ## Changes in 0.2.6 (from 2026-03-20)
 
 - Fixed an issue in `xr.open_dataset` (native mode) where selecting variables did not

@@ -75,7 +75,7 @@ class Sen3TestMixin:
 
     def test_transform_dataset(self: TestCase):
         dataset = self.mode.transform_dataset(
-            self.create_simple_dataset(), interp_method=0
+            self.create_simple_dataset(), {"stac_meta": "test"}, interp_method=0
         )
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(

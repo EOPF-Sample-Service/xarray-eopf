@@ -58,6 +58,7 @@ class MsiTestMixin:
         def make_band():
             return xr.DataArray(np.zeros((10, 10)), dims=("y", "x"))
 
+        # in dataset attrs with key "horizontal_CRS_code"
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
                 dict(
@@ -66,7 +67,45 @@ class MsiTestMixin:
                     b03=make_band(),
                 ),
                 attrs={"horizontal_CRS_code": "ESPG:32632"},
-            )
+            ),
+            {"test": "dict"},
+        )
+        self.assertIn("spatial_ref", dataset)
+        self.assertEqual(
+            "transverse_mercator", dataset.spatial_ref.attrs.get("grid_mapping_name")
+        )
+        self.assertEqual("spatial_ref", dataset.b01.attrs.get("grid_mapping"))
+        self.assertEqual("spatial_ref", dataset.b02.attrs.get("grid_mapping"))
+        self.assertEqual("spatial_ref", dataset.b03.attrs.get("grid_mapping"))
+
+        # in band attrs with key "proj:epsg"
+        ds = xr.Dataset(
+            dict(
+                b01=make_band(),
+                b02=make_band(),
+                b03=make_band(),
+            ),
+        )
+        ds["b01"].attrs = {"proj:epsg": 32632}
+        dataset = self.mode.assign_grid_mapping(ds, {"test": "dict"})
+        self.assertIn("spatial_ref", dataset)
+        self.assertEqual(
+            "transverse_mercator", dataset.spatial_ref.attrs.get("grid_mapping_name")
+        )
+        self.assertEqual("spatial_ref", dataset.b01.attrs.get("grid_mapping"))
+        self.assertEqual("spatial_ref", dataset.b02.attrs.get("grid_mapping"))
+        self.assertEqual("spatial_ref", dataset.b03.attrs.get("grid_mapping"))
+
+        # in band attrs with key "proj:epsg"
+        dataset = self.mode.assign_grid_mapping(
+            xr.Dataset(
+                dict(
+                    b01=make_band(),
+                    b02=make_band(),
+                    b03=make_band(),
+                ),
+            ),
+            {"properties": {"proj:code": "EPSG:32632"}},
         )
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(
@@ -88,7 +127,8 @@ class MsiTestMixin:
                     b03=make_band(),
                 ),
                 attrs={"horizontal_CRS_code": "ESPG:-1"},
-            )
+            ),
+            {},
         )
         self.assertNotIn("spatial_ref", dataset)
         self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
@@ -110,7 +150,8 @@ class MsiTestMixin:
                     b02=make_band(),
                     b03=make_band(),
                 )
-            )
+            ),
+            {},
         )
         self.assertNotIn("spatial_ref", dataset)
         self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))

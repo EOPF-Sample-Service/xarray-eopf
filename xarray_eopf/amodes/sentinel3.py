@@ -85,7 +85,9 @@ class Sen3(AnalysisMode, ABC):
         )
         return datatree
 
-    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+    def transform_dataset(
+        self, dataset: xr.Dataset, stac_meta: dict, **params
+    ) -> xr.Dataset:
         return self.assign_grid_mapping(dataset)
 
     def convert_datatree(

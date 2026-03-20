@@ -1778,8 +1778,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h1 id="access-sentinel-2-in-analysis-mode">Access Sentinel-2 in Analysis Mode<a class="anchor-link" href="#access-sentinel-2-in-analysis-mode">¶</a></h1><p><strong>xarray-eopf</strong> is a Python package that extends <strong>xarray</strong> with a custom backend called <code>"eopf-zarr"</code>. This backend enables <strong>seamless access to ESA EOPF data products</strong> stored in the <strong>Zarr</strong> format, presenting them as analysis-ready data structures.</p>
 <p>In this notebook, we demonstrate how to use the <strong>xarray-eopf</strong> backend to access <strong>Sentinel-2</strong> EOPF Zarr products in <strong>analysis mode</strong>. All data access is <em>lazy</em>, meaning that data is only loaded when required—for example, during plotting or when writing to storage.</p>
-<p>For a general introduction to the xarray EOPF backend, see the <a href="./introduction.ipynb">introduction notebook</a>.<br/>
-For an example of the native mode, see the <a href="./sentinel_2_native.ipynb">Sentinel-2 native mode notebook</a>.</p>
+<p>For a general introduction to the xarray EOPF backend, see the <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/">introduction notebook</a>.
+For an example of the native mode, see the <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_native/">Sentinel-2 native mode notebook</a>.</p>
 <ul>
 <li>🐙 <strong>GitHub:</strong> <a href="https://github.com/EOPF-Sample-Service/xarray-eopf">EOPF Sample Service – xarray-eopf</a></li>
 <li>❗ <strong>Issue Tracker:</strong> <a href="https://github.com/EOPF-Sample-Service/xarray-eopf/issues">Submit or view issues</a></li>
@@ -8395,7 +8395,7 @@ plt.tight_layout()</div>
 <li><strong>Scene Classification Layer (SCL)</strong> attributes include flag values, meanings, and colors, which can be used directly for visualization.</li>
 </ul>
 <blockquote>
-<p><strong>Note:</strong> This notebook only covers <strong>analysis mode</strong> for Sentinel-2. To learn more about <strong>native mode</strong>, see the <a href="./sentinel_2_native.ipynb">Sentinel-2 native mode notebook</a>.</p>
+<p><strong>Note:</strong> This notebook only covers <strong>analysis mode</strong> for Sentinel-2. To learn more about <strong>native mode</strong>, see the <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_native/">Sentinel-2 native mode notebook</a>.</p>
 </blockquote>
 </div>
 </div>

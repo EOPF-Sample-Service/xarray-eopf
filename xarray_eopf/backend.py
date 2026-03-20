@@ -222,7 +222,9 @@ class EopfBackend(BackendEntrypoint):
             if datatree.has_data:
                 # subgroup level, so we transform the dataset
                 dataset = datatree.to_dataset()
-                dataset = analysis_mode.transform_dataset(dataset)
+                dataset = analysis_mode.transform_dataset(
+                    dataset, datatree.attrs.get("stac_discovery")
+                )
             else:
                 # product level, so we convert the tree into a dataset
                 params = analysis_mode.get_applicable_params(

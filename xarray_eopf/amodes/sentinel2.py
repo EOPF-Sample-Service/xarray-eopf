@@ -147,8 +147,10 @@ class Msi(AnalysisMode, ABC):
         )
         return datatree
 
-    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
-        return self.assign_grid_mapping(dataset)
+    def transform_dataset(
+        self, dataset: xr.Dataset, stac_meta: dict, **params
+    ) -> xr.Dataset:
+        return self.assign_grid_mapping(dataset, stac_meta)
 
     def convert_datatree(
         self,
@@ -221,7 +223,9 @@ class Msi(AnalysisMode, ABC):
             if da_mapping:
                 ds = xr.Dataset(da_mapping)
                 ds.attrs.update(self.process_metadata(datatree))
-                datasets[res] = self.assign_grid_mapping(ds)
+                datasets[res] = self.assign_grid_mapping(
+                    ds, datatree.attrs.get("stac_discovery")
+                )
 
         # resample dataset
         if resolution in datasets and crs is None and bbox is None:
@@ -279,7 +283,7 @@ class Msi(AnalysisMode, ABC):
         return rescaled_ds
 
     # noinspection PyMethodMayBeStatic
-    def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
+    def assign_grid_mapping(self, dataset: xr.Dataset, stac_meta: dict) -> xr.Dataset:
         crs = None
         try:
             crs_code = dataset.attrs.get("horizontal_CRS_code", "EPSG:-1")
@@ -287,14 +291,22 @@ class Msi(AnalysisMode, ABC):
             crs = pyproj.CRS.from_epsg(epsg_int)
         except pyproj.exceptions.CRSError:
             pass
-        try:
-            for var_name, var in dataset.data_vars.items():
-                epsg_int = var.attrs.get("proj:epsg")
-                if isinstance(epsg_int, int):
-                    crs = pyproj.CRS.from_epsg(epsg_int)
-                    break
-        except pyproj.exceptions.CRSError:
-            pass
+        if crs is None:
+            try:
+                for var_name, var in dataset.data_vars.items():
+                    epsg_int = var.attrs.get("proj:epsg")
+                    if isinstance(epsg_int, int):
+                        crs = pyproj.CRS.from_epsg(epsg_int)
+                        break
+            except pyproj.exceptions.CRSError:
+                pass
+        if crs is None:
+            try:
+                crs_code = stac_meta.get("properties", {}).get("proj:code", "EPSG:-1")
+                epsg_int = int(crs_code.split(":")[1])
+                crs = pyproj.CRS.from_epsg(epsg_int)
+            except pyproj.exceptions.CRSError:
+                pass
 
         if crs:
             dataset = dataset.assign_coords(

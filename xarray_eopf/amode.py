@@ -95,7 +95,9 @@ class AnalysisMode(ABC):
         """
 
     @abstractmethod
-    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+    def transform_dataset(
+        self, dataset: xr.Dataset, stac_meta: dict, **params
+    ) -> xr.Dataset:
         """Transform `dataset` into an analysis-ready form.
         Called from the backend's `open_dataset()` implementation to transform
         the given `xr.Dataset` object.
@@ -105,6 +107,7 @@ class AnalysisMode(ABC):
 
         Args:
             dataset: The dataset to be transformed.
+            stac_meta: The STAC metadata.
             params: Product type specific parameters.
                 See `get_applicable_params()`.
 

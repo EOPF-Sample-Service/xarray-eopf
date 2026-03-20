@@ -80,11 +80,11 @@ class GetSourcePathsTest(TestCase):
         self.assertEqual("test3.zarr", Path(root_path.root).name)
         self.assertEqual("", group_path)
 
-        # From zarr.storage.DirectoryStore
-        paths = normalize_source_path(zarr.storage.DirectoryStore("test4.zarr"))
+        # From zarr.storage.LocalStore
+        paths = normalize_source_path(zarr.storage.LocalStore("test4.zarr"))
         self.assertIsInstance(paths, tuple)
         root_path, group_path = paths
-        self.assertEqual("test4.zarr", Path(root_path.path).name)
+        self.assertEqual("test4.zarr", Path(root_path.root).name)
         self.assertEqual("", group_path)
 
     def test_fail(self):

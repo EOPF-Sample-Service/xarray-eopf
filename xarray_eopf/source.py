@@ -36,10 +36,8 @@ def get_source_path(source: Any) -> str | None:
     path: str | None = None
     if isinstance(source, (str, Path)):
         path = source
-    elif hasattr(source, "path"):
-        path = source.path
     elif hasattr(source, "root"):
-        path = source.root
+        path = str(source.root)
     return path
 
 
@@ -78,8 +76,6 @@ def normalize_source_path(source: Any) -> tuple[Any, str] | tuple[Any, None]:
         # Update the object's attribute if applicable
         if isinstance(source, (str, Path)):
             source = zarr_root
-        elif hasattr(source, "path"):
-            source.path = zarr_root
         elif hasattr(source, "root"):
             source.root = zarr_root
 

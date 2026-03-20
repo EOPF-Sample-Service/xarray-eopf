@@ -126,7 +126,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_OL_1_EFR_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_OL_1_EFR_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_OL_1_EFR_20240201.zarr")
             )
         )
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("local")
@@ -195,7 +195,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_SL_1_RBT_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_SL_1_RBT_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_SL_1_RBT_20240201.zarr")
             )
         )
 
@@ -277,7 +277,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_SL_2_LST_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_SL_2_LST_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_SL_2_LST_20240201.zarr")
             )
         )
 

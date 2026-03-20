@@ -8,6 +8,13 @@ nav:
   - Overview: index.md
   - Getting Started: start.md
   - User Guide: guide.md
+  - Example Notebooks:
+      - Introduction: examples/introduction.ipynb
+      - Sentinel-1 Native Mode: examples/sentinel_1_native.ipynb
+      - Sentinel-2 Native Mode: examples/sentinel_2_native.ipynb
+      - Sentinel-2 Analysis Mode: examples/sentinel_2_analysis.ipynb
+      - Sentinel-3 Native Mode: examples/sentinel_3_native.ipynb
+      - Sentinel-3 Analysis Mode: examples/sentinel_3_analysis.ipynb
   - Python API: api.md
   - About: about.md
 
@@ -45,8 +52,12 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/xarray-eopf/
 
+extra_css:
+  - stylesheets/xarray_dataset.css
+
 plugins:
   - search
+  - mkdocs-jupyter
   - autorefs
   - mkdocstrings:
       handlers:

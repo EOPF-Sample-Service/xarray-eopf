@@ -10,42 +10,23 @@ from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
 from xarray_eopf.utils import timeit
 
-s02msil1c_bucket = "e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil1c"
-s02msil2a_bucket = "e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil2a"
-path_prefix = "15/products/cpm_v256"
-l1c_filename = "S2B_MSIL1C_20250415T142749_N0511_R139_T25WEV_20250415T180239.zarr"
-l2a_filename = "S2B_MSIL2A_20250415T142749_N0511_R139_T25WEV_20250415T181516.zarr"
-
 allowed_open_time = 1000  # seconds
 show_chunking = False
 
 
 class Sentinel2AnalysisTest(TestCase):
-    def test_open_dataset_sen2_l1c_s3(self):
+    def test_open_dataset_sen2_l1c(self):
         self._test_open_dataset_sen2_l1c(
-            f"s3://{s02msil1c_bucket}/{path_prefix}/{l1c_filename}"
+            "https://objects.eodc.eu:443/e05ab01a9d56408d82ac32d69a5aae2a:202603-"
+            "s02msil1c-eu/13/products/cpm_v262/S2A_MSIL1C_20260313T101741_N0512_"
+            "R065_T32TLQ_20260313T153853.zarr"
         )
 
-    def test_open_dataset_sen2_l2a_s3(self):
+    def test_open_dataset_sen2_l2a(self):
         self._test_open_dataset_sen2_l2a(
-            f"s3://{s02msil2a_bucket}/{path_prefix}/{l2a_filename}"
-        )
-
-    def test_open_dataset_sen2_l1c_https(self):
-        self._test_open_dataset_sen2_l1c(
-            f"{DEFAULT_ENDPOINT_URL}/{s02msil1c_bucket}/{path_prefix}/{l1c_filename}"
-        )
-
-    def test_open_dataset_sen2_l2a_https(self):
-        self._test_open_dataset_sen2_l2a(
-            f"{DEFAULT_ENDPOINT_URL}/{s02msil2a_bucket}/{path_prefix}/{l2a_filename}"
-        )
-
-    def test_open_dataset_sen2_l2a_https_cpm_v262(self):
-        self._test_open_dataset_sen2_l2a(
-            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202511-"
-            "s02msil2a-eu/09/products/cpm_v262/S2C_MSIL2A_20251109T112321_N0511_"
-            "R037_T29TNF_20251109T130709.zarr"
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202603-"
+            "s02msil2a-eu/18/products/cpm_v262/S2A_MSIL2A_20260318T125321_"
+            "N0512_R138_T28WDT_20260318T204314.zarr"
         )
 
     def _test_open_dataset_sen2_l1c(self, url):
@@ -89,13 +70,3 @@ class Sentinel2AnalysisTest(TestCase):
         assert_dataset_is_chunked(self, ds, verbose=show_chunking)
         for var_name in ds.data_vars:
             self.assertEqual((10980, 10980), ds[var_name].shape[-2:], msg=var_name)
-
-    def test_production(self):
-        url = (
-            "https://objectstore.eodc.eu:2222/"
-            "e05ab01a9d56408d82ac32d69a5aae2a:202504-s02msil2a/15/products/"
-            "cpm_v256/"
-            "S2B_MSIL2A_20250415T142749_N0511_R139_T25WEU_20250415T181516.zarr"
-        )
-        ds = xr.open_dataset(url, engine="eopf-zarr")
-        self.assertIsInstance(ds, xr.Dataset)

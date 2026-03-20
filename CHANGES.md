@@ -1,7 +1,20 @@
+## Changes in 0.2.6 (from 2026-03-20)
+
+- Fixed an issue in `xr.open_dataset` (native mode) where selecting variables did not
+  drop unused coordinates; these are now removed correctly.
+- Corrected the data type of the Sentinel-2 Level-2A SCL data array in analysis mode 
+  (now `uint8` instead of `float64`). The underlying issue has been reported to the 
+  CPM repository: https://gitlab.eopf.copernicus.eu/cpm/eopf-cpm/-/issues/1044
+- Added improved example notebooks to the documentation.
+- Fixed issues in integration tests.
+- Updated Zarr dependency to require `zarr>=3.0`.
+
+
 ## Changes in 0.2.5 (from 2025-11-26)
 
 * Added subsetting and reprojection in analysis mode via parameters `crs`,
   `resolution`, and `bbox`.
+
 
 ## Changes in 0.2.4 (from 2025-11-17)
 

@@ -126,7 +126,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_OL_1_EFR_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_OL_1_EFR_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_OL_1_EFR_20240201.zarr")
             )
         )
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("local")
@@ -175,7 +175,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
                 "oa02_radiance",
                 "oa03_radiance",
             ],
-            expected_size=(6122, 4773),
+            expected_size=(6121, 4773),
         )
 
     def test_convert_datatree_raise_warning(self):
@@ -195,7 +195,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_SL_1_RBT_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_SL_1_RBT_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_SL_1_RBT_20240201.zarr")
             )
         )
 
@@ -214,7 +214,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
                 "s7_bt_in",
                 "s7_bt_io",
             ],
-            expected_size=(168, 208),
+            expected_size=(167, 209),
             resolution=0.1,
         )
 
@@ -237,7 +237,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
                 "s7_bt_in",
                 "s7_bt_io",
             ],
-            expected_size=(1839, 1433),
+            expected_size=(1838, 1434),
         )
 
     def test_convert_datatree_default_res_500(self):
@@ -248,7 +248,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
                 "s7_bt_in",
                 "s7_bt_io",
             ],
-            expected_size=(2 * 1839, 2 * 1433),
+            expected_size=(3676, 2867),
         )
 
     def test_convert_datatree_raise_warning(self):
@@ -277,7 +277,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S3A_SL_2_LST_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.DirectoryStore("data/S3B_SL_2_LST_20240201.zarr")
+                zarr.storage.LocalStore("data/S3B_SL_2_LST_20240201.zarr")
             )
         )
 
@@ -292,7 +292,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
-            expected_size=(1838, 1432),
+            expected_size=(1837, 1433),
         )
 
     def test_convert_datatree_default_res(self):

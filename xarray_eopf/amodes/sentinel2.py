@@ -250,6 +250,11 @@ class Msi(AnalysisMode, ABC):
 
         rescaled_ds = None
         for res, ds in datasets.items():
+            # if scl in ds, present as uint8
+            # Note: this is a bug in CPM library. Issue reported at:
+            # https://gitlab.eopf.copernicus.eu/cpm/eopf-cpm/-/issues/1044
+            if "scl" in ds:
+                ds["scl"] = ds["scl"].astype("uint8")
             ds = resample_in_space(
                 ds,
                 target_gm=target_gm,

@@ -211,7 +211,7 @@ class MsiL1CTest(MsiTestMixin, TestCase):
         self.assertTrue(self.mode.is_valid_source("data/S2A_MSIL1C_20240201.zarr"))
         self.assertTrue(
             self.mode.is_valid_source(
-                zarr.storage.LocalStore("data/S2A_MSIL1C_20240201.zarr")
+                zarr.storage.DirectoryStore("data/S2A_MSIL1C_20240201.zarr")
             )
         )
         fs: fsspec.AbstractFileSystem = fsspec.filesystem("local")

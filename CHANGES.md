@@ -2,6 +2,8 @@
 
 - Add the CRS information from the STAC metadata stored in the datatree's attributes;
   Temporally fixes the issue https://gitlab.eopf.copernicus.eu/cpm/eopf-cpm/-/issues/932
+- Downgraded Zarr dependency to `zarr>=2,<3.0` for now, to be compatible with
+  `xcube-eopf`.
 
 
 ## Changes in 0.2.6 (from 2026-03-20)

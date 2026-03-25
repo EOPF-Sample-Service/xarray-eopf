@@ -36,6 +36,8 @@ def get_source_path(source: Any) -> str | None:
     path: str | None = None
     if isinstance(source, (str, Path)):
         path = source
+    elif hasattr(source, "path"):
+        path = str(source.path)
     elif hasattr(source, "root"):
         path = str(source.root)
     return path

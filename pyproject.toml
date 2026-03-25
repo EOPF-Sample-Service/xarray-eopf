@@ -51,7 +51,7 @@ dependencies = [
   "s3fs",
   "xarray>=2024.10",
   "xcube-resampling>=0.3.2",
-  "zarr>=3.0"
+  "zarr>=2.11,<3",
 ]
 
 [project.optional-dependencies]

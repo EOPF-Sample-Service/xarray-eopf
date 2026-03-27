@@ -5,120 +5,14 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v0.json)](https://github.com/charliermarsh/ruff)
 [![License](https://anaconda.org/conda-forge/xarray-eopf/badges/license.svg)](https://anaconda.org/conda-forge/xarray-eopf)
 
-# xarray-eopf
+# EOPF xarray backend
 
-An [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) backend implementation
-for ESA EOPF data products in Zarr format.
+`xarray-eopf` is a Python package that enhances [xarray](https://docs.xarray.dev/en/stable/user-guide/io.html) by a new backend 
+named `"eopf-zarr"`. This backend allows for reading the [ESA EOPF data](https://eopf.copernicus.eu/eopf-products-and-adfs/) products
+in Zarr format and representing them using analysis ready data models.
 
-## Features
+> **IMPORTANT**  
+> `xarray-eopf` is under active development.  
+> Some features may be incomplete or subject to change.
 
-After installing this package, user can specify a new xarray backend 
-named `"eopf-zarr"` to open EOPF sample products. The backend has
-two modes of operation, default analysis mode and the native mode. 
-Both modes allow 
-
-* to open EOPF sample products from the local filesystem or from their
-  original object storage using URLs with both `https` or `s3` 
-  protocols;
-* to open entire products as `xarray.DataTree` or `xarray.Dataset`; 
-* to open a subgroup as `xarray.Dataset`. This works with 
-  local filesystem or `s3`-URLs.
-
-The default analysis mode has the aim to represent the EOPF data 
-products in an analysis-ready and convenient way. It provides the
-following features:
-
-* Open the deeply nested EOPF products as flat `xarray.Dataset` objects.
-* All bands and quality images resampled to a single, user provided 
-  resolution, hence, spatial dimensions will be just `x` and `y`.
-* User-specified resampling by passing interpolation methods for up-scaling
-  and aggregation methods for downscaling.
-* CF-compliant spatial referencing of datasets using a shared grid 
-  mapping variable `spatial_ref`.
-* Attach other CF-compliant metadata enhancements such as flag values and 
-  meanings for pixel quality information, such as the Sentinel-2 
-  scene classification (variable `scl`).
-
-The analysis mode is currently implemented Sentinel-2 products only.
-Support for Sentinel-1 and Sentinel-3 is coming soon. 
-
-The native mode does not modify any contents or data, instead it basically 
-delegates to the built-in `"zarr"` backend.
-
-More information can be found in the 
-[package documentation](https://eopf-sample-service.github.io/xarray-eopf). 
-
-## Usage
-
-The `xarray-eopf` package can be installed from PyPI (`pip install xarray-eopf`)
-or conda-forge (`conda install -c conda-forge xarray-eopf`).
-Now you can open EOPF sample products using xarray by specifying the
-`"eopf-zarr"` backend in your Python code: 
-
-```python
-
-import xarray as xr
-
-s2_l2a_url = (
-    "https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a/"
-    "items/S2B_MSIL2A_20250821T084559_N0511_R107_T37VDD_20250821T095143"
-)
-s2_l2a_dataset = xr.open_dataset(s2_l2a_url, engine="eopf-zarr", resolution=10)
-```
- 
-## Development
-
-### Setting up a development environment
-
-The recommended Python distribution for development is 
-[miniforge](https://conda-forge.org/download/) which includes 
-conda, mamba, and their dependencies.
-
-```shell
-git clone https://github.com/EOPF-Sample-Service/xarray-eopf.git
-cd xarray-eopf
-mamba env create
-mamba activate eopf-xr
-pip install -ve .
-```
-
-### Install the library locally and test
-
-```shell
-mamba activate eopf-xr
-pip install -ve .
-pytest
-```
-By default, this will run all unit tests. To run unit tests and generate a coverage 
-report, use:
-
-```shell
-pytest --cov xarray_eopf --cov-report html tests
-```
-
-To run the integration tests, use:  
-
-```shell
-pytest integration
-```
-
-
-
-### Setting up a documentation environment
-
-```shell
-mamba activate eopf-xr
-pip install .[doc]
-```
-
-### Testing documentation changes
-
-```shell
-mkdocs serve
-```
-
-### Deploying documentation changes
-
-```shell
-mkdocs gh-deploy
-```
+For more information, please refer to the [documentation](https://eopf-sample-service.github.io/xarray-eopf/).

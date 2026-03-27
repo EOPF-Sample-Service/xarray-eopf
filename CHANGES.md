@@ -1,4 +1,4 @@
-## Changes in 0.2.7 (under development)
+## Changes in 0.2.7 (from 2026-03-27)
 
 - Add the CRS information from the STAC metadata stored in the datatree's attributes;
   Temporally fixes the issue https://gitlab.eopf.copernicus.eu/cpm/eopf-cpm/-/issues/932

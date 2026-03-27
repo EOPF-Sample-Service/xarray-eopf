@@ -19,9 +19,9 @@ dependencies:
   # Development Dependencies - Tools
   - black
   - isort
-  - mkdocs
+  - mkdocs >=1.5
   - mkdocs-autorefs
-  - mkdocs-material
+  - mkdocs-material >=9
   - mkdocs-jupyter
   - mkdocstrings
   - mkdocstrings-python  

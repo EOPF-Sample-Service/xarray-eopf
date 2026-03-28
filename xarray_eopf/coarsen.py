@@ -7,7 +7,6 @@
 or have special implementations compared to their numpy equivalents.
 """
 
-import numba as nb
 import numpy as np
 
 _ALL = slice(None)
@@ -113,7 +112,6 @@ def mode(block: np.ndarray, axis: tuple[int, ...] | None = None) -> np.ndarray:
     return mode_indices.reshape(block.shape[:-ndim])
 
 
-@nb.njit()
 def _mode_from_normalized(
     flat_block: np.ndarray, offset: int, mode_range: int
 ) -> np.ndarray:  # pragma: no cover
@@ -131,6 +129,14 @@ def _mode_from_normalized(
                 mode_val = j
         out[i] = mode_val + offset
     return out
+
+
+try:
+    import numba as nb
+
+    _mode_from_normalized = nb.njit(_mode_from_normalized)
+except ImportError:
+    pass
 
 
 first.__doc__ = _DOC.format(property="first value")

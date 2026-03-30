@@ -7,7 +7,6 @@ dependencies:
   - dask
   - dask-image
   - fsspec
-  - numba
   - numpy
   - pyproj
   - python >=3.11

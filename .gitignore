@@ -172,3 +172,16 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Zarr stores (directories)
+*.zarr/
+
+# NetCDF files
+*.nc
+*.nc4
+*.cdf
+
+# TIFF files
+*.tif
+*.tiff
+

@@ -1,8 +1,11 @@
+import datetime
+
 import numpy as np
 from typing import Any
 import xarray as xr
 import matplotlib.pyplot as plt
 from sen1 import terrain_correct, SPEED_OF_LIGHT
+from dask.distributed import Client, LocalCluster
 
 
 def azimuth_slant_range_grid(
@@ -32,11 +35,22 @@ def azimuth_slant_range_grid(
 
 
 if __name__ == "__main__":
+    # cluster = LocalCluster(
+    #     n_workers=4,
+    #     threads_per_worker=1,
+    #     memory_limit="8GB",
+    #     dashboard_address="8787",
+    # )
+    # client = Client(cluster)
+    # print(client.dashboard_link)
+
     # open DEM
     dem = xr.open_dataset("data/dem.zarr", chunks={})
     dem = dem.assign_coords({"spatial_ref": dem.spatial_ref})
     dem = dem[["dem"]]
-    dem = dem.sel(lat=slice(37, 36.0001), lon=slice(22, 22.9999))
+    dem = dem.sel(lat=slice(37, 36.000001), lon=slice(22, 22.999999))
+    dem = dem.chunk(dict(lat=1800, lon=1800))
+    print(dem)
 
     # open Zarr Sen1 GRD Sample as DataTree
     path = (
@@ -67,10 +81,14 @@ if __name__ == "__main__":
 
     grid_params = azimuth_slant_range_grid(dt)
 
+    print(datetime.datetime.now())
     rtc = terrain_correct(
         beta_nought, time_slr_gcp, sat_position, dem, grid_params=grid_params
     )
+    print(rtc)
+    print(datetime.datetime.now())
     rtc.vv.plot(vmin=0, vmax=0.4)
+    print(datetime.datetime.now())
     plt.show()
 
     # gtc = do_terrain_correction(dt, dem)

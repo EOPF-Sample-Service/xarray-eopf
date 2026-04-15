@@ -60,7 +60,7 @@ def fit_position(pos: xr.DataArray, time_dim="azimuth_time", deg=5) -> xr.DataAr
     coeff = pos.polyfit(dim=time_dim, deg=deg).polyfit_coefficients
 
     coeff.attrs["epoch"] = epoch
-    return coeff.compute()
+    return coeff
 
 
 def poly_derivative(coeff: xr.DataArray) -> xr.DataArray:
@@ -212,6 +212,7 @@ def simulate_acquisition(
 
 
 def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
+    print("compute_dem_area")
     # construct corner coordinates
     lon = dem_ecef.lon
     lat = dem_ecef.lat
@@ -232,11 +233,9 @@ def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
     )
 
     # interpolate DEM to pixel corners
-    xyz_c = dem_ecef.interp(
-        {"lon": lon_c, "lat": lat_c},
-        method="linear",
-        kwargs={"fill_value": "extrapolate"},
-    )
+    chunksizes = {key: val[0] for key, val in dem_ecef.chunksizes.items()}
+    xyz_c = dem_ecef.interp(lon=lon_c).chunk(dict(lon=chunksizes["lon"]))
+    xyz_c = xyz_c.interp(lat=lat_c).chunk(chunksizes)
 
     # compute edge vectors
     dx = xyz_c.diff("lon")
@@ -245,15 +244,14 @@ def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
     # align shapes for two triangles
     dx1 = dx.isel(lat=slice(1, None))
     dy1 = dy.isel(lon=slice(1, None))
-
     dx2 = dx.isel(lat=slice(None, -1))
     dy2 = dy.isel(lon=slice(None, -1))
 
     # restore original coords
-    dx1 = dx1.assign_coords(dem_ecef.coords)
-    dy1 = dy1.assign_coords(dem_ecef.coords)
-    dx2 = dx2.assign_coords(dem_ecef.coords)
-    dy2 = dy2.assign_coords(dem_ecef.coords)
+    dx1 = dx1.assign_coords(dem_ecef.coords).chunk(chunksizes)
+    dy1 = dy1.assign_coords(dem_ecef.coords).chunk(chunksizes)
+    dx2 = dx2.assign_coords(dem_ecef.coords).chunk(chunksizes)
+    dy2 = dy2.assign_coords(dem_ecef.coords).chunk(chunksizes)
 
     # compute triangle areas
     cross1 = xr.cross(dx1, dy1, dim="axis") / 2
@@ -352,7 +350,7 @@ def _slr_time_to_gr(
     time_az: xr.DataArray,
     time_slr: xr.DataArray,
     time_slr_gcp: xr.DataArray,
-    deg: int = 3,
+    deg: int = 8,
 ) -> xr.DataArray:
 
     # normalization for stability

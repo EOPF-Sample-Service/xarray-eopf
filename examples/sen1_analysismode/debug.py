@@ -18,8 +18,9 @@ if __name__ == "__main__":
     dem = xr.open_dataset("data/dem.zarr", chunks={})
     dem = dem.assign_coords({"spatial_ref": dem.spatial_ref})
     dem = dem.dem
-    dem = dem.sel(lat=slice(37, 36.000001), lon=slice(22, 22.999999))
-    dem = dem.chunk(dict(lat=1800, lon=1800))
+    dem = dem.sel(lat=slice(36.75, 36.25), lon=slice(22.25, 22.75))
+    # dem = dem.sel(lat=slice(37, 36.000001), lon=slice(22, 22.999999))
+    # dem = dem.chunk(dict(lat=1800, lon=1800))
     print(dem)
 
     # open Zarr Sen1 GRD Sample as DataTree
@@ -32,12 +33,12 @@ if __name__ == "__main__":
     rtc_11 = apply_analysis(dt, dem, footprint_scale_factor=(1, 1))
     print(datetime.datetime.now())
     print(rtc_11)
-    rtc_33 = apply_analysis(dt, dem, footprint_scale_factor=(3, 3))
+    rtc_22 = apply_analysis(dt, dem, footprint_scale_factor=(3, 3))
     print(datetime.datetime.now())
-    print(rtc_33)
+    print(rtc_22)
     fig, ax = plt.subplots(1, 2)
-    rtc_11.vv.plot(ax=ax[0], vmin=0, vmax=0.2)
-    rtc_33.vv.plot(ax=ax[1], vmin=0, vmax=0.2)
+    rtc_11.vv.plot(ax=ax[0], vmin=0, vmax=0.25)
+    rtc_22.vv.plot(ax=ax[1], vmin=0, vmax=0.25)
     print(datetime.datetime.now())
     plt.show()
 

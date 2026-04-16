@@ -13,7 +13,7 @@ CRS_ECEF = "EPSG:4978"
 CRS_WGS84 = "EPSG:4326"
 
 
-def convert_dem_to_ecef(dem: xr.Dataset) -> xr.DataArray:
+def convert_dem_to_ecef(dem: xr.DataArray) -> xr.DataArray:
     transformer = pyproj.Transformer.from_crs(CRS_WGS84, CRS_ECEF, always_xy=True)
 
     def _transform(lon: np.ndarray, lat: np.ndarray, h: np.ndarray) -> np.ndarray:
@@ -21,8 +21,8 @@ def convert_dem_to_ecef(dem: xr.Dataset) -> xr.DataArray:
         return np.stack([x, y, z], axis=0)
 
     lon, lat = da.meshgrid(
-        da.from_array(dem.lon.values, chunks=dem.dem.data.chunks[1][0]),
-        da.from_array(dem.lat.values, chunks=dem.dem.data.chunks[0][0]),
+        da.from_array(dem.lon.values, chunks=dem.data.chunks[1][0]),
+        da.from_array(dem.lat.values, chunks=dem.data.chunks[0][0]),
         indexing="xy",
     )
 
@@ -30,9 +30,9 @@ def convert_dem_to_ecef(dem: xr.Dataset) -> xr.DataArray:
         _transform,
         lon,
         lat,
-        dem.dem.data,
+        dem.data,
         dtype=np.float32,
-        chunks=(3, *dem.dem.data.chunks),
+        chunks=(3, *dem.data.chunks),
     )
 
     return xr.DataArray(
@@ -212,7 +212,6 @@ def simulate_acquisition(
 
 
 def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
-    print("compute_dem_area")
     # construct corner coordinates
     lon = dem_ecef.lon
     lat = dem_ecef.lat
@@ -346,48 +345,66 @@ def apply_gamma_weights(
     return area / (params["spacing_slr"] * params["spacing_az"])
 
 
-def _slr_time_to_gr(
-    time_az: xr.DataArray,
-    time_slr: xr.DataArray,
-    time_slr_gcp: xr.DataArray,
-    deg: int = 8,
-) -> xr.DataArray:
-
+def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
     # normalization for stability
-    mean = time_slr_gcp.mean("ground_range")
-    std = time_slr_gcp.std("ground_range")
+    mean = time_slr_gcp.mean().values
+    std = time_slr_gcp.std().values
     x_gcp = (time_slr_gcp - mean) / std
 
     # polynomial fit per azimuth line
-    coeff = xr.apply_ufunc(
-        lambda x, y: np.polyfit(x, y, deg),
-        x_gcp,
-        time_slr_gcp.ground_range,
-        input_core_dims=[["ground_range"], ["ground_range"]],
-        output_core_dims=[["degree"]],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[float],
-        dask_gufunc_kwargs={"output_sizes": {"degree": deg + 1}},
-    ).assign_coords(degree=np.arange(deg, -1, -1))
+    coeff = []
+    for i, time in enumerate(x_gcp.azimuth_time.values):
+        coeff.append(np.polyfit(x_gcp[i, :], x_gcp.ground_range, deg=deg))
+    return xr.DataArray(
+        coeff,
+        coords=dict(azimuth_time=x_gcp.azimuth_time, degree=np.arange(deg, -1, -1)),
+        dims=("azimuth_time", "degree"),
+        attrs=dict(mean=mean, std=std),
+    )
 
-    # align to target azimuth time
-    coeff = coeff.interp(azimuth_time=time_az)
 
-    # normalization
-    mean_t = mean.interp(azimuth_time=time_az)
-    std_t = std.interp(azimuth_time=time_az)
-    x_tgt = (time_slr - mean_t) / std_t
+def geocode_data(
+    data: xr.Dataset,
+    time_az: xr.DataArray,
+    time_slr: xr.DataArray,
+    time_slr_gcp: xr.DataArray,
+    interp_method: Literal["nearest", "bilinear"] = "nearest",
+) -> xr.Dataset:
 
-    # evaluate polynomial
-    return (coeff * x_tgt**coeff.degree).sum("degree")
+    coeff = fit_ground_range(time_slr_gcp)
+
+    def _interp_block(block):
+        coeff_interp = coeff.interp(azimuth_time=block.time_az)
+        x_tgt = (block.time_slr - coeff.attrs["mean"]) / coeff.attrs["std"]
+        ground_range = (coeff_interp * x_tgt**coeff.degree).sum("degree")
+        return data.interp(
+            azimuth_time=block.time_az,
+            ground_range=ground_range,
+            method=interp_method,
+        )
+
+    # Build template with new coordinates
+    chunksizes = {}
+    for val in [time_az, time_slr]:
+        for dim in val.dims:
+            chunksizes[dim] = val.chunksizes[dim]
+    coeff_interp = coeff.interp(azimuth_time=time_az)
+    x_tgt = (time_slr - coeff.attrs["mean"]) / coeff.attrs["std"]
+    ground_range = (coeff_interp * x_tgt**coeff.degree).sum("degree")
+    template = data.interp(
+        azimuth_time=time_az,
+        ground_range=ground_range,
+    ).chunk(chunksizes)
+
+    target_coords = xr.Dataset({"time_az": time_az, "time_slr": time_slr})
+    return xr.map_blocks(_interp_block, target_coords, template=template)
 
 
 def terrain_correct(
     data: xr.Dataset,
     time_slr_gcp: xr.DataArray,
     sat_position: xr.DataArray,
-    dem: xr.Dataset,
+    dem: xr.DataArray,
     apply_rtc: bool = True,
     grid_params: dict = None,
     interp_method: Literal["nearest", "bilinear"] = "nearest",
@@ -402,15 +419,12 @@ def terrain_correct(
         dem_ecef, polyfit_pos, polyfit_vel, apply_rtc=apply_rtc
     )
 
-    ground_range = _slr_time_to_gr(
+    geocoded = geocode_data(
+        data,
         acquisition.azimuth_time,
         acquisition.slant_range_time,
         time_slr_gcp,
-    )
-    geocoded = data.interp(
-        azimuth_time=acquisition.azimuth_time,
-        ground_range=ground_range,
-        method=interp_method,
+        interp_method,
     )
 
     if apply_rtc:
@@ -429,3 +443,67 @@ def terrain_correct(
         geocoded = geocoded / beta_sim
 
     return geocoded
+
+
+def _get_grid_parameters(
+    dt: xr.DataTree,
+    footprint_scale_factor: tuple[float, float],
+) -> dict[str, Any]:
+
+    group_VH = [x for x in dt.children if "VH" in x][0]
+    attrs = dt[f"{group_VH}"].attrs["other_metadata"]["image_annotation"][
+        "image_information"
+    ]
+
+    slant_range_spacing_m = attrs["range_pixel_spacing"] * footprint_scale_factor[1]
+    slant_range_time_interval_s = (
+        slant_range_spacing_m * 2 / SPEED_OF_LIGHT  # ignore type
+    )
+
+    grid_parameters: dict[str, Any] = {
+        "slr0": attrs["slant_range_time"],
+        "d_slr": slant_range_time_interval_s,
+        "spacing_slr": slant_range_spacing_m,
+        "az0": np.datetime64(attrs["product_first_line_utc_time"]),
+        "d_az": attrs["azimuth_time_interval"] * footprint_scale_factor[0],
+        "spacing_az": attrs["azimuth_pixel_spacing"] * footprint_scale_factor[0],
+    }
+    return grid_parameters
+
+
+def apply_analysis(
+    dt: xr.DataTree,
+    dem: xr.DataArray,
+    footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
+    apply_rtc: bool = True,
+) -> xr.Dataset:
+    group_VH = [x for x in dt.children if "VH" in x][0]
+    grd = dt[group_VH].measurements.to_dataset().rename({"grd": "vh"})
+    group_VV = [x for x in dt.children if "VV" in x][0]
+    grd["vv"] = dt[group_VV].measurements.to_dataset().grd
+    beta_lut = dt[group_VH].quality.calibration.to_dataset()["beta_nought"]
+    beta_lut_interp = beta_lut.interp(ground_range=grd.ground_range).chunk(
+        dict(ground_range=2048)
+    )
+    beta_lut_interp = beta_lut_interp.interp(azimuth_time=grd.azimuth_time).chunk(
+        dict(azimuth_time=2048)
+    )
+    beta_nought = (grd / beta_lut_interp) ** 2
+    beta_nought.assign_attrs(long_name="beta nought", units="m2 m-2")
+
+    orbit = dt[f"{group_VH}/conditions/orbit"].to_dataset()
+    sat_position = orbit["position"]
+
+    gcp = dt[f"{group_VH}/conditions/gcp"].to_dataset()
+    time_slr_gcp = gcp["slant_range_time_gcp"]
+
+    grid_params = _get_grid_parameters(dt, footprint_scale_factor)
+
+    return terrain_correct(
+        beta_nought,
+        time_slr_gcp,
+        sat_position,
+        dem,
+        grid_params=grid_params,
+        apply_rtc=apply_rtc,
+    )

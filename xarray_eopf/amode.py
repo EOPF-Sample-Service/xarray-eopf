@@ -73,7 +73,7 @@ class AnalysisMode(ABC):
         """
 
     @abstractmethod
-    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         """Get applicable and validated parameters from keyword arguments `kwargs`.
         The extracted parameters will be passed to `transform_datatree()`
         and `convert_datatree()`.

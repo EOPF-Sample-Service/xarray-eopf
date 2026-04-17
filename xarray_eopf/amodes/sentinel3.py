@@ -45,7 +45,7 @@ class Sen3(AnalysisMode, ABC):
             else False
         )
 
-    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
 
         resolution = kwargs.get("resolution")
@@ -367,7 +367,7 @@ class Sen3Sl1Rbt(Sen3):
         valid_cols = ~elevation.isnull().any(dim="rows").values
         dataset = dataset.isel(columns=valid_cols)
         elevation = elevation.isel(columns=valid_cols)
-        if any(var.endswith("o") for var in dataset.data_vars.keys()):
+        if any(str(var).endswith("o") for var in dataset.data_vars.keys()):
             sat_zenith = datatree.conditions.geometry_to.sat_zenith_to
             sat_azimuth = datatree.conditions.geometry_to.sat_azimuth_to
         else:

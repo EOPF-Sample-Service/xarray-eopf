@@ -108,7 +108,7 @@ class Msi(AnalysisMode, ABC):
             else False
         )
 
-    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
 
         resolution = kwargs.get("resolution")
@@ -318,7 +318,6 @@ class Msi(AnalysisMode, ABC):
 
         return dataset
 
-    # noinspection PyMethodMayBeStatic
     def process_metadata(self, datatree: xr.DataTree) -> dict:
         other_metadata = datatree.attrs.get("other_metadata", {})
         return other_metadata

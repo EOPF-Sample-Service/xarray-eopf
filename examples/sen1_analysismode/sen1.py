@@ -5,6 +5,7 @@ import dask.array as da
 import pyproj
 import functools
 import flox.xarray
+from xcube_resampling.gridmapping import GridMapping
 
 SPEED_OF_LIGHT = 299_792_458.0
 S_TO_NS = 10**9
@@ -476,7 +477,12 @@ def apply_analysis(
     dem: xr.DataArray,
     footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
     apply_rtc: bool = True,
+    interp_method: Literal["nearest", "bilinear"] = "nearest",
 ) -> xr.Dataset:
+    gm_dem = GridMapping.from_dataset(dem.to_dataset())
+    assert gm_dem.crs == pyproj.CRS.from_epsg(4326)
+    assert gm_dem.xy_var_names == ("lon", "lat")
+
     group_VH = [x for x in dt.children if "VH" in x][0]
     grd = dt[group_VH].measurements.to_dataset().rename({"grd": "vh"})
     group_VV = [x for x in dt.children if "VV" in x][0]
@@ -499,6 +505,13 @@ def apply_analysis(
 
     grid_params = _get_grid_parameters(dt, footprint_scale_factor)
 
+    # if grid_params["spacing_slr"] <= (gm_dem.x_res * 111320) or grid_params[
+    #     "spacing_az"
+    # ] <= (gm_dem.y_res * 111320):
+    #     LOG.warning(
+    #         "Relostion of DEM lower than the footprint of the radar measruemetn grid. Increase 'footprint_scale_factor'."
+    #     )
+
     return terrain_correct(
         beta_nought,
         time_slr_gcp,
@@ -506,4 +519,5 @@ def apply_analysis(
         dem,
         grid_params=grid_params,
         apply_rtc=apply_rtc,
+        interp_method=interp_method,
     )

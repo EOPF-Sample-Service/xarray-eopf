@@ -126,6 +126,7 @@ class EopfBackend(BackendEntrypoint):
         crs: pyproj.CRS | str | None = None,
         interp_methods: SpatialInterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
+        dem: xr.DataArray | None = None,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons
@@ -177,6 +178,13 @@ class EopfBackend(BackendEntrypoint):
                     "mode", "min", "prod", "std", "sum", and "var".
                 Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),
                 else "mean".
+            dem: Optional DEM to use with Sentinel-1 products for geometric and
+                radiometric terrain correction (foreshooting und overlay) using
+                zero doppler geometry. If None, data is fetched from the
+                [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);
+                note that the S3 credentials for CDSE access need to be set up as
+                environment variables, which can be obtained from
+                [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
             variables: Variables to include in the dataset. Can be a name or
                 regex pattern or iterable of the latter.
             drop_variables: Variable name or iterable of variable names
@@ -233,6 +241,7 @@ class EopfBackend(BackendEntrypoint):
                     crs=crs,
                     interp_methods=interp_methods,
                     agg_methods=agg_methods,
+                    dem=dem,
                 )
                 dataset = analysis_mode.convert_datatree(
                     datatree, includes=variables, **params

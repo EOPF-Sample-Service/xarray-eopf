@@ -18,19 +18,21 @@ import pyproj
 import pystac_client
 import rioxarray
 import xarray as xr
-from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling import resample_in_space
+from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.utils import reproject_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import assert_arg_has_length, assert_arg_is_instance
+from xarray_eopf.utils import NameFilter
 
 _SPEED_OF_LIGHT = 299_792_458.0
 _S_TO_NS = 10**9
 _ONE_SECOND = np.timedelta64(_S_TO_NS, "ns")
 _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
+_DEM_CHUNKSIZE = dict(lat=3600, lon=3600)
 
 
 class Sen1(AnalysisMode, ABC):
@@ -98,7 +100,7 @@ class Sen1(AnalysisMode, ABC):
     def transform_dataset(
         self, dataset: xr.Dataset, stac_meta: dict, **params
     ) -> xr.Dataset:
-        # ToDo: what should be added when opening a subgroup in analysis mode
+        # ToDo: what should be added when opening a subgroup in analysis mode?
         return dataset
 
     def process_metadata(self, datatree: xr.DataTree) -> dict:
@@ -122,6 +124,10 @@ class Sen1GRD(Sen1):
         dem: xr.Dataset | None = None,
         apply_rtc: bool = True,
     ) -> xr.Dataset:
+
+        # ToDo filter variable names
+        # ToDo allow for different polarization combinations
+
         if dem is None:
             if bbox is None:
                 bbox = datatree.attrs["stac_discovery"]["bbox"]
@@ -164,6 +170,15 @@ class Sen1GRD(Sen1):
         dt: xr.DataTree,
         footprint_scale_factor: tuple[float, float],
     ) -> dict[str, Any]:
+        """Build grid parameters for RTC from Sentinel-1 metadata.
+
+        Args:
+            dt: Source data tree.
+            footprint_scale_factor: Scaling for SAR footprint spacing.
+
+        Returns:
+            Dictionary of grid parameters for terrain correction.
+        """
 
         group_VH = [x for x in dt.children if "VH" in x][0]
         attrs = dt[f"{group_VH}"].attrs["other_metadata"]["image_annotation"][
@@ -185,6 +200,7 @@ class Sen1GRD(Sen1):
 
 
 def register(registry: AnalysisModeRegistry):
+    """Register Sentinel-1 analysis modes."""
     registry.register(Sen1GRD)
 
 
@@ -193,6 +209,19 @@ def get_dem(
     resolution: float | None = None,
     crs: pyproj.CRS | None = None,
 ):
+    """Fetch and prepare a DEM for the given area of interest.
+
+    Args:
+        bbox: Spatial bounding box.
+        resolution: Target resolution for resampling.
+        crs: Target coordinate reference system.
+
+    Returns:
+        DEM data array.
+
+    Raises:
+        ValueError: If required credentials are missing or resolution is invalid.
+    """
     # check that environment variables are set
     missing = [
         name
@@ -234,24 +263,38 @@ def get_dem(
         das.append(rioxarray.open_rasterio(item.assets["data"].href, chunks={}))
     dem = xr.combine_by_coords(das, join="outer", fill_value=0.0).sel(band=1, drop=True)
     dem = dem.rename({"x": "lon", "y": "lat"})
+    dem = dem.rename("dem")
 
     if crs is None and resolution is None:
-        dem = dem.isel(
+        dem = dem.sel(
             lat=slice(bbox_wgs84[3], bbox_wgs84[1]),
-            lon=slice(bbox_wgs84[4], bbox_wgs84[2]),
-        )
+            lon=slice(bbox_wgs84[0], bbox_wgs84[2]),
+        ).chunk(_DEM_CHUNKSIZE)
     else:
         if resolution is None:
             raise ValueError("Resolution must be provided if CRS is not None.")
         if crs is None:
             crs = _CRS_WGS84
-        target_gm = GridMapping.regular_from_bbox(bbox, resolution, crs)
-        dem = resample_in_space(dem.to_dataset(), target_gm=target_gm).to_dataarray()
+        target_gm = GridMapping.regular_from_bbox(
+            bbox,
+            resolution,
+            crs,
+            tile_size=(_DEM_CHUNKSIZE["lat"], _DEM_CHUNKSIZE["lon"]),
+        )
+        dem = resample_in_space(dem.to_dataset(), target_gm=target_gm).dem
 
     return dem
 
 
 def convert_dem_to_ecef(dem: xr.DataArray) -> xr.DataArray:
+    """Convert a DEM from its native CRS to ECEF coordinates.
+
+    Args:
+        dem: DEM data array.
+
+    Returns:
+        DEM expressed in ECEF axes.
+    """
     gm_dem = GridMapping.from_dataset(dem.to_dataset())
     x_dim, y_dim = gm_dem.xy_var_names
     transformer = pyproj.Transformer.from_crs(gm_dem.crs, _CRS_ECEF, always_xy=True)
@@ -289,14 +332,42 @@ def convert_dem_to_ecef(dem: xr.DataArray) -> xr.DataArray:
 
 
 def az_to_orbit(time_az: xr.DataArray, epoch: np.datetime64) -> xr.DataArray:
+    """Convert azimuth time to orbit time coordinates.
+
+    Args:
+        time_az: Azimuth time coordinate.
+        epoch: Reference epoch.
+
+    Returns:
+        Orbit time coordinate.
+    """
     return (time_az - epoch) / np.timedelta64(_S_TO_NS, "ns")
 
 
 def orbit_to_az(time_orb: xr.DataArray, epoch: np.datetime64) -> xr.DataArray:
+    """Convert orbit time coordinates to azimuth time.
+
+    Args:
+        time_orb: Orbit time coordinate.
+        epoch: Reference epoch.
+
+    Returns:
+        Azimuth time coordinate.
+    """
     return time_orb * np.timedelta64(_S_TO_NS, "ns") + epoch
 
 
 def fit_position(pos: xr.DataArray, time_dim="azimuth_time", deg=5) -> xr.DataArray:
+    """Fit a polynomial position model along the time axis.
+
+    Args:
+        pos: Satellite position array.
+        time_dim: Name of the time dimension.
+        deg: Polynomial degree.
+
+    Returns:
+        Polynomial coefficients with an epoch attribute.
+    """
     time = pos.coords[time_dim]
     epoch = time.values[0] + (time.values[-1] - time.values[0]) / 2
 
@@ -310,6 +381,14 @@ def fit_position(pos: xr.DataArray, time_dim="azimuth_time", deg=5) -> xr.DataAr
 
 
 def poly_derivative(coeff: xr.DataArray) -> xr.DataArray:
+    """Compute the derivative coefficients of a polynomial fit.
+
+    Args:
+        coeff: Polynomial coefficients.
+
+    Returns:
+        Polynomial coefficients for the derivative.
+    """
     out = coeff.isel(degree=slice(1, None)).copy()
     for deg in coeff.degree.values[:-1]:
         out.loc[{"degree": deg - 1}] = coeff.sel(degree=deg) * deg
@@ -323,6 +402,18 @@ def zero_doppler(
     time_orbit: xr.DataArray,
     dim: str = "axis",
 ) -> tuple[xr.DataArray, tuple[xr.DataArray, xr.DataArray]]:
+    """Evaluate the zero-Doppler equation and its payload.
+
+    Args:
+        dem_ecef: DEM in ECEF coordinates.
+        pos_coeff: Position polynomial coefficients.
+        vel_coeff: Velocity polynomial coefficients.
+        time_orbit: Orbit time coordinate.
+        dim: Axis dimension name.
+
+    Returns:
+        Zero-Doppler function value and payload (distance, velocity).
+    """
     sat = xr.polyval(time_orbit, pos_coeff)
     dist = dem_ecef - sat
     vel = xr.polyval(time_orbit, vel_coeff)
@@ -337,6 +428,17 @@ def zero_doppler_prime(
     payload: tuple[xr.DataArray, xr.DataArray],
     dim: str = "axis",
 ) -> xr.DataArray:
+    """Compute the derivative of the zero-Doppler function.
+
+    Args:
+        vel_coeff: Velocity polynomial coefficients.
+        time_orbit: Orbit time coordinate.
+        payload: Payload from zero-Doppler evaluation.
+        dim: Axis dimension name.
+
+    Returns:
+        Derivative of the zero-Doppler function.
+    """
     dist, vel = payload
     accel = xr.polyval(time_orbit, poly_derivative(vel_coeff))
 
@@ -352,7 +454,19 @@ def secant(
     tol_t: float = 1e-6,
     maxiter: int = 10,
 ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, int, Any]:
-    """implementation modified from https://en.wikipedia.org/wiki/Secant_method"""
+    """Solve for a root using the secant method.
+
+    Args:
+        func: Function returning value and payload.
+        t0: Initial time guess.
+        t1: Second time guess.
+        tol_f: Function tolerance.
+        tol_t: Time tolerance.
+        maxiter: Maximum number of iterations.
+
+    Returns:
+        Updated time, previous time, function value, iteration count, payload.
+    """
     f0, payload = func(t0)
 
     f1, k = None, None
@@ -382,6 +496,19 @@ def newton(
     tol_t: float = 1e-6,
     maxiter: int = 10,
 ) -> tuple[xr.DataArray, xr.DataArray, int, Any]:
+    """Solve for a root using Newton's method.
+
+    Args:
+        func: Function returning value and payload.
+        func_p: Derivative function.
+        t: Initial time guess.
+        tol_f: Function tolerance.
+        tol_t: Time tolerance.
+        maxiter: Maximum number of iterations.
+
+    Returns:
+        Updated time, function value, iteration count, payload.
+    """
     f, k, payload = None, None, None
     for k in range(maxiter):
         f, payload = func(t)
@@ -410,6 +537,24 @@ def backward_geocode(
     maxiter=10,
     t_shift=-0.1,
 ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """Compute orbit time and vectors for a DEM using inverse geocoding.
+
+    Args:
+        dem_ecef: DEM in ECEF coordinates.
+        pos_coeff: Position polynomial coefficients.
+        vel_coeff: Velocity polynomial coefficients.
+        method: Root-finding method.
+        tol: Function tolerance.
+        speed: Nominal platform speed for tolerance scaling.
+        maxiter: Maximum number of iterations.
+        t_shift: Time shift for the secant method.
+
+    Returns:
+        Orbit time, distance vector, and velocity vector.
+
+    Raises:
+        ValueError: If the method is not supported.
+    """
     f = functools.partial(zero_doppler, dem_ecef, pos_coeff, vel_coeff)
 
     t0 = xr.zeros_like(dem_ecef.sel(axis="x"), dtype="float64")
@@ -437,6 +582,17 @@ def simulate_acquisition(
     vel_coeff: xr.DataArray,
     apply_rtc: bool = True,
 ) -> xr.Dataset:
+    """Simulate SAR acquisition geometry for a DEM.
+
+    Args:
+        dem_ecef: DEM in ECEF coordinates.
+        pos_coeff: Position polynomial coefficients.
+        vel_coeff: Velocity polynomial coefficients.
+        apply_rtc: Whether to compute gamma area.
+
+    Returns:
+        Dataset with simulated acquisition variables.
+    """
     time_orbit, dist, vel = backward_geocode(dem_ecef, pos_coeff, vel_coeff)
 
     slant_range = np.sqrt((dist**2).sum("axis"))
@@ -458,6 +614,14 @@ def simulate_acquisition(
 
 
 def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
+    """Compute per-pixel surface area on the DEM in ECEF coordinates.
+
+    Args:
+        dem_ecef: DEM in ECEF coordinates.
+
+    Returns:
+        Area vectors per DEM pixel.
+    """
     # construct corner coordinates
     lon = dem_ecef.lon
     lat = dem_ecef.lat
@@ -510,6 +674,15 @@ def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
 
 
 def compute_gamma_area(dem_ecef: xr.DataArray, direction: xr.DataArray) -> xr.DataArray:
+    """Compute gamma area by projecting DEM areas onto look direction.
+
+    Args:
+        dem_ecef: DEM in ECEF coordinates.
+        direction: Look direction vectors.
+
+    Returns:
+        Gamma area for each DEM pixel.
+    """
     area = compute_dem_area(dem_ecef)
     gamma_area = xr.dot(area, -direction, dim="axis")
     return gamma_area.where(gamma_area > 0, 0)
@@ -520,8 +693,15 @@ def sum_weights(
     az_idx: xr.DataArray,
     slr_idx: xr.DataArray,
 ) -> xr.DataArray:
-    """
-    Accumulate weights into SAR image grid using (azimuth, range) indices.
+    """Accumulate weights into the SAR image grid.
+
+    Args:
+        weights: Weights to accumulate.
+        az_idx: Azimuth indices.
+        slr_idx: Slant-range indices.
+
+    Returns:
+        Accumulated weights on the SAR grid.
     """
     reduced = flox.xarray.xarray_reduce(
         weights,
@@ -539,8 +719,13 @@ def sum_weights(
 
 
 def gamma_weights_bilinear(acq: xr.Dataset) -> xr.DataArray:
-    """
-    Bilinear gamma weighting.
+    """Compute bilinear gamma weights for the acquisition grid.
+
+    Args:
+        acq: Acquisition dataset with indices and gamma area.
+
+    Returns:
+        Gamma weights on the SAR grid.
     """
     az_idx = acq.az_idx
     slr_idx = acq.slr_idx
@@ -565,8 +750,13 @@ def gamma_weights_bilinear(acq: xr.Dataset) -> xr.DataArray:
 
 
 def gamma_weights_nearest(acq: xr.Dataset) -> xr.DataArray:
-    """
-    Nearest-neighbor gamma weighting.
+    """Compute nearest-neighbor gamma weights for the acquisition grid.
+
+    Args:
+        acq: Acquisition dataset with indices and gamma area.
+
+    Returns:
+        Gamma weights on the SAR grid.
     """
 
     az_idx = np.round(acq.az_idx).astype(np.intp)
@@ -579,8 +769,15 @@ def apply_gamma_weights(
     func: Callable[..., xr.DataArray],
     params: dict,
 ) -> xr.DataArray:
-    """
-    Apply gamma weighting block-wise.
+    """Apply gamma weighting block-wise.
+
+    Args:
+        acq: Acquisition dataset with geometry.
+        func: Weighting function.
+        params: Grid parameters for index conversion.
+
+    Returns:
+        Gamma-corrected area per pixel.
     """
     acq["az_idx"] = (acq.azimuth_time - params["az0"]) / _ONE_SECOND / params["d_az"]
     acq["slr_idx"] = (acq.slant_range_time - params["slr0"]) / params["d_slr"]
@@ -592,6 +789,15 @@ def apply_gamma_weights(
 
 
 def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
+    """Fit ground-range polynomials from GCP slant-range times.
+
+    Args:
+        time_slr_gcp: GCP slant-range times.
+        deg: Polynomial degree.
+
+    Returns:
+        Polynomial coefficients per azimuth line.
+    """
     # normalization for stability
     mean = time_slr_gcp.mean().values
     std = time_slr_gcp.std().values
@@ -616,6 +822,18 @@ def geocode_data(
     time_slr_gcp: xr.DataArray,
     interp_method: Literal["nearest", "bilinear"] = "nearest",
 ) -> xr.Dataset:
+    """Geocode data from SAR grid to map coordinates.
+
+    Args:
+        data: Input dataset on the SAR grid.
+        time_az: Target azimuth times.
+        time_slr: Target slant-range times.
+        time_slr_gcp: GCP slant-range times.
+        interp_method: Interpolation method.
+
+    Returns:
+        Geocoded dataset.
+    """
 
     coeff = fit_ground_range(time_slr_gcp)
 
@@ -655,6 +873,23 @@ def terrain_correct(
     grid_params: dict = None,
     interp_method: Literal["nearest", "bilinear"] = "nearest",
 ) -> xr.Dataset:
+    """Apply terrain correction to SAR data.
+
+    Args:
+        data: Input SAR dataset.
+        time_slr_gcp: GCP slant-range times.
+        sat_position: Satellite positions over time.
+        dem: DEM for terrain correction.
+        apply_rtc: Whether to apply radiometric terrain correction.
+        grid_params: Grid parameters for RTC.
+        interp_method: Interpolation method.
+
+    Returns:
+        Terrain-corrected dataset.
+
+    Raises:
+        ValueError: If RTC is enabled without grid parameters.
+    """
 
     dem_ecef = convert_dem_to_ecef(dem)
 

@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -24,8 +24,7 @@ from xcube_resampling.utils import reproject_bbox
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
-from xarray_eopf.utils import assert_arg_has_length, assert_arg_is_instance
-from xarray_eopf.utils import NameFilter
+from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
 
 _SPEED_OF_LIGHT = 299_792_458.0
 _S_TO_NS = 10**9
@@ -40,7 +39,7 @@ class Sen1(AnalysisMode, ABC):
     def is_valid_source(self, source: Any) -> bool:
         root_path = get_source_path(source)
         pattern = re.compile(rf"S1[A-D]_[A-Z]{{2}}_{self.product_type}_[^/]+$")
-        return bool(pattern.search(root_path))
+        return bool(pattern.search(root_path)) if root_path else False
 
     def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
@@ -80,8 +79,14 @@ class Sen1(AnalysisMode, ABC):
             assert_arg_is_instance(
                 footprint_scale_factor,
                 "footprint_scale_factor",
-                (tuple[float | int, float | int]),
+                tuple,
             )
+            assert_arg_has_length(footprint_scale_factor, "footprint_scale_factor", 2)
+            if not all(isinstance(v, (float, int)) for v in footprint_scale_factor):
+                raise TypeError(
+                    "footprint_scale_factor argument must contain exactly two "
+                    "float or int values."
+                )
             params.update(footprint_scale_factor=footprint_scale_factor)
 
         apply_rtc = kwargs.get("apply_rtc")
@@ -119,44 +124,58 @@ class Sen1GRD(Sen1):
         resolution: float = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
-        interp_methods: Literal["nearest", "bilinear"] = "nearest",
+        interp_methods: Literal["nearest", "bilinear"] = "bilinear",
         footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
-        dem: xr.Dataset | None = None,
+        dem: xr.DataArray | None = None,
         apply_rtc: bool = True,
     ) -> xr.Dataset:
-
-        # ToDo filter variable names
-        # ToDo allow for different polarization combinations
-
+        # get dem data array
         if dem is None:
             if bbox is None:
                 bbox = datatree.attrs["stac_discovery"]["bbox"]
             dem = get_dem(bbox, resolution=resolution, crs=crs)
 
-        group_vh = [x for x in datatree.children if "VH" in x][0]
-        grd = datatree[group_vh].measurements.to_dataset().rename({"grd": "vh"})
-        group_vv = [x for x in datatree.children if "VV" in x][0]
-        grd["vv"] = datatree[group_vv].measurements.to_dataset().grd
-        beta_lut = datatree[group_vh].quality.calibration.to_dataset()["beta_nought"]
-        beta_lut_interp = beta_lut.interp(ground_range=grd.ground_range).chunk(
+        # load measurement data
+        grd = None
+        group = ""
+        for mode in ["VV", "VH", "HV", "HH"]:
+            children = [x for x in datatree.children if mode in x]
+            if children:
+                group = children[0]
+                if grd is None:
+                    grd = datatree[group].measurements.to_dataset()
+                    grd = grd.rename({"grd": mode.lower()})
+                else:
+                    grd[mode.lower()] = datatree[group].measurements.to_dataset().grd
+
+        # filter dataset by variable names
+        name_filter = NameFilter(includes=includes, excludes=excludes)
+        variable_names = [k for k in grd.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No valid variable names found in dataset")
+        grd = grd[variable_names]
+
+        # get calibration LUT data
+        lut = datatree[group].quality.calibration.beta_nought
+        lut_interp = lut.interp(ground_range=grd.ground_range).chunk(
             dict(ground_range=2048)
         )
-        beta_lut_interp = beta_lut_interp.interp(azimuth_time=grd.azimuth_time).chunk(
+        lut_interp = lut_interp.interp(azimuth_time=grd.azimuth_time).chunk(
             dict(azimuth_time=2048)
         )
-        beta_nought = (grd / beta_lut_interp) ** 2
-        beta_nought.assign_attrs(long_name="beta nought", units="m2 m-2")
+        grd = (grd / lut_interp) ** 2
+        grd.assign_attrs(long_name="beta nought", units="m2 m-2")
 
-        orbit = datatree[f"{group_vh}/conditions/orbit"].to_dataset()
+        orbit = datatree[f"{group}/conditions/orbit"].to_dataset()
         sat_position = orbit["position"]
 
-        gcp = datatree[f"{group_vh}/conditions/gcp"].to_dataset()
+        gcp = datatree[f"{group}/conditions/gcp"].to_dataset()
         time_slr_gcp = gcp["slant_range_time_gcp"]
 
         grid_params = self._get_grid_parameters(datatree, footprint_scale_factor)
 
         return terrain_correct(
-            beta_nought,
+            grd,
             time_slr_gcp,
             sat_position,
             dem,
@@ -820,7 +839,7 @@ def geocode_data(
     time_az: xr.DataArray,
     time_slr: xr.DataArray,
     time_slr_gcp: xr.DataArray,
-    interp_method: Literal["nearest", "bilinear"] = "nearest",
+    interp_method: Literal["nearest", "bilinear"],
 ) -> xr.Dataset:
     """Geocode data from SAR grid to map coordinates.
 
@@ -836,6 +855,7 @@ def geocode_data(
     """
 
     coeff = fit_ground_range(time_slr_gcp)
+    method = "linear" if interp_method == "bilinear" else "nearest"
 
     def _interp_block(block):
         coeff_interp = coeff.interp(azimuth_time=block.time_az)
@@ -844,7 +864,7 @@ def geocode_data(
         return data.interp(
             azimuth_time=block.time_az,
             ground_range=ground_range,
-            method=interp_method,
+            method=method,
         )
 
     # Build template with new coordinates

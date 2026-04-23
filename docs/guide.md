@@ -1,6 +1,10 @@
 The xarray backend for EOPF data products `"eopf-zarr"` has two modes of operation,
 namely _analysis mode_ (the default) and _native mode_, which are described in 
-the following. 
+the following.
+
+An introductory example notebook is available at : 
+- [Docs - Intoduction to the xarray EOPF backend](https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/)
+- [Notebook Gallery - Intoduction to the xarray EOPF backend](https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/)
 
 ---
 
@@ -30,51 +34,77 @@ dataset = xr.open_dataset(
 )
 ```
 
-Returns a EOPF data product from Sentinel-1, -2, or -3 in a analysis-ready, convenient 
-form. All bands and quality flags are resampled to a unified, user-provided resolution. 
-
-Parameters `**kwargs`:
+Returns a EOPF data product from Sentinel-1, -2, or -3 in an analysis-ready, convenient 
+form. Common parameters are:
 
 - `resolution`: Target resolution for all spatial data variables / bands.
 - `crs`: Coordinate reference system of the output dataset. If not provided, a
   mission-specific default CRS is used (see the respective mission sections below).
 - `bbox`: Bounding box `[west, south, east, north]` used for spatial subsetting;
   coordinates must be in the same CRS as `crs`.
-- `interp_methods`: for upsampling / interpolating
-  spatial data variables. Can be a single interpolation method for all
-  variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:
-
-    - `0` (nearest neighbor)
-    - `1` (linear / bilinear)
-    - `"nearest"`
-    - `"triangular"`
-    - `"bilinear"`
-
-  The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
-  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
-- `agg_methods`: Optional aggregation methods to be used for downsampling
-  spatial data variables / bands. Can be a single method for all variables or 
-  a dictionary mapping variable names or dtypes to methods. Supported methods include:
-    `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
-    `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
-  Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
-  For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 - `variables`: Variables to include in the dataset. Can be a name or regex pattern 
   or iterable of the latter.
 - `product_type`: Product type name, such as `"MSIL1C"`. 
   Only required if `filename_or_obj` is not a path or URL that refers to a product 
   path adhering to EOPF naming conventions.
 
-The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
+Additional parameters specific to each Sentinel mission are described below.
 
 #### Remarks on Specific Sentinel Missions
 
 ##### Sentinel-1
 
-Support for Sentinel-1 analysis mode will be added in a future release.
+> Note: Support for Sentinel-1 GRD products in analysis mode is available.
+> Support for SLC products is planned for a future release.
+
+Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
+(`azimuth_time`, `ground_range`). To transform this data into an
+**analysis-ready dataset**, the following processing steps are applied:
+
+1. **Radiometric Calibration:** Raw pixel values (DN) are converted into physically
+   meaningful backscatter values using the `beta_nought` calibration lookup table (LUT).
+2. **Geometric Terrain Correction (GTC):** Using a Digital Elevation Model (DEM),
+   the processor performs **inverse geocoding** by solving the zero-Doppler equation
+   based on satellite orbit information and terrain elevation. This step maps the
+   data from radar geometry to a georeferenced grid.
+3. **Radiometric Terrain Correction (RTC):** (Optional) RTC compensates for 
+   terrain-induced radiometric distortions such as foreshortening, layover, 
+   and slope-dependent brightness variations.
+
+📖 [D. Small, *Flattening Gamma: Radiometric Terrain Correction for SAR Imagery*](https://ieeexplore.ieee.org/document/5752845)
+
+
+**Supported Products:**
+
+- [Sentinel-1 GRD](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd)
+
+**Supported Variables**
+
+- **Polarization bands**:  
+  `vv`, `vh`, `hh`, `hv` *(each GRD product contains only a subset of these bands)*
+
+**Specific Sentinel-1 parameters `**kwargs`:**
+
+- `crs`: Coordinate reference system of the output dataset. If not specified,
+  [EPSG:4326](https://epsg.io/4326) is used.
+- `resolution`: Target resolution for all spatial variables. If not specified,
+  the resolution is derived (in degrees) from the CopDEM (30 m).
+- `dem`: Digital Elevation Model (DEM) used for terrain correction. If provided,
+  the parameters `crs`, `bbox`, and `resolution` are ignored, and the target grid
+  is derived from the DEM. If not provided, the
+  [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog)  
+  is automatically retrieved via the CDSE STAC API. This requires
+  [CDSE S3 credentials](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
+- `apply_rtc`: Enable or disable radiometric terrain correction (RTC). Default is `True`.
+- `interp_methods`: Interpolation method used during GTC and RTC. Supported methods:
+  `nearest`, `bilinear`.
+- `footprint_scale_factor`: Defines how radar pixels contribute to the output grid.
+  Default: `(3.0, 3.0)`, accounting for resolution differences (e.g., ~10 m GRD
+  vs. ~30 m DEM).
+
+Examples:  
+
+- [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
 
 
 ##### Sentinel-2
@@ -109,12 +139,36 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 - `resolution`: Target resolution for all spatial variables/bands.
   Choose 10, 20, or 60 meters to minimize resampling and retain some of the native
   data resolution.
+- `interp_methods`: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:
+
+    - `0` (nearest neighbor)
+    - `1` (linear / bilinear)
+    - `"nearest"`
+    - `"triangular"`
+    - `"bilinear"`
+
+  The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
+  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
+- `agg_methods`: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
+    `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
+  Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
+  For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
+
+The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
+Further explanation of the meaning and usage of these parameters for each Sentinel 
+mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
 
 Examples:  
-- [Example notebook - open-sen2.ipynb](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen2.ipynb)  
-- [Notebook gallery - Introduction to xarray-eopf backend](https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction-xarray-eopf-plugin/)  
-- [Webinar 3 - Access EOPF Zarr Products with the New xarray EOPF Backend](https://zarr.eopf.copernicus.eu/webinars/webinar-3-access-eopf-zarr-products-with-the-new-xarray-eopf-backend/)  
 
+- [Docs - Sentinel-2 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_analysis/)
+- [Notebook Gallery - Sentinel-2 Analysis Mode](https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-2-analysis/)
+- [Webinar - Access EOPF Zarr Products with the new xarray EOPF Backend](https://www.youtube.com/watch?v=AJz2WJNdFbw)
 
 ##### Sentinel-3
 
@@ -177,10 +231,35 @@ for details.
     - Sentinel-3 OLCI Level-2 LFR: 300 meter
     - Sentinel-3 SLSTR Level-1 RBT: 500 meter (1000 meter if selected variables come from F- or I-stripe)
     - Sentinel-3 SLSTR Level-2 LST: 1000 meter
+- `interp_methods`: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:
+
+    - `0` (nearest neighbor)
+    - `1` (linear / bilinear)
+    - `"nearest"`
+    - `"triangular"`
+    - `"bilinear"`
+
+  The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
+  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
+- `agg_methods`: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
+    `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
+  Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
+  For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
+
+The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
+Further explanation of the meaning and usage of these parameters for each Sentinel 
+mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
 
 Example:  
-- [Example notebook (open-sen3.ipynb)](https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen3.ipynb)  
 
+- [Docs - Sentinel-3 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_3_analysis/)
+- [Notebook Gallery - Sentinel-3 Analysis Mode](https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-3-analysis/)
 
 
 ### Function `open_datatree()`
@@ -257,3 +336,12 @@ Opens a data product as-is including Zarr groups and returns a data tree object.
 This function currently returns the result of calling 
 `xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)`.  
 
+
+Example:  
+
+- [Docs - Sentinel-1 Native Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_native/)
+- [Docs - Sentinel-2 Native Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_native/)
+- [Docs - Sentinel-3 Native Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_3_native/)
+- [Notebook Gallery - Sentinel-1 Native Mode](https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-1-native/)
+- [Notebook Gallery - Sentinel-2 Native Mode](https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-2-native/)
+- [Notebook Gallery - Sentinel-3 Native Mode](https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-3-native/)

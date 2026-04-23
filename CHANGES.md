@@ -5,6 +5,7 @@
 - Remove the `coarsen.py` module, as it has been moved to [xcube-resampling](https://github.com/xcube-dev/xcube-resampling) 
   and is no longer used internally.
 - Add support for Sentinel-1 GRD analysis mode.
+- Updated year in the header.
 
 
 ## Changes in 0.2.7 (from 2026-03-27)

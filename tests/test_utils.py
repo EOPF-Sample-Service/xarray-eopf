@@ -1,7 +1,7 @@
 #  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
-
+from typing import Literal
 from unittest import TestCase
 
 import pytest
@@ -30,6 +30,7 @@ class AssertionTest(TestCase):
     def test_assert_arg_is_instance(self):
         self.assertIsNone(assert_arg_is_instance(2, "order", int))
         self.assertIsNone(assert_arg_is_instance(2, "order", (int, float)))
+        self.assertIsNone(assert_arg_is_instance("a", "order", Literal["a", "b"]))
 
         with pytest.raises(
             TypeError, match="order argument must have type int, was float"
@@ -39,6 +40,11 @@ class AssertionTest(TestCase):
             TypeError, match="order argument must have type int or float, was str"
         ):
             self.assertIsNone(assert_arg_is_instance("4", "order", (int, float)))
+        with pytest.raises(TypeError) as exc:
+            self.assertIsNone(assert_arg_is_instance("c", "order", Literal["a", "b"]))
+        self.assertEqual(
+            str(exc.value), "order argument must be one of ('a', 'b'), was 'c'"
+        )
 
     def test_assert_arg_has_length(self):
         self.assertIsNone(assert_arg_has_length([1, 2, 3], "test_arg", 3))

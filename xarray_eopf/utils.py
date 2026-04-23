@@ -48,7 +48,7 @@ def assert_arg_is_instance(value: Any, name: str, data_type: Type | tuple[Type, 
         allowed_values = get_args(data_type)
         if value not in allowed_values:
             raise TypeError(
-                f"{name} argument must be one of {allowed_values}, got {value!r}"
+                f"{name} argument must be one of {allowed_values}, was {value!r}"
             )
         return
 

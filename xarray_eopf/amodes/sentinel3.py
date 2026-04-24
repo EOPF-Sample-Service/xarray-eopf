@@ -15,6 +15,7 @@ from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
 from xcube_resampling.utils import (
+    clip_dataset_by_bbox,
     reproject_bbox,
     resolution_meters_to_degrees,
 )
@@ -123,12 +124,6 @@ class Sen3(AnalysisMode, ABC):
             if coord not in ["latitude", "longitude"]:
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
-        # dataset["latitude"] = dataset["latitude"].persist()
-        # dataset["longitude"] = dataset["longitude"].persist()
-
-        # orthorectify geolocation for elevation and viewing geometry
-        dataset = self._apply_orthorectification(dataset, datatree)
-        dataset = dataset[variable_names]
 
         # clip by bounding box
         if bbox:
@@ -144,6 +139,13 @@ class Sen3(AnalysisMode, ABC):
                     UserWarning,
                 )
                 return dataset
+
+        dataset["latitude"] = dataset["latitude"].persist()
+        dataset["longitude"] = dataset["longitude"].persist()
+
+        # orthorectify geolocation for elevation and viewing geometry
+        dataset = self._apply_orthorectification(dataset, datatree)
+        dataset = dataset[variable_names]
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
@@ -293,10 +295,12 @@ class Sen3Sl1Rbt(Sen3):
                 # clip dataset by bbox
                 if bbox:
                     bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-                    geom_points = np.array(
-                        datatree.attrs["stac_discovery"]["geometry"]["coordinates"][0]
+                    # Clip the dataset using the lat/lon grid rather than the STAC
+                    # geometry. The STAC footprint represents the nadir view only and
+                    # does not account for spatial extent in oblique acquisition.
+                    dataset = clip_dataset_by_bbox(
+                        dataset, bbox_wgs84, ("longitude", "latitude")
                     )
-                    dataset = clip_dataset_by_geometry(geom_points, dataset, bbox_wgs84)
                     if any(size <= 1 for size in dataset.sizes.values()):
                         warnings.warn(
                             "Clipping with the specified bounding box "
@@ -539,6 +543,6 @@ def clip_dataset_by_geometry(
     col_min = np.clip(np.min(cols) - buffer, 0, ds.sizes["columns"] - 1)
     row_min = np.clip(np.min(rows) - buffer, 0, ds.sizes["rows"] - 1)
     col_max = np.clip(np.max(cols) + buffer, 0, ds.sizes["columns"] - 1)
-    row_max = np.clip(np.max(rows) + buffer, 0, ds.sizes["columns"] - 1)
+    row_max = np.clip(np.max(rows) + buffer, 0, ds.sizes["rows"] - 1)
 
     return ds.isel(rows=slice(row_min, row_max), columns=slice(col_min, col_max))

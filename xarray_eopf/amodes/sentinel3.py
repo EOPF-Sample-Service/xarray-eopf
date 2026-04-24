@@ -123,8 +123,8 @@ class Sen3(AnalysisMode, ABC):
             if coord not in ["latitude", "longitude"]:
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
-        dataset["latitude"] = dataset["latitude"].persist()
-        dataset["longitude"] = dataset["longitude"].persist()
+        # dataset["latitude"] = dataset["latitude"].persist()
+        # dataset["longitude"] = dataset["longitude"].persist()
 
         # orthorectify geolocation for elevation and viewing geometry
         dataset = self._apply_orthorectification(dataset, datatree)

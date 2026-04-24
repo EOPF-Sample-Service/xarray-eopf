@@ -6,6 +6,9 @@ import time
 from collections.abc import Collection, Iterable
 from typing import Any, Type, TypeAlias, TypeVar
 
+import pystac
+import numpy as np
+from shapely.geometry import shape
 import xarray as xr
 
 T = TypeVar("T")
@@ -148,3 +151,64 @@ class NameFilter:
     ) -> list[tuple[str, Matcher]]:
         patterns = (patterns,) if isinstance(patterns, str) else (patterns or ())
         return [(p, re.compile(p)) for p in patterns if p]
+
+
+def _segment_points(points: np.ndarray, i0: int, i1: int) -> np.ndarray:
+    """Extract points from a closed boundary ring between two indices.
+
+    Args:
+        points: Boundary coordinates in ring order.
+        i0: Start index.
+        i1: End index.
+
+    Returns:
+        Coordinate segment including both start and end points. If `i0 > i1`,
+        the segment wraps across the ring end.
+    """
+    if i0 <= i1:
+        return points[i0 : i1 + 1]
+    return np.vstack([points[i0:], points[: i1 + 1]])
+
+
+def build_footprint_uv_mapping(points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Create geometry control points and normalized image coordinates.
+
+    Args:
+        points: Boundary coordinates in ring order.
+
+    Returns:
+        A tuple `(control_xy, control_uv)` where `control_xy` are boundary
+        coordinates and `control_uv` are corresponding normalized image
+        coordinates.
+    """
+    if np.allclose(points[0], points[-1]):
+        points = points[:-1]
+    lon = points[:, 0]
+    lat = points[:, 1]
+
+    idx_ll = int(np.argmin(lat + lon))
+    idx_ur = int(np.argmax(lat + lon))
+    idx_ul = int(np.argmax(lat - lon))
+    idx_lr = int(np.argmin(lat - lon))
+
+    idx_to_uv = {
+        idx_ll: np.array([0.0, 1.0]),
+        idx_lr: np.array([1.0, 1.0]),
+        idx_ul: np.array([0.0, 0.0]),
+        idx_ur: np.array([1.0, 0.0]),
+    }
+    ordered_idx = sorted(idx_to_uv.keys())
+
+    control_xy = []
+    control_uv = []
+    for k, start in enumerate(ordered_idx):
+        end = ordered_idx[(k + 1) % len(ordered_idx)]
+        seg_xy = _segment_points(points, start, end)
+        uv0 = idx_to_uv[start]
+        uv1 = idx_to_uv[end]
+        t = np.linspace(0.0, 1.0, len(seg_xy))
+        seg_uv = (1 - t)[:, None] * uv0 + t[:, None] * uv1
+        control_xy.append(seg_xy[:-1])
+        control_uv.append(seg_uv[:-1])
+
+    return np.vstack(control_xy), np.vstack(control_uv)

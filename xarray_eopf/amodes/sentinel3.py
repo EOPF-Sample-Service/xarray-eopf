@@ -10,12 +10,11 @@ from typing import Any
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RBFInterpolator
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
 from xcube_resampling.utils import (
-    clip_dataset_by_bbox,
     reproject_bbox,
     resolution_meters_to_degrees,
 )
@@ -23,7 +22,12 @@ from xcube_resampling.utils import (
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
-from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
+from xarray_eopf.utils import (
+    NameFilter,
+    assert_arg_has_length,
+    assert_arg_is_instance,
+    build_footprint_uv_mapping,
+)
 
 _CRS = pyproj.CRS.from_string("EPSG:4326")
 _CHUNKSIZE = (2048, 2048)
@@ -129,9 +133,10 @@ class Sen3(AnalysisMode, ABC):
         # clip by bounding box
         if bbox:
             bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-            dataset = clip_dataset_by_bbox(
-                dataset, bbox_wgs84, ("longitude", "latitude")
+            geom_points = np.array(
+                datatree.attrs["stac_discovery"]["geometry"]["coordinates"][0]
             )
+            dataset = clip_dataset_by_geometry(geom_points, dataset, bbox_wgs84)
             if any(size <= 1 for size in dataset.sizes.values()):
                 warnings.warn(
                     "Clipping with the specified bounding box resulted in a dataset too small "
@@ -288,9 +293,10 @@ class Sen3Sl1Rbt(Sen3):
                 # clip dataset by bbox
                 if bbox:
                     bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-                    dataset = clip_dataset_by_bbox(
-                        dataset, bbox_wgs84, ("longitude", "latitude")
+                    geom_points = np.array(
+                        datatree.attrs["stac_discovery"]["geometry"]["coordinates"][0]
                     )
+                    dataset = clip_dataset_by_geometry(geom_points, dataset, bbox_wgs84)
                     if any(size <= 1 for size in dataset.sizes.values()):
                         warnings.warn(
                             "Clipping with the specified bounding box "
@@ -300,10 +306,7 @@ class Sen3Sl1Rbt(Sen3):
                         )
                         return dataset
 
-                dataset_map[sub_group] = (
-                    dataset,
-                    GridMapping.from_dataset(dataset),
-                )
+                dataset_map[sub_group] = (dataset, GridMapping.from_dataset(dataset))
         if not dataset_map:
             raise ValueError("No variables selected")
 
@@ -490,3 +493,52 @@ def orthorectify_geolocation(
             longitude=(dataset.latitude.dims, ds_lon - lon_diff),
         )
     )
+
+
+def clip_dataset_by_geometry(
+    points: np.ndarray,
+    ds: xr.Dataset,
+    bbox: Sequence[FloatInt],
+    buffer: int = 50,
+) -> xr.Dataset:
+    """Clip a dataset to a geographic bounding box using a footprint-based mapping.
+
+    This function estimates the pixel window corresponding to a geographic
+    bounding box by interpolating a mapping between geographic coordinates
+    (longitude, latitude) and image coordinates (columns, rows). The mapping is
+    derived from boundary points (in ring order) of a footprint geometry and
+    approximated using radial basis function (RBF) interpolation.
+
+    Args:
+        points: Boundary coordinates of the footprint in ring order as an array
+            of shape (N, 2), given as (lon, lat).
+        ds: Input dataset with `rows` and `columns` dimensions.
+        bbox: Geographic bounding box defined as
+            `(min_lon, min_lat, max_lon, max_lat)`.
+        buffer: Number of pixels to extend the computed window in all directions
+            to ensure full coverage. Defaults to 50.
+
+    Returns:
+        A subset of the input dataset clipped to the estimated pixel window.
+    """
+    control_xy, control_uv = build_footprint_uv_mapping(points)
+    u_model = RBFInterpolator(control_xy, control_uv[:, 0], kernel="thin_plate_spline")
+    v_model = RBFInterpolator(control_xy, control_uv[:, 1], kernel="thin_plate_spline")
+
+    corners = np.array(
+        [
+            [bbox[0], bbox[1]],
+            [bbox[2], bbox[1]],
+            [bbox[0], bbox[3]],
+            [bbox[2], bbox[3]],
+        ]
+    )
+    cols = (u_model(corners) * (ds.sizes["columns"] - 1)).astype(int)
+    rows = (v_model(corners) * (ds.sizes["rows"] - 1)).astype(int)
+
+    col_min = np.clip(np.min(cols) - buffer, 0, ds.sizes["columns"] - 1)
+    row_min = np.clip(np.min(rows) - buffer, 0, ds.sizes["rows"] - 1)
+    col_max = np.clip(np.max(cols) + buffer, 0, ds.sizes["columns"] - 1)
+    row_max = np.clip(np.max(rows) + buffer, 0, ds.sizes["columns"] - 1)
+
+    return ds.isel(rows=slice(row_min, row_max), columns=slice(col_min, col_max))

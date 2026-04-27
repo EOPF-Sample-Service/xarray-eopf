@@ -4,6 +4,7 @@
 
 from unittest import TestCase
 
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -13,6 +14,7 @@ from xarray_eopf.utils import (
     assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
+    build_footprint_uv_mapping,
     get_data_tree_item,
     timeit,
 )
@@ -113,3 +115,18 @@ class NameFilterTest(TestCase):
         self.assertEqual(
             ["ernie", "emmie"], list(f.filter(["bibo", "ernie", "bert", "emmie"]))
         )
+
+
+class BuildFootprintUvMappingTest(TestCase):
+    def test_accepts_closed_ring_points(self):
+        open_ring = np.array(
+            [[10.0, 50.0], [12.0, 50.0], [12.0, 52.0], [10.0, 52.0]],
+            dtype=float,
+        )
+        closed_ring = np.vstack([open_ring, open_ring[0]])
+
+        open_xy, open_uv = build_footprint_uv_mapping(open_ring)
+        closed_xy, closed_uv = build_footprint_uv_mapping(closed_ring)
+
+        self.assertTrue(np.allclose(open_xy, closed_xy))
+        self.assertTrue(np.allclose(open_uv, closed_uv))

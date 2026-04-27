@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from scipy.interpolate import griddata, RBFInterpolator
+from scipy.interpolate import RBFInterpolator, griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
@@ -128,10 +128,8 @@ class Sen3(AnalysisMode, ABC):
         # clip by bounding box
         if bbox:
             bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-            geom_points = np.array(
-                datatree.attrs["stac_discovery"]["geometry"]["coordinates"][0]
-            )
-            dataset = clip_dataset_by_geometry(geom_points, dataset, bbox_wgs84)
+            stac_meta = datatree.attrs["stac_discovery"]
+            dataset = clip_dataset_by_geometry(stac_meta, dataset, bbox_wgs84)
             if any(size <= 1 for size in dataset.sizes.values()):
                 warnings.warn(
                     "Clipping with the specified bounding box resulted in a dataset too small "
@@ -500,7 +498,7 @@ def orthorectify_geolocation(
 
 
 def clip_dataset_by_geometry(
-    points: np.ndarray,
+    stac_meta: dict,
     ds: xr.Dataset,
     bbox: Sequence[FloatInt],
     buffer: int = 50,
@@ -514,8 +512,7 @@ def clip_dataset_by_geometry(
     approximated using radial basis function (RBF) interpolation.
 
     Args:
-        points: Boundary coordinates of the footprint in ring order as an array
-            of shape (N, 2), given as (lon, lat).
+        stac_meta: STAC metadata used to extrac footprint and orbit state.
         ds: Input dataset with `rows` and `columns` dimensions.
         bbox: Geographic bounding box defined as
             `(min_lon, min_lat, max_lon, max_lat)`.
@@ -525,16 +522,31 @@ def clip_dataset_by_geometry(
     Returns:
         A subset of the input dataset clipped to the estimated pixel window.
     """
-    control_xy, control_uv = build_footprint_uv_mapping(points)
+    points = np.array(stac_meta["geometry"]["coordinates"][0])
+    orbit_state = stac_meta["properties"]["sat:orbit_state"]
+
+    # convert to utm
+    center = np.mean(points, axis=0)
+    utm_zone = int(np.floor((center[0] + 180) / 6) + 1)
+    if center[1] >= 0:
+        utm_epsg = f"EPSG:326{utm_zone}"
+    else:
+        utm_epsg = f"EPSG:327{utm_zone}"
+    transformer = pyproj.Transformer.from_crs("EPSG:4326", utm_epsg, always_xy=True)
+    utm_points = transformer.transform(points[:, 0], points[:, 1])
+    utm_points = np.stack(utm_points).transpose()
+    utm_bbox = transformer.transform_bounds(*bbox, densify_pts=21)
+
+    control_xy, control_uv = build_footprint_uv_mapping(utm_points, orbit_state)
     u_model = RBFInterpolator(control_xy, control_uv[:, 0], kernel="thin_plate_spline")
     v_model = RBFInterpolator(control_xy, control_uv[:, 1], kernel="thin_plate_spline")
 
     corners = np.array(
         [
-            [bbox[0], bbox[1]],
-            [bbox[2], bbox[1]],
-            [bbox[0], bbox[3]],
-            [bbox[2], bbox[3]],
+            [utm_bbox[0], utm_bbox[1]],
+            [utm_bbox[2], utm_bbox[1]],
+            [utm_bbox[0], utm_bbox[3]],
+            [utm_bbox[2], utm_bbox[3]],
         ]
     )
     cols = (u_model(corners) * (ds.sizes["columns"] - 1)).astype(int)

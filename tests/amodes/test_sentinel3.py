@@ -4,6 +4,7 @@
 
 from collections.abc import Sequence
 from unittest import TestCase
+from unittest.mock import patch
 
 import fsspec
 import numpy as np
@@ -14,7 +15,13 @@ import zarr
 
 from tests.helpers import make_s3_olci_efr, make_s3_slstr_lst, make_s3_slstr_rbt
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, Sen3Sl1Rbt, Sen3Sl2Lst, register
+from xarray_eopf.amodes.sentinel3 import (
+    Sen3Ol1Efr,
+    Sen3Sl1Rbt,
+    Sen3Sl2Lst,
+    clip_dataset_by_geometry,
+    register,
+)
 from xarray_eopf.constants import FloatInt
 
 
@@ -91,7 +98,7 @@ class Sen3TestMixin:
         self,
         original_dt: xr.DataTree,
         expected_var_names: list[str],
-        expected_size: (int, int),
+        expected_size: tuple[int, int],
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
     ):
@@ -117,6 +124,12 @@ class Sen3TestMixin:
     def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
         with pytest.raises(ValueError, match="No variables selected"):
             self.mode.convert_datatree(original_dt, includes="bibo")
+
+    def assert_convert_datatree_fail_with_include_exclude(
+        self, original_dt: xr.DataTree
+    ):
+        with pytest.raises(ValueError, match="No variables selected"):
+            self.mode.convert_datatree(original_dt, includes=".+", excludes=".+")
 
 
 class OlciEfrTest(Sen3TestMixin, TestCase):
@@ -163,7 +176,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
                 "oa02_radiance",
                 "oa03_radiance",
             ],
-            expected_size=(372, 421),
+            expected_size=(372, 454),
             bbox=[1, 55, 3, 56],
         )
 
@@ -186,6 +199,21 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
 
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_olci_efr(size=48))
+
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_olci_efr(size=48)
+        )
+
+    def test_convert_datatree_sets_other_metadata_as_attrs(self):
+        dt = make_s3_olci_efr(size=100)
+        dt.attrs["other_metadata"] = {"test_key": "test_val"}
+        ds = self.mode.convert_datatree(
+            dt,
+            includes=["oa01_radiance"],
+            resolution=0.1,
+        )
+        self.assertEqual({"test_key": "test_val"}, ds.attrs)
 
 
 class SlstrRbtTest(Sen3TestMixin, TestCase):
@@ -260,6 +288,11 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_slstr_rbt(size=48))
 
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_slstr_rbt(size=48)
+        )
+
     def test_get_outer_bbox(self):
         bboxs = np.array([[-2, 10, 8, 20], [2, 12, 13, 25]])
         expected = [-2, 10, 13, 25]
@@ -307,9 +340,46 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
-            expected_size=(112, 127),
+            expected_size=(112, 148),
             bbox=[1, 55, 3, 56],
         )
 
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_slstr_lst(size=48))
+
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_slstr_lst(size=48)
+        )
+
+
+class ClipDatasetByGeometryTest(TestCase):
+    def test_uses_southern_hemisphere_utm_epsg(self):
+        stac_meta = {
+            "geometry": {
+                "coordinates": [
+                    [
+                        [10.0, -20.0],
+                        [11.0, -20.0],
+                        [11.0, -19.0],
+                        [10.0, -19.0],
+                        [10.0, -20.0],
+                    ]
+                ]
+            },
+            "properties": {"sat:orbit_state": "descending"},
+        }
+        dataset = xr.Dataset(
+            {"band": (("rows", "columns"), np.ones((128, 128), dtype=np.float32))}
+        )
+        bbox = [10.1, -19.9, 10.9, -19.1]
+
+        with patch(
+            "xarray_eopf.amodes.sentinel3.pyproj.Transformer.from_crs",
+            wraps=pyproj.Transformer.from_crs,
+        ) as from_crs:
+            _ = clip_dataset_by_geometry(stac_meta, dataset, bbox, buffer=5)
+
+        self.assertGreaterEqual(from_crs.call_count, 1)
+        self.assertEqual("EPSG:4326", from_crs.call_args.args[0])
+        self.assertTrue(str(from_crs.call_args.args[1]).startswith("EPSG:327"))

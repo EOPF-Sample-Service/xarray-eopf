@@ -4,6 +4,9 @@
   (and its subpackages) is included in the PyPI wheel.
 - Remove the `coarsen.py` module, as it has been moved to [xcube-resampling](https://github.com/xcube-dev/xcube-resampling) 
   and is no longer used internally.
+- Added footprint-based subsetting for Sentinel-3 OLCI and SLSTR LST using STAC 
+  metadata, improving performance by avoiding full latitude/longitude grid downloads 
+  during subsetting.
 
 
 ## Changes in 0.2.7 (from 2026-03-27)

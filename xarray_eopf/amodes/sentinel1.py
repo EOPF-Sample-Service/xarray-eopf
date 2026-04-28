@@ -842,7 +842,7 @@ def gamma_weights_nearest(acq: xr.Dataset) -> xr.DataArray:
 
 
 def apply_gamma_weights(
-    acq: Acquisition | xr.Dataset,
+    acq: Acquisition,
     func: Callable[..., xr.DataArray],
     params: GridParams,
 ) -> xr.DataArray:
@@ -856,10 +856,7 @@ def apply_gamma_weights(
     Returns:
         Gamma-corrected area per pixel.
     """
-    acq_ds = acq.to_dataset() if isinstance(acq, Acquisition) else acq
-    if "gamma_area" not in acq_ds:
-        raise ValueError("gamma_area required for gamma weighting")
-
+    acq_ds = acq.to_dataset()
     acq_ds["az_idx"] = (acq_ds.azimuth_time - params.az0) / _ONE_SECOND / params.d_az
     acq_ds["slr_idx"] = (acq_ds.slant_range_time - params.slr0) / params.d_slr
 

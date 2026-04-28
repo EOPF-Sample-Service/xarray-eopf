@@ -143,6 +143,42 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
 
 
 class Sentinel1FunctionsTest(TestCase):
+    def test_gridparams_iter(self):
+        params = sen1.GridParams(
+            slr0=0.0,
+            d_slr=1.0,
+            spacing_slr=2.0,
+            az0=np.datetime64("2024-01-01T00:00:00"),
+            d_az=1.0,
+            spacing_az=3.0,
+        )
+        self.assertEqual(
+            ["slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"],
+            list(iter(params)),
+        )
+
+    def test_acquisition_getitem_raises_for_missing_gamma_area(self):
+        acquisition = sen1.Acquisition(
+            azimuth_time=xr.DataArray(np.array([0]), dims=("lat",)),
+            distance=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
+            velocity=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
+            slant_range_time=xr.DataArray(np.array([0.0]), dims=("lon",)),
+            gamma_area=None,
+        )
+        with pytest.raises(KeyError, match="gamma_area"):
+            _ = acquisition["gamma_area"]
+
+    def test_acquisition_getitem_returns_existing_field(self):
+        distance = xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon"))
+        acquisition = sen1.Acquisition(
+            azimuth_time=xr.DataArray(np.array([0]), dims=("lat",)),
+            distance=distance,
+            velocity=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
+            slant_range_time=xr.DataArray(np.array([0.0]), dims=("lon",)),
+            gamma_area=None,
+        )
+        self.assertIs(acquisition["distance"], distance)
+
     def test_get_dem_requires_credentials(self):
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValueError, match="Missing AWS credentials"):

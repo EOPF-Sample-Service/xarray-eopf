@@ -542,25 +542,30 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("lat",),
         )
         slant_range_time = xr.DataArray(np.array([0.0, 2.0]), dims=("lon",))
-        acq = xr.Dataset(
-            {
-                "gamma_area": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
-                "azimuth_time": azimuth_time,
-                "slant_range_time": slant_range_time,
-            }
+        distance = xr.DataArray(
+            np.ones((3, 2, 2), dtype="float64"),
+            dims=("axis", "lat", "lon"),
+            coords={"axis": ["x", "y", "z"]},
+        )
+        acq = sen1.Acquisition(
+            azimuth_time=azimuth_time,
+            distance=distance,
+            velocity=distance,
+            slant_range_time=slant_range_time,
+            gamma_area=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
         )
 
         def passthrough(ds):
             return ds.gamma_area * 2
 
-        params = {
-            "az0": azimuth_time.values[0],
-            "d_az": 1.0,
-            "slr0": 0.0,
-            "d_slr": 1.0,
-            "spacing_slr": 2.0,
-            "spacing_az": 2.0,
-        }
+        params = sen1.GridParams(
+            az0=azimuth_time.values[0],
+            d_az=1.0,
+            slr0=0.0,
+            d_slr=1.0,
+            spacing_slr=2.0,
+            spacing_az=2.0,
+        )
         out = sen1.apply_gamma_weights(acq, passthrough, params)
         self.assertTrue(np.allclose(out.values, 0.5))
 
@@ -622,12 +627,17 @@ class Sentinel1FunctionsTest(TestCase):
             coords={"azimuth_time": [0, 1], "axis": ["x", "y", "z"]},
         )
         dem = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
-        acquisition = xr.Dataset(
-            {
-                "azimuth_time": xr.DataArray(np.array([0, 1]), dims=("lat",)),
-                "slant_range_time": xr.DataArray(np.array([0.0, 1.0]), dims=("lon",)),
-                "gamma_area": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
-            }
+        distance = xr.DataArray(
+            np.ones((3, 2, 2), dtype="float64"),
+            dims=("axis", "lat", "lon"),
+            coords={"axis": ["x", "y", "z"]},
+        )
+        acquisition = sen1.Acquisition(
+            azimuth_time=xr.DataArray(np.array([0, 1]), dims=("lat",)),
+            slant_range_time=xr.DataArray(np.array([0.0, 1.0]), dims=("lon",)),
+            distance=distance,
+            velocity=distance,
+            gamma_area=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
         )
         geocoded = xr.Dataset(
             {"vv": xr.DataArray(np.full((2, 2), 2.0), dims=("lat", "lon"))}
@@ -698,7 +708,14 @@ class Sentinel1FunctionsTest(TestCase):
                 sat_position,
                 dem,
                 apply_rtc=True,
-                grid_params={"k": 1},
+                grid_params=sen1.GridParams(
+                    slr0=0.0,
+                    d_slr=1.0,
+                    spacing_slr=1.0,
+                    az0=np.datetime64("2024-01-01T00:00:00"),
+                    d_az=1.0,
+                    spacing_az=1.0,
+                ),
                 interp_method="bilinear",
             )
             self.assertIn("vv", out)
@@ -739,7 +756,14 @@ class Sentinel1FunctionsTest(TestCase):
                 sat_position,
                 dem,
                 apply_rtc=True,
-                grid_params={"k": 1},
+                grid_params=sen1.GridParams(
+                    slr0=0.0,
+                    d_slr=1.0,
+                    spacing_slr=1.0,
+                    az0=np.datetime64("2024-01-01T00:00:00"),
+                    d_az=1.0,
+                    spacing_az=1.0,
+                ),
                 interp_method="nearest",
             )
             args, _ = agw.call_args

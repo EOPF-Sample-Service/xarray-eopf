@@ -6,6 +6,8 @@ from unittest import TestCase
 from pathlib import Path
 
 import xarray as xr
+import zarr
+
 
 from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.utils import timeit
@@ -16,8 +18,14 @@ show_chunking = False
 
 class Sentinel2AnalysisTest(TestCase):
     def test_open_dataset_sen1_grd(self):
-        dem_path = Path(__file__).resolve().parent / "test_data" / "dem_small.zarr"
-        dem = xr.open_dataset(str(dem_path), chunks={})
+        dem_path = Path(__file__).resolve().parent / "test_data" / "dem_small.zarr.zip"
+        store = zarr.ZipStore(str(dem_path), mode="r")
+        dem = xr.open_zarr(
+            store,
+            group="dem_small.zarr",
+            consolidated=False,  # also important
+            chunks={},
+        )
         dem = dem.dem
 
         url = (

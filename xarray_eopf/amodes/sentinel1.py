@@ -9,6 +9,7 @@ import re
 import warnings
 from abc import ABC
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
 import dask.array as da
@@ -32,6 +33,66 @@ _ONE_SECOND = np.timedelta64(_S_TO_NS, "ns")
 _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=3600, lon=3600)
+
+
+@dataclass(frozen=True)
+class GridParams:
+    """RTC grid parameters."""
+
+    slr0: float
+    d_slr: float
+    spacing_slr: float
+    az0: np.datetime64
+    d_az: float
+    spacing_az: float
+
+    def __iter__(self):
+        return iter(("slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"))
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def __contains__(self, key: object) -> bool:
+        return key in {"slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"}
+
+
+@dataclass
+class Acquisition:
+    """Simulated acquisition geometry."""
+
+    azimuth_time: xr.DataArray
+    distance: xr.DataArray
+    velocity: xr.DataArray
+    slant_range_time: xr.DataArray
+    gamma_area: xr.DataArray | None = None
+
+    def __iter__(self):
+        keys = ["azimuth_time", "distance", "velocity", "slant_range_time"]
+        if self.gamma_area is not None:
+            keys.append("gamma_area")
+        return iter(keys)
+
+    def __getitem__(self, key: str) -> xr.DataArray:
+        value = getattr(self, key)
+        if value is None:
+            raise KeyError(key)
+        return value
+
+    def __contains__(self, key: object) -> bool:
+        return key in set(iter(self))
+
+    def to_dataset(self) -> xr.Dataset:
+        dataset = xr.Dataset(
+            {
+                "azimuth_time": self.azimuth_time,
+                "distance": self.distance,
+                "velocity": self.velocity,
+                "slant_range_time": self.slant_range_time,
+            }
+        )
+        if self.gamma_area is not None:
+            dataset["gamma_area"] = self.gamma_area
+        return dataset
 
 
 class Sen1(AnalysisMode, ABC):
@@ -188,7 +249,7 @@ class Sen1GRD(Sen1):
     def _get_grid_parameters(
         dt: xr.DataTree,
         footprint_scale_factor: tuple[float, float],
-    ) -> dict[str, Any]:
+    ) -> GridParams:
         """Build grid parameters for RTC from Sentinel-1 metadata.
 
         Args:
@@ -196,7 +257,7 @@ class Sen1GRD(Sen1):
             footprint_scale_factor: Scaling for SAR footprint spacing.
 
         Returns:
-            Dictionary of grid parameters for terrain correction.
+            Grid parameters for terrain correction.
         """
 
         group_VH = [x for x in dt.children if "VH" in x][0]
@@ -207,15 +268,14 @@ class Sen1GRD(Sen1):
         slant_range_spacing_m = attrs["range_pixel_spacing"] * footprint_scale_factor[1]
         slant_range_time_interval_s = slant_range_spacing_m * 2 / _SPEED_OF_LIGHT
 
-        grid_parameters: dict[str, Any] = {
-            "slr0": attrs["slant_range_time"],
-            "d_slr": slant_range_time_interval_s,
-            "spacing_slr": slant_range_spacing_m,
-            "az0": np.datetime64(attrs["product_first_line_utc_time"]),
-            "d_az": attrs["azimuth_time_interval"] * footprint_scale_factor[0],
-            "spacing_az": attrs["azimuth_pixel_spacing"] * footprint_scale_factor[0],
-        }
-        return grid_parameters
+        return GridParams(
+            slr0=attrs["slant_range_time"],
+            d_slr=slant_range_time_interval_s,
+            spacing_slr=slant_range_spacing_m,
+            az0=np.datetime64(attrs["product_first_line_utc_time"]),
+            d_az=attrs["azimuth_time_interval"] * footprint_scale_factor[0],
+            spacing_az=attrs["azimuth_pixel_spacing"] * footprint_scale_factor[0],
+        )
 
 
 def register(registry: AnalysisModeRegistry):
@@ -600,7 +660,7 @@ def simulate_acquisition(
     pos_coeff: xr.DataArray,
     vel_coeff: xr.DataArray,
     apply_rtc: bool = True,
-) -> xr.Dataset:
+) -> Acquisition:
     """Simulate SAR acquisition geometry for a DEM.
 
     Args:
@@ -610,24 +670,22 @@ def simulate_acquisition(
         apply_rtc: Whether to compute gamma area.
 
     Returns:
-        Dataset with simulated acquisition variables.
+        Simulated acquisition geometry.
     """
     time_orbit, dist, vel = backward_geocode(dem_ecef, pos_coeff, vel_coeff)
 
     slant_range = np.sqrt((dist**2).sum("axis"))
     time_slr = 2 * slant_range / _SPEED_OF_LIGHT
 
-    out = xr.Dataset(
-        {
-            "azimuth_time": orbit_to_az(time_orbit, pos_coeff.attrs["epoch"]),
-            "distance": dist,
-            "velocity": vel.transpose(*dist.dims),
-            "slant_range_time": time_slr,
-        }
+    out = Acquisition(
+        azimuth_time=orbit_to_az(time_orbit, pos_coeff.attrs["epoch"]),
+        distance=dist,
+        velocity=vel.transpose(*dist.dims),
+        slant_range_time=time_slr,
     )
 
     if apply_rtc:
-        out["gamma_area"] = compute_gamma_area(dem_ecef, dist / slant_range)
+        out.gamma_area = compute_gamma_area(dem_ecef, dist / slant_range)
 
     return out
 
@@ -784,9 +842,9 @@ def gamma_weights_nearest(acq: xr.Dataset) -> xr.DataArray:
 
 
 def apply_gamma_weights(
-    acq: xr.Dataset,
+    acq: Acquisition | xr.Dataset,
     func: Callable[..., xr.DataArray],
-    params: dict,
+    params: GridParams,
 ) -> xr.DataArray:
     """Apply gamma weighting block-wise.
 
@@ -798,13 +856,17 @@ def apply_gamma_weights(
     Returns:
         Gamma-corrected area per pixel.
     """
-    acq["az_idx"] = (acq.azimuth_time - params["az0"]) / _ONE_SECOND / params["d_az"]
-    acq["slr_idx"] = (acq.slant_range_time - params["slr0"]) / params["d_slr"]
+    acq_ds = acq.to_dataset() if isinstance(acq, Acquisition) else acq
+    if "gamma_area" not in acq_ds:
+        raise ValueError("gamma_area required for gamma weighting")
 
-    template = acq.gamma_area * 0
+    acq_ds["az_idx"] = (acq_ds.azimuth_time - params.az0) / _ONE_SECOND / params.d_az
+    acq_ds["slr_idx"] = (acq_ds.slant_range_time - params.slr0) / params.d_slr
 
-    area = xr.map_blocks(func, acq, template=template)
-    return area / (params["spacing_slr"] * params["spacing_az"])
+    template = acq_ds.gamma_area * 0
+
+    area = xr.map_blocks(func, acq_ds, template=template)
+    return area / (params.spacing_slr * params.spacing_az)
 
 
 def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
@@ -890,7 +952,7 @@ def terrain_correct(
     sat_position: xr.DataArray,
     dem: xr.DataArray,
     apply_rtc: bool = True,
-    grid_params: dict = None,
+    grid_params: GridParams | None = None,
     interp_method: Literal["nearest", "bilinear"] = "nearest",
 ) -> xr.Dataset:
     """Apply terrain correction to SAR data.

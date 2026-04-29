@@ -3,11 +3,16 @@
 #  https://opensource.org/license/apache-2-0.
 import re
 import time
+import warnings
 from collections.abc import Collection, Iterable
-from typing import Any, Literal, Type, TypeAlias, TypeVar
+from typing import Any, Literal, Type, TypeAlias, TypeVar, Sequence
 
 import numpy as np
+import pyproj
+from scipy.interpolate import RBFInterpolator
 import xarray as xr
+
+from .constants import _CRS_WGS84
 
 T = TypeVar("T")
 
@@ -189,3 +194,60 @@ def build_footprint_uv_mapping(
     else:
         control_uv = np.array([[1.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
     return control_xy, control_uv
+
+
+def _find_relative_bbox(
+    stac_meta: dict, bbox: Sequence[float | int]
+) -> Sequence[float]:
+    """
+    Calculates the relative bounding box coordinates in image reference space based
+    on geographic bounding box and satellite metadata.
+
+    The function processes a geographic bounding box (`bbox`) by converting its
+    coordinates from WGS84 to UTM projection based on the center of the input
+    geospatial points. Using the STAC metadata (`stac_meta`), it builds a
+    mapping between ground control points and image coordinates using Radial Basis
+    Function interpolation. The final result is the corresponding bounding box
+    coordinates in the image reference space.
+
+    Args:
+        stac_meta: A dictionary containing metadata for the satellite image
+            with necessary geographic and orbital details. Includes geometry
+            coordinates and satellite orbit state.
+        bbox: A sequence of four elements representing the
+            geographic bounding box in WGS84 format (west, south, east, north).
+
+    Returns:
+        A sequence of four elements representing the bounding box
+        coordinates (min_u, min_v, max_u, max_v) in the image reference space.
+    """
+    points = np.array(stac_meta["geometry"]["coordinates"][0])
+    orbit_state = stac_meta["properties"]["sat:orbit_state"]
+
+    # convert to utm
+    center = np.mean(points, axis=0)
+    utm_zone = int(np.floor((center[0] + 180) / 6) + 1)
+    if center[1] >= 0:
+        utm_epsg = f"EPSG:326{utm_zone}"
+    else:
+        utm_epsg = f"EPSG:327{utm_zone}"
+    transformer = pyproj.Transformer.from_crs(_CRS_WGS84, utm_epsg, always_xy=True)
+    utm_points = transformer.transform(points[:, 0], points[:, 1])
+    utm_points = np.stack(utm_points).transpose()
+    utm_bbox = transformer.transform_bounds(*bbox, densify_pts=21)
+
+    control_xy, control_uv = build_footprint_uv_mapping(utm_points, orbit_state)
+    u_model = RBFInterpolator(control_xy, control_uv[:, 0], kernel="thin_plate_spline")
+    v_model = RBFInterpolator(control_xy, control_uv[:, 1], kernel="thin_plate_spline")
+    corners = np.array(
+        [
+            [utm_bbox[0], utm_bbox[1]],
+            [utm_bbox[2], utm_bbox[1]],
+            [utm_bbox[0], utm_bbox[3]],
+            [utm_bbox[2], utm_bbox[3]],
+        ]
+    )
+    us = u_model(corners)
+    vs = v_model(corners)
+
+    return np.min(us), np.min(vs), np.max(us), np.max(vs)

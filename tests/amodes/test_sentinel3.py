@@ -4,7 +4,6 @@
 
 from collections.abc import Sequence
 from unittest import TestCase
-from unittest.mock import patch
 
 import fsspec
 import numpy as np
@@ -19,7 +18,6 @@ from xarray_eopf.amodes.sentinel3 import (
     Sen3Ol1Efr,
     Sen3Sl1Rbt,
     Sen3Sl2Lst,
-    clip_dataset_by_geometry,
     register,
 )
 from xarray_eopf.constants import FloatInt
@@ -351,35 +349,3 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_fail_with_include_exclude(
             make_s3_slstr_lst(size=48)
         )
-
-
-class ClipDatasetByGeometryTest(TestCase):
-    def test_uses_southern_hemisphere_utm_epsg(self):
-        stac_meta = {
-            "geometry": {
-                "coordinates": [
-                    [
-                        [10.0, -20.0],
-                        [11.0, -20.0],
-                        [11.0, -19.0],
-                        [10.0, -19.0],
-                        [10.0, -20.0],
-                    ]
-                ]
-            },
-            "properties": {"sat:orbit_state": "descending"},
-        }
-        dataset = xr.Dataset(
-            {"band": (("rows", "columns"), np.ones((128, 128), dtype=np.float32))}
-        )
-        bbox = [10.1, -19.9, 10.9, -19.1]
-
-        with patch(
-            "xarray_eopf.amodes.sentinel3.pyproj.Transformer.from_crs",
-            wraps=pyproj.Transformer.from_crs,
-        ) as from_crs:
-            _ = clip_dataset_by_geometry(stac_meta, dataset, bbox, buffer=5)
-
-        self.assertGreaterEqual(from_crs.call_count, 1)
-        self.assertEqual("EPSG:4326", from_crs.call_args.args[0])
-        self.assertTrue(str(from_crs.call_args.args[1]).startswith("EPSG:327"))

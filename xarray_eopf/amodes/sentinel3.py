@@ -7,10 +7,11 @@ from abc import ABC
 from collections.abc import Iterable, Sequence
 from typing import Any
 
+import dask.array as da
 import numpy as np
 import pyproj.crs
 import xarray as xr
-from scipy.interpolate import RBFInterpolator, griddata
+from scipy.interpolate import griddata
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
@@ -21,16 +22,15 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
+from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt, _CRS_WGS84
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
     assert_arg_has_length,
     assert_arg_is_instance,
-    build_footprint_uv_mapping,
+    _find_relative_bbox,
 )
 
-_CRS = pyproj.CRS.from_string("EPSG:4326")
 _CHUNKSIZE = (2048, 2048)
 
 
@@ -50,7 +50,7 @@ class Sen3(AnalysisMode, ABC):
             else False
         )
 
-    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
 
         resolution = kwargs.get("resolution")
@@ -107,7 +107,7 @@ class Sen3(AnalysisMode, ABC):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS
+            crs = _CRS_WGS84
 
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
@@ -126,14 +126,20 @@ class Sen3(AnalysisMode, ABC):
         dataset = dataset.drop_vars(coords)
 
         # clip by bounding box
+        bbox_idx = None
         if bbox:
             bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
             stac_meta = datatree.attrs["stac_discovery"]
-            dataset = clip_dataset_by_geometry(stac_meta, dataset, bbox_wgs84)
+            rel_bbox = _find_relative_bbox(stac_meta, bbox_wgs84)
+            buffer = 20 if self.product_type == "SL_2_LST" else 50
+            dataset, bbox_idx = _clip_dataset_relative_bbox(
+                rel_bbox, dataset, buffer=buffer
+            )
             if any(size <= 1 for size in dataset.sizes.values()):
                 warnings.warn(
-                    "Clipping with the specified bounding box resulted in a dataset too small "
-                    "to compute a valid grid mapping. Returning clipped dataset as-is.",
+                    "Clipping with the specified bounding box "
+                    "resulted in a dataset too small to compute a valid grid "
+                    "mapping. Returning clipped dataset as-is.",
                     UserWarning,
                 )
                 return dataset
@@ -142,7 +148,7 @@ class Sen3(AnalysisMode, ABC):
         dataset["longitude"] = dataset["longitude"].persist()
 
         # orthorectify geolocation for elevation and viewing geometry
-        dataset = self._apply_orthorectification(dataset, datatree)
+        dataset = self._apply_orthorectification(dataset, datatree, bbox_idx=bbox_idx)
         dataset = dataset[variable_names]
 
         # reproject dataset to regular grid
@@ -186,7 +192,10 @@ class Sen3(AnalysisMode, ABC):
         return other_metadata
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
         """Placeholder method to be overwritten by product-specific subclasses
         handling SLSTR datasets.
@@ -226,20 +235,29 @@ class Sen3Sl2Lst(Sen3):
     default_resolution = 1000
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
-        elevation = dataset.elevation.persist()
-        valid_cols = ~elevation.isnull().any(dim="rows").values
-        dataset = dataset.isel(columns=valid_cols)
-        elevation = elevation.isel(columns=valid_cols)
-        return orthorectify_geolocation(
-            dataset,
-            elevation,
-            datatree.conditions.meteorology.latitude,
-            datatree.conditions.meteorology.longitude,
-            datatree.conditions.geometry.sat_zenith_tn,
-            datatree.conditions.geometry.sat_azimuth_tn,
+        angles = datatree.conditions.geometry.to_dataset()
+        angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
+        angles = angles.rename(
+            dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
         )
+        angles = angles.assign_coords(
+            dict(
+                latitude=datatree.conditions.meteorology.latitude,
+                longitude=datatree.conditions.meteorology.longitude,
+            )
+        )
+        if bbox_idx:
+            # The angles dataset has coarser sampling along the longitude axis,
+            # while the latitude dimension matches the resolution of the input dataset.
+            # Subset only along the latitude dimension to align with the target region.
+            angles = angles.isel(rows=slice(bbox_idx[1], bbox_idx[3]))
+
+        return orthorectify_geolocation(dataset, angles)
 
     def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
         """Placeholder method to be overwritten by product-specific subclasses
@@ -265,7 +283,8 @@ class Sen3Sl1Rbt(Sen3):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS
+            crs = _CRS_WGS84
+
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset_map = {}
@@ -366,27 +385,30 @@ class Sen3Sl1Rbt(Sen3):
         return bbox
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
-        elevation = dataset.elevation.persist()
-        valid_cols = ~elevation.isnull().any(dim="rows").values
-        dataset = dataset.isel(columns=valid_cols)
-        elevation = elevation.isel(columns=valid_cols)
-        if any(var.endswith("o") for var in dataset.data_vars.keys()):
-            sat_zenith = datatree.conditions.geometry_to.sat_zenith_to
-            sat_azimuth = datatree.conditions.geometry_to.sat_azimuth_to
+        if any(str(var).endswith("o") for var in dataset.data_vars.keys()):
+            angles = datatree.conditions.geometry_to.to_dataset()
+            angles = angles[["sat_zenith_to", "sat_azimuth_to"]]
+            angles = angles.rename(
+                dict(sat_zenith_to="sat_zenith", sat_azimuth_to="sat_azimuth")
+            )
         else:
-            sat_zenith = datatree.conditions.geometry_tn.sat_zenith_tn
-            sat_azimuth = datatree.conditions.geometry_tn.sat_azimuth_tn
-
-        return orthorectify_geolocation(
-            dataset,
-            elevation,
-            datatree.conditions.meteorology.latitude,
-            datatree.conditions.meteorology.longitude,
-            sat_zenith,
-            sat_azimuth,
+            angles = datatree.conditions.geometry_tn.to_dataset()
+            angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
+            angles = angles.rename(
+                dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
+            )
+        angles = angles.assign_coords(
+            dict(
+                latitude=datatree.conditions.meteorology.latitude,
+                longitude=datatree.conditions.meteorology.longitude,
+            )
         )
+        return orthorectify_geolocation(dataset, angles)
 
 
 def register(registry: AnalysisModeRegistry):
@@ -398,26 +420,17 @@ def register(registry: AnalysisModeRegistry):
     registry.register(Sen3Sl2Lst)
 
 
-def orthorectify_geolocation(
-    dataset: xr.Dataset,
-    elev: xr.DataArray,
-    lat: xr.DataArray,
-    lon: xr.DataArray,
-    sat_zenith: xr.DataArray,
-    sat_azimuth: xr.DataArray,
-) -> xr.Dataset:
+def orthorectify_geolocation(dataset: xr.Dataset, angles: xr.Dataset) -> xr.Dataset:
     """
     Apply terrain-induced parallax correction to satellite geolocation coordinates.
 
     Args:
-        dataset: Dataset containing geolocation coordinates to be corrected. Must
-            include `latitude` and `longitude` coordinates.
-        elev: Surface elevation in meters above the reference ellipsoid or sphere.
-        lat: Latitude values defining the source grid for satellite angle variables.
-        lon: Longitude values defining the source grid for satellite angle variables.
-        sat_zenith: Viewing zenith angle in degrees.
-        sat_azimuth: Viewing azimuth angle in degrees. Sentinel-3 convention is
-            clockwise from North.
+        dataset: Dataset containing geolocation coordinates to be corrected and
+            surface elevation in meters above the reference ellipsoid or sphere. Must
+            include `latitude` and `longitude` coordinates and `elevation` variable.
+        angles: Dataset containing satellite viewing geometry angles. Must include the
+            variables `sat_zenith`, `sat_azimuth` and the corresponding coordinates
+            ``latitude` and `longitude`.
 
     Returns:
         A new dataset with corrected `latitude` and `longitude` coordinates.
@@ -440,9 +453,6 @@ def orthorectify_geolocation(
         - Atmospheric refraction and ellipsoidal geometry effects are not considered.
         - Accuracy may degrade near the poles where `cos(latitude) → 0`.
     """
-    # load coordinates of dataset
-    ds_lat = dataset.latitude.values
-    ds_lon = dataset.longitude.values
 
     # interpolate satellite zenith and azimuth angle
     def _interpolate(
@@ -468,11 +478,18 @@ def orthorectify_geolocation(
 
         return angle_interp.reshape(lat_target.shape)
 
+    # load coordinates of dataset
+    ds_lat = dataset.latitude.values
+    ds_lon = dataset.longitude.values
+    # load coordinates of angles
+    angles_lat = angles.latitude.values
+    angles_lon = angles.longitude.values
+
     sat_zenith_interp = _interpolate(
-        sat_zenith.values, lat.values, lon.values, ds_lat, ds_lon
+        angles.sat_zenith.values, angles_lat, angles_lon, ds_lat, ds_lon
     )
     sat_azimuth_interp = _interpolate(
-        sat_azimuth.values, lat.values, lon.values, ds_lat, ds_lon
+        angles.sat_azimuth.values, angles_lat, angles_lon, ds_lat, ds_lon
     )
 
     # Convert everything to rad
@@ -481,7 +498,7 @@ def orthorectify_geolocation(
     phi_v = np.deg2rad(sat_azimuth_interp)
 
     # Horizontal displacement
-    t = elev.values * np.tan(theta_v)
+    t = dataset.elevation.fillna(0).values * np.tan(theta_v)
     delta_phi = t * np.cos(phi_v) / MEAN_EARTH_RADIUS
     delta_lam = t * np.sin(phi_v) / (MEAN_EARTH_RADIUS * np.cos(phi_true))
 
@@ -497,64 +514,18 @@ def orthorectify_geolocation(
     )
 
 
-def clip_dataset_by_geometry(
-    stac_meta: dict,
-    ds: xr.Dataset,
-    bbox: Sequence[FloatInt],
-    buffer: int = 50,
-) -> xr.Dataset:
-    """Clip a dataset to a geographic bounding box using a footprint-based mapping.
+def _clip_dataset_relative_bbox(
+    rel_bbox: Sequence[float], ds: xr.Dataset, buffer: int | tuple[int, int] = 50
+) -> tuple[xr.Dataset, tuple[int, int, int, int]]:
+    if isinstance(buffer, int):
+        buffer = (buffer, buffer)
 
-    This function estimates the pixel window corresponding to a geographic
-    bounding box by interpolating a mapping between geographic coordinates
-    (longitude, latitude) and image coordinates (columns, rows). The mapping is
-    derived from boundary points (in ring order) of a footprint geometry and
-    approximated using radial basis function (RBF) interpolation.
+    w, h = ds.sizes["columns"] - 1, ds.sizes["rows"] - 1
+    col_min = int(np.clip((rel_bbox[0] * w) - buffer[0], 0, w))
+    row_min = int(np.clip((rel_bbox[1] * h) - buffer[1], 0, h))
+    col_max = int(np.clip((rel_bbox[2] * w) + buffer[0], 0, w))
+    row_max = int(np.clip((rel_bbox[3] * h) + buffer[1], 0, h))
 
-    Args:
-        stac_meta: STAC metadata used to extrac footprint and orbit state.
-        ds: Input dataset with `rows` and `columns` dimensions.
-        bbox: Geographic bounding box defined as
-            `(min_lon, min_lat, max_lon, max_lat)`.
-        buffer: Number of pixels to extend the computed window in all directions
-            to ensure full coverage. Defaults to 50.
+    ds_sub = ds.isel(rows=slice(row_min, row_max), columns=slice(col_min, col_max))
 
-    Returns:
-        A subset of the input dataset clipped to the estimated pixel window.
-    """
-    points = np.array(stac_meta["geometry"]["coordinates"][0])
-    orbit_state = stac_meta["properties"]["sat:orbit_state"]
-
-    # convert to utm
-    center = np.mean(points, axis=0)
-    utm_zone = int(np.floor((center[0] + 180) / 6) + 1)
-    if center[1] >= 0:
-        utm_epsg = f"EPSG:326{utm_zone}"
-    else:
-        utm_epsg = f"EPSG:327{utm_zone}"
-    transformer = pyproj.Transformer.from_crs("EPSG:4326", utm_epsg, always_xy=True)
-    utm_points = transformer.transform(points[:, 0], points[:, 1])
-    utm_points = np.stack(utm_points).transpose()
-    utm_bbox = transformer.transform_bounds(*bbox, densify_pts=21)
-
-    control_xy, control_uv = build_footprint_uv_mapping(utm_points, orbit_state)
-    u_model = RBFInterpolator(control_xy, control_uv[:, 0], kernel="thin_plate_spline")
-    v_model = RBFInterpolator(control_xy, control_uv[:, 1], kernel="thin_plate_spline")
-
-    corners = np.array(
-        [
-            [utm_bbox[0], utm_bbox[1]],
-            [utm_bbox[2], utm_bbox[1]],
-            [utm_bbox[0], utm_bbox[3]],
-            [utm_bbox[2], utm_bbox[3]],
-        ]
-    )
-    cols = (u_model(corners) * (ds.sizes["columns"] - 1)).astype(int)
-    rows = (v_model(corners) * (ds.sizes["rows"] - 1)).astype(int)
-
-    col_min = np.clip(np.min(cols) - buffer, 0, ds.sizes["columns"] - 1)
-    row_min = np.clip(np.min(rows) - buffer, 0, ds.sizes["rows"] - 1)
-    col_max = np.clip(np.max(cols) + buffer, 0, ds.sizes["columns"] - 1)
-    row_max = np.clip(np.max(rows) + buffer, 0, ds.sizes["rows"] - 1)
-
-    return ds.isel(rows=slice(row_min, row_max), columns=slice(col_min, col_max))
+    return ds_sub, (col_min, row_min, col_max, row_max)

@@ -7,7 +7,6 @@ from abc import ABC
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-import dask.array as da
 import numpy as np
 import pyproj.crs
 import xarray as xr
@@ -22,13 +21,13 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt, _CRS_WGS84
+from xarray_eopf.constants import _CRS_WGS84, MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
+    _find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
-    _find_relative_bbox,
 )
 
 _CHUNKSIZE = (2048, 2048)

@@ -3,14 +3,13 @@
 #  https://opensource.org/license/apache-2-0.
 import re
 import time
-import warnings
 from collections.abc import Collection, Iterable
-from typing import Any, Literal, Type, TypeAlias, TypeVar, Sequence
+from typing import Any, Literal, Sequence, Type, TypeAlias, TypeVar
 
 import numpy as np
 import pyproj
-from scipy.interpolate import RBFInterpolator
 import xarray as xr
+from scipy.interpolate import RBFInterpolator
 
 from .constants import _CRS_WGS84
 

@@ -144,7 +144,7 @@ class Sen3(AnalysisMode, ABC):
                 warnings.warn(
                     "Clipping with the specified bounding box "
                     "resulted in a dataset too small to compute a valid grid "
-                    "mapping. Returning clipped dataset as-is.",
+                    "mapping. Returning clipped dataset.",
                     UserWarning,
                 )
                 return dataset
@@ -327,7 +327,7 @@ class Sen3Sl1Rbt(Sen3):
                         warnings.warn(
                             "Clipping with the specified bounding box "
                             "resulted in a dataset too small to compute a valid grid "
-                            "mapping. Returning clipped dataset as-is.",
+                            "mapping. Returning clipped dataset.",
                             UserWarning,
                         )
                         return dataset

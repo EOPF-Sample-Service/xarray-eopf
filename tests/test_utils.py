@@ -3,16 +3,20 @@
 #  https://opensource.org/license/apache-2-0.
 
 from unittest import TestCase
+from unittest.mock import patch
 
+import numpy as np
 import pytest
 import xarray as xr
 
 from tests.helpers import make_s2_msi
 from xarray_eopf.utils import (
     NameFilter,
+    find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
+    build_footprint_uv_mapping,
     get_data_tree_item,
     timeit,
 )
@@ -113,3 +117,49 @@ class NameFilterTest(TestCase):
         self.assertEqual(
             ["ernie", "emmie"], list(f.filter(["bibo", "ernie", "bert", "emmie"]))
         )
+
+
+class BuildFootprintUvMappingTest(TestCase):
+    def test_accepts_closed_ring_points(self):
+        open_ring = np.array(
+            [[10.0, 50.0], [12.0, 50.0], [12.0, 52.0], [10.0, 52.0]],
+            dtype=float,
+        )
+        closed_ring = np.vstack([open_ring, open_ring[0]])
+
+        open_xy, open_uv = build_footprint_uv_mapping(open_ring)
+        closed_xy, closed_uv = build_footprint_uv_mapping(closed_ring)
+
+        self.assertTrue(np.allclose(open_xy, closed_xy))
+        self.assertTrue(np.allclose(open_uv, closed_uv))
+
+    def test_find_relative_bbox_uses_southern_utm_epsg(self):
+        stac_meta = {
+            "geometry": {
+                "coordinates": [
+                    [
+                        [10.0, -11.0],
+                        [11.0, -11.0],
+                        [11.0, -10.0],
+                        [10.0, -10.0],
+                        [10.0, -11.0],
+                    ]
+                ]
+            },
+            "properties": {"sat:orbit_state": "descending"},
+        }
+        bbox = [10.2, -10.8, 10.8, -10.2]
+
+        with patch("xarray_eopf.utils.pyproj.Transformer.from_crs") as from_crs:
+            transformer = from_crs.return_value
+            transformer.transform.return_value = (
+                np.array([0.0, 1.0, 1.0, 0.0, 0.0]),
+                np.array([0.0, 0.0, 1.0, 1.0, 0.0]),
+            )
+            transformer.transform_bounds.return_value = (0.2, 0.2, 0.8, 0.8)
+
+            rel_bbox = find_relative_bbox(stac_meta, bbox)
+
+        _, utm_epsg = from_crs.call_args.args[:2]
+        self.assertEqual("EPSG:32732", utm_epsg)
+        self.assertEqual(4, len(rel_bbox))

@@ -4,9 +4,14 @@
 import re
 import time
 from collections.abc import Collection, Iterable
-from typing import Any, Type, TypeAlias, TypeVar
+from typing import Any, Literal, Sequence, Type, TypeAlias, TypeVar
 
+import numpy as np
+import pyproj
 import xarray as xr
+from scipy.interpolate import RBFInterpolator
+
+from .constants import CRS_WGS84
 
 T = TypeVar("T")
 
@@ -148,3 +153,98 @@ class NameFilter:
     ) -> list[tuple[str, Matcher]]:
         patterns = (patterns,) if isinstance(patterns, str) else (patterns or ())
         return [(p, re.compile(p)) for p in patterns if p]
+
+
+def build_footprint_uv_mapping(
+    points: np.ndarray, orbit_state: Literal["ascending", "descending"] = "descending"
+) -> tuple[np.ndarray, np.ndarray]:
+    """Create geometry control points and normalized image coordinates.
+
+    Args:
+        points: Boundary coordinates in ring order.
+        orbit_state: Orbit direction, either "ascending" or "descending".
+
+    Returns:
+        A tuple `(control_xy, control_uv)` where `control_xy` are boundary
+        coordinates and `control_uv` are corresponding normalized image
+        coordinates.
+    """
+    if np.allclose(points[0], points[-1]):
+        points = points[:-1]
+    lon = points[:, 0]
+    lat = points[:, 1]
+
+    idx_ll = int(np.argmin(lat + lon))
+    idx_ur = int(np.argmax(lat + lon))
+    idx_ul = int(np.argmax(lat - lon))
+    idx_lr = int(np.argmin(lat - lon))
+
+    control_xy = np.array(
+        [
+            [lon[idx_ll], lat[idx_ll]],
+            [lon[idx_lr], lat[idx_lr]],
+            [lon[idx_ul], lat[idx_ul]],
+            [lon[idx_ur], lat[idx_ur]],
+        ]
+    )
+
+    if orbit_state == "descending":
+        control_uv = np.array([[0.0, 1.0], [1.0, 1.0], [0.0, 0.0], [1.0, 0.0]])
+    else:
+        control_uv = np.array([[1.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+    return control_xy, control_uv
+
+
+def find_relative_bbox(stac_meta: dict, bbox: Sequence[float | int]) -> Sequence[float]:
+    """
+    Calculates the relative bounding box coordinates in image reference space based
+    on geographic bounding box and satellite metadata.
+
+    The function processes a geographic bounding box (`bbox`) by converting its
+    coordinates from WGS84 to UTM projection based on the center of the input
+    geospatial points. Using the STAC metadata (`stac_meta`), it builds a
+    mapping between ground control points and image coordinates using Radial Basis
+    Function interpolation. The final result is the corresponding bounding box
+    coordinates in the image reference space.
+
+    Args:
+        stac_meta: A dictionary containing metadata for the satellite image
+            with necessary geographic and orbital details. Includes geometry
+            coordinates and satellite orbit state.
+        bbox: A sequence of four elements representing the
+            geographic bounding box in WGS84 format (west, south, east, north).
+
+    Returns:
+        A sequence of four elements representing the bounding box
+        coordinates (min_u, min_v, max_u, max_v) in the image reference space.
+    """
+    points = np.array(stac_meta["geometry"]["coordinates"][0])
+    orbit_state = stac_meta["properties"]["sat:orbit_state"]
+
+    # convert to utm
+    center = np.mean(points, axis=0)
+    utm_zone = int(np.floor((center[0] + 180) / 6) + 1)
+    if center[1] >= 0:
+        utm_epsg = f"EPSG:326{utm_zone}"
+    else:
+        utm_epsg = f"EPSG:327{utm_zone}"
+    transformer = pyproj.Transformer.from_crs(CRS_WGS84, utm_epsg, always_xy=True)
+    utm_points = transformer.transform(points[:, 0], points[:, 1])
+    utm_points = np.stack(utm_points).transpose()
+    utm_bbox = transformer.transform_bounds(*bbox, densify_pts=21)
+
+    control_xy, control_uv = build_footprint_uv_mapping(utm_points, orbit_state)
+    u_model = RBFInterpolator(control_xy, control_uv[:, 0], kernel="thin_plate_spline")
+    v_model = RBFInterpolator(control_xy, control_uv[:, 1], kernel="thin_plate_spline")
+    corners = np.array(
+        [
+            [utm_bbox[0], utm_bbox[1]],
+            [utm_bbox[2], utm_bbox[1]],
+            [utm_bbox[0], utm_bbox[3]],
+            [utm_bbox[2], utm_bbox[3]],
+        ]
+    )
+    us = u_model(corners)
+    vs = v_model(corners)
+
+    return np.min(us), np.min(vs), np.max(us), np.max(vs)

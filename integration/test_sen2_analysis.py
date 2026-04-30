@@ -7,7 +7,6 @@ from unittest import TestCase
 import xarray as xr
 
 from integration.helpers import assert_dataset_is_chunked
-from xarray_eopf.constants import DEFAULT_ENDPOINT_URL
 from xarray_eopf.utils import timeit
 
 allowed_open_time = 1000  # seconds

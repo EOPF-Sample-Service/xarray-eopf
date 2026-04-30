@@ -11,7 +11,7 @@ import pyproj
 import xarray as xr
 from scipy.interpolate import RBFInterpolator
 
-from .constants import _CRS_WGS84
+from .constants import CRS_WGS84
 
 T = TypeVar("T")
 
@@ -195,9 +195,7 @@ def build_footprint_uv_mapping(
     return control_xy, control_uv
 
 
-def _find_relative_bbox(
-    stac_meta: dict, bbox: Sequence[float | int]
-) -> Sequence[float]:
+def find_relative_bbox(stac_meta: dict, bbox: Sequence[float | int]) -> Sequence[float]:
     """
     Calculates the relative bounding box coordinates in image reference space based
     on geographic bounding box and satellite metadata.
@@ -230,7 +228,7 @@ def _find_relative_bbox(
         utm_epsg = f"EPSG:326{utm_zone}"
     else:
         utm_epsg = f"EPSG:327{utm_zone}"
-    transformer = pyproj.Transformer.from_crs(_CRS_WGS84, utm_epsg, always_xy=True)
+    transformer = pyproj.Transformer.from_crs(CRS_WGS84, utm_epsg, always_xy=True)
     utm_points = transformer.transform(points[:, 0], points[:, 1])
     utm_points = np.stack(utm_points).transpose()
     utm_bbox = transformer.transform_bounds(*bbox, densify_pts=21)

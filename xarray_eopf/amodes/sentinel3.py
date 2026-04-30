@@ -21,16 +21,18 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.constants import _CRS_WGS84, MEAN_EARTH_RADIUS, FloatInt
+from xarray_eopf.constants import CRS_WGS84, MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
-    _find_relative_bbox,
+    find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
 )
 
 _CHUNKSIZE = (2048, 2048)
+_CUTOUT_BUFFER_OLCI = 50
+_CUTOUT_BUFFER_SLSTR = 20
 
 
 class Sen3(AnalysisMode, ABC):
@@ -106,7 +108,7 @@ class Sen3(AnalysisMode, ABC):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS_WGS84
+            crs = CRS_WGS84
 
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
@@ -129,8 +131,12 @@ class Sen3(AnalysisMode, ABC):
         if bbox:
             bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
             stac_meta = datatree.attrs["stac_discovery"]
-            rel_bbox = _find_relative_bbox(stac_meta, bbox_wgs84)
-            buffer = 20 if self.product_type == "SL_2_LST" else 50
+            rel_bbox = find_relative_bbox(stac_meta, bbox_wgs84)
+            buffer = (
+                _CUTOUT_BUFFER_SLSTR
+                if self.product_type == "SL_2_LST"
+                else _CUTOUT_BUFFER_OLCI
+            )
             dataset, bbox_idx = _clip_dataset_relative_bbox(
                 rel_bbox, dataset, buffer=buffer
             )
@@ -282,7 +288,7 @@ class Sen3Sl1Rbt(Sen3):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS_WGS84
+            crs = CRS_WGS84
 
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)

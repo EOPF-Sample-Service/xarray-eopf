@@ -11,7 +11,7 @@ OP_MODE_NATIVE: Final = "native"
 OP_MODES: Final = OP_MODE_ANALYSIS, OP_MODE_NATIVE
 MEAN_EARTH_RADIUS = 6370997  # meter
 CONVERSION_FACTOR_DEG_METER = 111320
-_CRS_WGS84 = pyproj.CRS("EPSG:4326")
+CRS_WGS84 = pyproj.CRS("EPSG:4326")
 
 FloatInt = float | int
 OpMode: TypeAlias = Literal["analysis", "native"]

@@ -12,7 +12,7 @@ import xarray as xr
 from tests.helpers import make_s2_msi
 from xarray_eopf.utils import (
     NameFilter,
-    _find_relative_bbox,
+    find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
@@ -158,7 +158,7 @@ class BuildFootprintUvMappingTest(TestCase):
             )
             transformer.transform_bounds.return_value = (0.2, 0.2, 0.8, 0.8)
 
-            rel_bbox = _find_relative_bbox(stac_meta, bbox)
+            rel_bbox = find_relative_bbox(stac_meta, bbox)
 
         _, utm_epsg = from_crs.call_args.args[:2]
         self.assertEqual("EPSG:32732", utm_epsg)

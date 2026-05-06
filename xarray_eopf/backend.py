@@ -192,7 +192,7 @@ class EopfBackend(BackendEntrypoint):
                     "mode", "min", "prod", "std", "sum", and "var".
                 Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),
                 else "mean".
-            dem: Optional DEM as a Cf-conformant `xarray.DataArray` to use with
+            dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with
                 Sentinel-1 products for geometric and radiometric terrain correction
                 (foreshooting und overlay) using zero doppler geometry. If None, data
                 is fetched from the [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);

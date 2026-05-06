@@ -95,7 +95,7 @@ Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
 - `resolution`: Target resolution for all spatial variables expressed in the units 
   of the specified `crs`. If not specified, the resolution is derived (in degrees) 
   from the CopDEM (30 m).
-- `dem`: Digital Elevation Model (DEM) as a Cf-conformant `xarray.DataArray` used for
+- `dem`: Digital Elevation Model (DEM) as a CF-compliant `xarray.DataArray` used for
   terrain correction. If provided, the parameters `crs`, `bbox`, and `resolution` are 
   ignored, and the target grid is derived from the DEM. If not provided, the
   [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog)  

@@ -158,7 +158,9 @@ class EopfBackend(BackendEntrypoint):
                 data variables / bands. For Sentinel-2 products it be one of
                 `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
             bbox: Bounding box [west, south, east, north], used for subsetting.
-            crs: coordinate reference system of output dataset.
+            crs: coordinate reference system of output dataset. Can be provided as a
+                `str` or a `pyproj.CRS` object. If a string is given, it will be parsed
+                using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
             interp_methods: Optional interpolation method to be used if
                 `op_mode="analysis"`,
                 - for Sentinel-1:
@@ -190,10 +192,10 @@ class EopfBackend(BackendEntrypoint):
                     "mode", "min", "prod", "std", "sum", and "var".
                 Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),
                 else "mean".
-            dem: Optional DEM to use with Sentinel-1 products for geometric and
-                radiometric terrain correction (foreshooting und overlay) using
-                zero doppler geometry. If None, data is fetched from the
-                [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);
+            dem: Optional DEM as a Cf-conformant `xarray.DataArray` to use with
+                Sentinel-1 products for geometric and radiometric terrain correction
+                (foreshooting und overlay) using zero doppler geometry. If None, data
+                is fetched from the [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);
                 note that the S3 credentials for CDSE access need to be set up as
                 environment variables, which can be obtained from
                 [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).

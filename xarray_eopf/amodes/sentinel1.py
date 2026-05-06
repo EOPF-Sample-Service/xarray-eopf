@@ -360,12 +360,12 @@ def get_dem(
             crs,
             tile_size=(_DEM_CHUNKSIZE["lat"], _DEM_CHUNKSIZE["lon"]),
         )
-        dem = resample_in_space(dem.to_dataset(), target_gm=target_gm).dem
+        dem = resample_in_space(dem.to_dataset(name="dem"), target_gm=target_gm).dem
 
     return dem
 
 
-def convert_dem_to_ecef(dem: xr.DataArray) -> xr.DataArray:
+def convert_dem_to_ecef(dem: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
     """Convert a DEM from its native CRS to ECEF coordinates.
 
     Args:
@@ -374,7 +374,6 @@ def convert_dem_to_ecef(dem: xr.DataArray) -> xr.DataArray:
     Returns:
         DEM expressed in ECEF axes.
     """
-    gm_dem = GridMapping.from_dataset(dem.to_dataset())
     x_dim, y_dim = gm_dem.xy_var_names
     transformer = pyproj.Transformer.from_crs(gm_dem.crs, _CRS_ECEF, always_xy=True)
 
@@ -636,7 +635,7 @@ def backward_geocode(
     """
     f = functools.partial(zero_doppler, dem_ecef, pos_coeff, vel_coeff)
 
-    t0 = xr.zeros_like(dem_ecef.sel(axis="x"), dtype="float64")
+    t0 = xr.zeros_like(dem_ecef.sel(axis="x", drop=True), dtype="float64")
     t1 = t0 + t_shift
 
     if method == "secant":
@@ -969,8 +968,9 @@ def terrain_correct(
     Raises:
         ValueError: If RTC is enabled without grid parameters.
     """
+    gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
 
-    dem_ecef = convert_dem_to_ecef(dem)
+    dem_ecef = convert_dem_to_ecef(dem, gm_dem)
 
     polyfit_pos = fit_position(sat_position)
     polyfit_vel = poly_derivative(polyfit_pos)
@@ -998,4 +998,13 @@ def terrain_correct(
         beta_sim = apply_gamma_weights(acquisition, weights_fn, grid_params)
         geocoded = geocoded / beta_sim
 
+    geocoded = assign_grid_mapping(geocoded, gm_dem.crs)
     return geocoded
+
+
+def assign_grid_mapping(dataset: xr.Dataset, crs: pyproj.CRS) -> xr.Dataset:
+    dataset = dataset.assign_coords({"spatial_ref": xr.DataArray(0, attrs=crs.to_cf())})
+    for var_name, data_var in dataset.data_vars.items():
+        dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
+
+    return dataset

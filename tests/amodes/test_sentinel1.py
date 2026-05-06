@@ -12,6 +12,7 @@ import numpy as np
 import pyproj
 import pytest
 import xarray as xr
+from xcube_resampling.gridmapping import GridMapping
 
 from tests.helpers import make_s1_grd_datatree
 from xarray_eopf.amode import AnalysisModeRegistry
@@ -260,6 +261,7 @@ class Sentinel1FunctionsTest(TestCase):
                 self.assertEqual(3, out.sizes["lon"])
 
     def test_get_dem_resolution_with_no_crs_sets_wgs84(self):
+        crs = pyproj.CRS.from_epsg(4326)
         with patch.dict(
             os.environ,
             {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
@@ -272,15 +274,22 @@ class Sentinel1FunctionsTest(TestCase):
                 fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
                 search = SimpleNamespace(items=lambda: [fake_item])
                 client_open.return_value = SimpleNamespace(search=lambda **_: search)
+
                 open_rasterio.return_value = xr.DataArray(
                     np.ones((1, 4, 4), dtype="float32"),
                     dims=("band", "y", "x"),
-                    coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
+                    coords={
+                        "band": [1],
+                        "y": [3, 2, 1, 0],
+                        "x": [0, 1, 2, 3],
+                        "spatial_ref": xr.DataArray(0, attrs=crs.to_cf()),
+                    },
                 )
 
                 out = sen1.get_dem([0, 0, 1, 1], resolution=0.5, crs=None)
                 self.assertIsInstance(out, xr.DataArray)
                 self.assertEqual((2, 2), out.values.shape)
+                self.assertDictEqual(crs.to_cf(), out.spatial_ref.attrs)
 
     def test_az_orbit_roundtrip(self):
         epoch = np.datetime64("2024-01-01T00:00:00")
@@ -300,7 +309,8 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("lat", "lon"),
             coords={"lat": [0, 1, 2, 3], "lon": [0, 1, 2, 3]},
         )
-        out = sen1.convert_dem_to_ecef(dem)
+        gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
+        out = sen1.convert_dem_to_ecef(dem, gm_dem)
         self.assertEqual(("axis", "lat", "lon"), out.dims)
         self.assertEqual(3, out.sizes["axis"])
 
@@ -662,7 +672,11 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("azimuth_time", "axis"),
             coords={"azimuth_time": [0, 1], "axis": ["x", "y", "z"]},
         )
-        dem = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
+        dem = xr.DataArray(
+            np.ones((2, 2)),
+            dims=("lat", "lon"),
+            coords={"lat": [0, 1], "lon": [0, 1]},
+        )
         distance = xr.DataArray(
             np.ones((3, 2, 2), dtype="float64"),
             dims=("axis", "lat", "lon"),
@@ -704,7 +718,9 @@ class Sentinel1FunctionsTest(TestCase):
             out = sen1.terrain_correct(
                 data, time_slr_gcp, sat_position, dem, apply_rtc=False
             )
-            self.assertIs(out, geocoded)
+            self.assertIn("vv", out)
+            self.assertEqual(2, out.vv.shape[0])
+            self.assertEqual(2, out.vv.values[0, 0])
             with pytest.raises(ValueError, match="grid parameters required for RTC"):
                 sen1.terrain_correct(
                     data, time_slr_gcp, sat_position, dem, apply_rtc=True

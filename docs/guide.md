@@ -38,8 +38,11 @@ Returns an EOPF data product from Sentinel-1, -2, or -3 in an analysis-ready, co
 form. Common parameters are:
 
 - `resolution`: Target resolution for all spatial data variables / bands.
-- `crs`: Coordinate reference system of the output dataset. If not provided, a
-  mission-specific default CRS is used (see the respective mission sections below).
+- `crs`: Coordinate reference system of the output dataset. Can be provided as a 
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string). 
+  If not specified, a mission-specific default CRS will be applied (see the respective 
+  mission sections below).
 - `bbox`: Bounding box `[west, south, east, north]` used for spatial subsetting;
   coordinates must be in the same CRS as `crs`.
 - `variables`: Variables to include in the dataset. Can be a name or regex pattern 
@@ -85,13 +88,16 @@ Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
 
 **Specific Sentinel-1 parameters `**kwargs`:**
 
-- `crs`: Coordinate reference system of the output dataset. If not specified,
-  [EPSG:4326](https://epsg.io/4326) is used.
-- `resolution`: Target resolution for all spatial variables. If not specified,
-  the resolution is derived (in degrees) from the CopDEM (30 m).
-- `dem`: Digital Elevation Model (DEM) used for terrain correction. If provided,
-  the parameters `crs`, `bbox`, and `resolution` are ignored, and the target grid
-  is derived from the DEM. If not provided, the
+- `crs`: Coordinate reference system of the output dataset. Can be provided as a 
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
+  If not specified, [EPSG:4326](https://epsg.io/4326) is used.
+- `resolution`: Target resolution for all spatial variables expressed in the units 
+  of the specified `crs`. If not specified, the resolution is derived (in degrees) 
+  from the CopDEM (30 m).
+- `dem`: Digital Elevation Model (DEM) as a Cf-conformant `xarray.DataArray` used for
+  terrain correction. If provided, the parameters `crs`, `bbox`, and `resolution` are 
+  ignored, and the target grid is derived from the DEM. If not provided, the
   [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog)  
   is automatically retrieved via the CDSE STAC API. This requires
   [CDSE S3 credentials](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
@@ -134,7 +140,9 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 
 - `variables`: Select specific spectral bands using the names listed above in
   *Supported Variables*. Common spectral band names from the [STAC EO extension](https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names) are also supported for Sentinel-2 analysis mode.
-- `crs`: Coordinate reference system of the output dataset.
+- `crs`: Coordinate reference system of the output dataset. Can be provided as a 
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
   If not specified, the UTM grid of the native data is used.
 - `resolution`: Target resolution for all spatial variables/bands.
   Choose 10, 20, or 60 meters to minimize resampling and retain some of the native
@@ -221,7 +229,9 @@ for details.
 **Specific Sentinel-3 parameters `**kwargs`:**
 
 - `variables`: Select variables using the names listed above in *Supported Variables*.
-- `crs`: Coordinate reference system of the output dataset.
+- `crs`: Coordinate reference system of the output dataset.  Can be provided as a 
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
   If not specified, [EPSG:4326](https://epsg.io/4326) is used.
 - `resolution`: Target resolution for all spatial variables/bands.
   If not specified, the default is set per product:

@@ -6,6 +6,9 @@
   and is no longer used internally.
 - Add support for Sentinel-1 GRD analysis mode.
 - Updated year in the headers.
+- Added footprint-based subsetting for Sentinel-3 OLCI and SLSTR LST using STAC 
+  metadata, improving performance by avoiding full latitude/longitude grid downloads 
+  during subsetting.
 
 
 ## Changes in 0.2.7 (from 2026-03-27)

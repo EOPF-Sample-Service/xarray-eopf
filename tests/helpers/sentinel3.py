@@ -11,17 +11,25 @@ import xarray as xr
 
 
 def make_s3_olci_efr(size: int = 48) -> xr.DataTree:
+    ds = make_s3_meas(size, bands=[f"oa{i:02}_radiance" for i in range(1, 22)])
 
-    return create_datatree(
-        {
-            "measurements": make_s3_meas(
-                size, bands=[f"oa{i:02}_radiance" for i in range(1, 22)]
-            ),
+    footprint = derive_footprint(ds)
+
+    dt = create_datatree(
+        {"measurements": ds},
+        attrs={
+            "stac_discovery": {
+                "geometry": {"type": "Polygon", "coordinates": [footprint]},
+                "properties": {"sat:orbit_state": "descending"},
+            }
         },
     )
+    return dt
 
 
 def make_s3_slstr_lst(size: int = 48) -> xr.DataTree:
+    ds = make_s3_meas(size, bands=["lst"])
+    footprint = derive_footprint(ds)
     return create_datatree(
         {
             "conditions/auxiliary": make_s3_meas(size, bands=["elevation"]),
@@ -29,7 +37,13 @@ def make_s3_slstr_lst(size: int = 48) -> xr.DataTree:
             "conditions/geometry": make_s3_meas(
                 (size, size // 10), bands=["sat_azimuth_tn", "sat_zenith_tn"]
             ),
-            "measurements": make_s3_meas(size, bands=["lst"]),
+            "measurements": ds,
+        },
+        attrs={
+            "stac_discovery": {
+                "geometry": {"type": "Polygon", "coordinates": [footprint]},
+                "properties": {"sat:orbit_state": "ascending"},
+            }
         },
     )
 
@@ -116,10 +130,28 @@ def make_coords(w: int, h: int, oblique_view=False) -> dict[str, xr.DataArray]:
     return {
         "latitude": xr.DataArray(lat_final, dims=("rows", "columns")),
         "longitude": xr.DataArray(lon_final, dims=("rows", "columns")),
-        "time_stamps": xr.DataArray(
-            np.arange(h).astype("datetime64[ns]"), dims=("rows")
-        ),
+        "time_stamps": xr.DataArray(np.arange(h).astype("datetime64[ns]"), dims="rows"),
     }
+
+
+def derive_footprint(ds: xr.Dataset) -> list[list[float]]:
+    lon = ds["longitude"]
+    lat = ds["latitude"]
+    corners = [
+        (0, 0),
+        (0, ds.sizes["columns"] - 1),
+        (ds.sizes["rows"] - 1, ds.sizes["columns"] - 1),
+        (ds.sizes["rows"] - 1, 0),
+    ]
+    footprint = [
+        [
+            float(lon.isel(rows=i, columns=j).values),
+            float(lat.isel(rows=i, columns=j).values),
+        ]
+        for i, j in corners
+    ]
+    footprint.append(footprint[0])
+    return footprint
 
 
 def create_datatree(

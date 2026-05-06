@@ -14,7 +14,12 @@ import zarr
 
 from tests.helpers import make_s3_olci_efr, make_s3_slstr_lst, make_s3_slstr_rbt
 from xarray_eopf.amode import AnalysisModeRegistry
-from xarray_eopf.amodes.sentinel3 import Sen3Ol1Efr, Sen3Sl1Rbt, Sen3Sl2Lst, register
+from xarray_eopf.amodes.sentinel3 import (
+    Sen3Ol1Efr,
+    Sen3Sl1Rbt,
+    Sen3Sl2Lst,
+    register,
+)
 from xarray_eopf.constants import FloatInt
 
 
@@ -91,7 +96,7 @@ class Sen3TestMixin:
         self,
         original_dt: xr.DataTree,
         expected_var_names: list[str],
-        expected_size: (int, int),
+        expected_size: tuple[int, int],
         resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
     ):
@@ -117,6 +122,12 @@ class Sen3TestMixin:
     def assert_convert_datatree_fail(self, original_dt: xr.DataTree):
         with pytest.raises(ValueError, match="No variables selected"):
             self.mode.convert_datatree(original_dt, includes="bibo")
+
+    def assert_convert_datatree_fail_with_include_exclude(
+        self, original_dt: xr.DataTree
+    ):
+        with pytest.raises(ValueError, match="No variables selected"):
+            self.mode.convert_datatree(original_dt, includes=".+", excludes=".+")
 
 
 class OlciEfrTest(Sen3TestMixin, TestCase):
@@ -163,7 +174,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
                 "oa02_radiance",
                 "oa03_radiance",
             ],
-            expected_size=(372, 421),
+            expected_size=(372, 454),
             bbox=[1, 55, 3, 56],
         )
 
@@ -186,6 +197,21 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
 
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_olci_efr(size=48))
+
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_olci_efr(size=48)
+        )
+
+    def test_convert_datatree_sets_other_metadata_as_attrs(self):
+        dt = make_s3_olci_efr(size=100)
+        dt.attrs["other_metadata"] = {"test_key": "test_val"}
+        ds = self.mode.convert_datatree(
+            dt,
+            includes=["oa01_radiance"],
+            resolution=0.1,
+        )
+        self.assertEqual({"test_key": "test_val"}, ds.attrs)
 
 
 class SlstrRbtTest(Sen3TestMixin, TestCase):
@@ -260,6 +286,11 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_slstr_rbt(size=48))
 
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_slstr_rbt(size=48)
+        )
+
     def test_get_outer_bbox(self):
         bboxs = np.array([[-2, 10, 8, 20], [2, 12, 13, 25]])
         expected = [-2, 10, 13, 25]
@@ -307,9 +338,14 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
         self.assert_convert_datatree_ok(
             make_s3_slstr_lst(size=1000),
             expected_var_names=["lst"],
-            expected_size=(112, 127),
+            expected_size=(112, 148),
             bbox=[1, 55, 3, 56],
         )
 
     def test_convert_datatree_fail(self):
         self.assert_convert_datatree_fail(make_s3_slstr_lst(size=48))
+
+    def test_convert_datatree_fail_include_exclude_overlap(self):
+        self.assert_convert_datatree_fail_with_include_exclude(
+            make_s3_slstr_lst(size=48)
+        )

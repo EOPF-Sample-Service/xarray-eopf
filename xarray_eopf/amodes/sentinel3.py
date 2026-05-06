@@ -21,12 +21,18 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
-from xarray_eopf.constants import MEAN_EARTH_RADIUS, FloatInt
+from xarray_eopf.constants import CRS_WGS84, MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
-from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
+from xarray_eopf.utils import (
+    NameFilter,
+    find_relative_bbox,
+    assert_arg_has_length,
+    assert_arg_is_instance,
+)
 
-_CRS = pyproj.CRS.from_string("EPSG:4326")
 _CHUNKSIZE = (2048, 2048)
+_CUTOUT_BUFFER_OLCI = 50
+_CUTOUT_BUFFER_SLSTR = 20
 
 
 class Sen3(AnalysisMode, ABC):
@@ -102,7 +108,7 @@ class Sen3(AnalysisMode, ABC):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS
+            crs = CRS_WGS84
 
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
@@ -119,26 +125,36 @@ class Sen3(AnalysisMode, ABC):
             if coord not in ["latitude", "longitude"]:
                 coords.append(coord)
         dataset = dataset.drop_vars(coords)
+
+        # clip by bounding box
+        bbox_idx = None
+        if bbox:
+            bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+            stac_meta = datatree.attrs["stac_discovery"]
+            rel_bbox = find_relative_bbox(stac_meta, bbox_wgs84)
+            buffer = (
+                _CUTOUT_BUFFER_SLSTR
+                if self.product_type == "SL_2_LST"
+                else _CUTOUT_BUFFER_OLCI
+            )
+            dataset, bbox_idx = _clip_dataset_relative_bbox(
+                rel_bbox, dataset, buffer=buffer
+            )
+            if any(size <= 1 for size in dataset.sizes.values()):
+                warnings.warn(
+                    "Clipping with the specified bounding box "
+                    "resulted in a dataset too small to compute a valid grid "
+                    "mapping. Returning clipped dataset.",
+                    UserWarning,
+                )
+                return dataset
+
         dataset["latitude"] = dataset["latitude"].persist()
         dataset["longitude"] = dataset["longitude"].persist()
 
         # orthorectify geolocation for elevation and viewing geometry
-        dataset = self._apply_orthorectification(dataset, datatree)
+        dataset = self._apply_orthorectification(dataset, datatree, bbox_idx=bbox_idx)
         dataset = dataset[variable_names]
-
-        # clip by bounding box
-        if bbox:
-            bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
-            dataset = clip_dataset_by_bbox(
-                dataset, bbox_wgs84, ("longitude", "latitude")
-            )
-            if any(size <= 1 for size in dataset.sizes.values()):
-                warnings.warn(
-                    "Clipping with the specified bounding box resulted in a dataset too small "
-                    "to compute a valid grid mapping. Returning clipped dataset as-is.",
-                    UserWarning,
-                )
-                return dataset
 
         # reproject dataset to regular grid
         source_gm = GridMapping.from_dataset(dataset)
@@ -181,7 +197,10 @@ class Sen3(AnalysisMode, ABC):
         return other_metadata
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
         """Placeholder method to be overwritten by product-specific subclasses
         handling SLSTR datasets.
@@ -221,20 +240,29 @@ class Sen3Sl2Lst(Sen3):
     default_resolution = 1000
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
-        elevation = dataset.elevation.persist()
-        valid_cols = ~elevation.isnull().any(dim="rows").values
-        dataset = dataset.isel(columns=valid_cols)
-        elevation = elevation.isel(columns=valid_cols)
-        return orthorectify_geolocation(
-            dataset,
-            elevation,
-            datatree.conditions.meteorology.latitude,
-            datatree.conditions.meteorology.longitude,
-            datatree.conditions.geometry.sat_zenith_tn,
-            datatree.conditions.geometry.sat_azimuth_tn,
+        angles = datatree.conditions.geometry.to_dataset()
+        angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
+        angles = angles.rename(
+            dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
         )
+        angles = angles.assign_coords(
+            dict(
+                latitude=datatree.conditions.meteorology.latitude,
+                longitude=datatree.conditions.meteorology.longitude,
+            )
+        )
+        if bbox_idx:
+            # The angles dataset has coarser sampling along the longitude axis,
+            # while the latitude dimension matches the resolution of the input dataset.
+            # Subset only along the latitude dimension to align with the target region.
+            angles = angles.isel(rows=slice(bbox_idx[1], bbox_idx[3]))
+
+        return orthorectify_geolocation(dataset, angles)
 
     def _add_elevation(self, dataset: xr.Dataset, datatree: xr.DataTree) -> xr.Dataset:
         """Placeholder method to be overwritten by product-specific subclasses
@@ -260,7 +288,8 @@ class Sen3Sl1Rbt(Sen3):
         agg_methods: SpatialAggMethods | None = None,
     ) -> xr.Dataset:
         if crs is None:
-            crs = _CRS
+            crs = CRS_WGS84
+
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset_map = {}
@@ -288,6 +317,9 @@ class Sen3Sl1Rbt(Sen3):
                 # clip dataset by bbox
                 if bbox:
                     bbox_wgs84 = reproject_bbox(bbox, crs, "EPSG:4326")
+                    # Clip the dataset using the lat/lon grid rather than the STAC
+                    # geometry. The STAC footprint represents the nadir view only and
+                    # does not account for spatial extent in oblique acquisition.
                     dataset = clip_dataset_by_bbox(
                         dataset, bbox_wgs84, ("longitude", "latitude")
                     )
@@ -295,15 +327,12 @@ class Sen3Sl1Rbt(Sen3):
                         warnings.warn(
                             "Clipping with the specified bounding box "
                             "resulted in a dataset too small to compute a valid grid "
-                            "mapping. Returning clipped dataset as-is.",
+                            "mapping. Returning clipped dataset.",
                             UserWarning,
                         )
                         return dataset
 
-                dataset_map[sub_group] = (
-                    dataset,
-                    GridMapping.from_dataset(dataset),
-                )
+                dataset_map[sub_group] = (dataset, GridMapping.from_dataset(dataset))
         if not dataset_map:
             raise ValueError("No variables selected")
 
@@ -361,27 +390,30 @@ class Sen3Sl1Rbt(Sen3):
         return bbox
 
     def _apply_orthorectification(
-        self, dataset: xr.Dataset, datatree: xr.DataTree
+        self,
+        dataset: xr.Dataset,
+        datatree: xr.DataTree,
+        bbox_idx: tuple[int, int, int, int] = None,
     ) -> xr.Dataset:
-        elevation = dataset.elevation.persist()
-        valid_cols = ~elevation.isnull().any(dim="rows").values
-        dataset = dataset.isel(columns=valid_cols)
-        elevation = elevation.isel(columns=valid_cols)
         if any(str(var).endswith("o") for var in dataset.data_vars.keys()):
-            sat_zenith = datatree.conditions.geometry_to.sat_zenith_to
-            sat_azimuth = datatree.conditions.geometry_to.sat_azimuth_to
+            angles = datatree.conditions.geometry_to.to_dataset()
+            angles = angles[["sat_zenith_to", "sat_azimuth_to"]]
+            angles = angles.rename(
+                dict(sat_zenith_to="sat_zenith", sat_azimuth_to="sat_azimuth")
+            )
         else:
-            sat_zenith = datatree.conditions.geometry_tn.sat_zenith_tn
-            sat_azimuth = datatree.conditions.geometry_tn.sat_azimuth_tn
-
-        return orthorectify_geolocation(
-            dataset,
-            elevation,
-            datatree.conditions.meteorology.latitude,
-            datatree.conditions.meteorology.longitude,
-            sat_zenith,
-            sat_azimuth,
+            angles = datatree.conditions.geometry_tn.to_dataset()
+            angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
+            angles = angles.rename(
+                dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
+            )
+        angles = angles.assign_coords(
+            dict(
+                latitude=datatree.conditions.meteorology.latitude,
+                longitude=datatree.conditions.meteorology.longitude,
+            )
         )
+        return orthorectify_geolocation(dataset, angles)
 
 
 def register(registry: AnalysisModeRegistry):
@@ -393,26 +425,17 @@ def register(registry: AnalysisModeRegistry):
     registry.register(Sen3Sl2Lst)
 
 
-def orthorectify_geolocation(
-    dataset: xr.Dataset,
-    elev: xr.DataArray,
-    lat: xr.DataArray,
-    lon: xr.DataArray,
-    sat_zenith: xr.DataArray,
-    sat_azimuth: xr.DataArray,
-) -> xr.Dataset:
+def orthorectify_geolocation(dataset: xr.Dataset, angles: xr.Dataset) -> xr.Dataset:
     """
     Apply terrain-induced parallax correction to satellite geolocation coordinates.
 
     Args:
-        dataset: Dataset containing geolocation coordinates to be corrected. Must
-            include `latitude` and `longitude` coordinates.
-        elev: Surface elevation in meters above the reference ellipsoid or sphere.
-        lat: Latitude values defining the source grid for satellite angle variables.
-        lon: Longitude values defining the source grid for satellite angle variables.
-        sat_zenith: Viewing zenith angle in degrees.
-        sat_azimuth: Viewing azimuth angle in degrees. Sentinel-3 convention is
-            clockwise from North.
+        dataset: Dataset containing geolocation coordinates to be corrected and
+            surface elevation in meters above the reference ellipsoid or sphere. Must
+            include `latitude` and `longitude` coordinates and `elevation` variable.
+        angles: Dataset containing satellite viewing geometry angles. Must include the
+            variables `sat_zenith`, `sat_azimuth` and the corresponding coordinates
+            ``latitude` and `longitude`.
 
     Returns:
         A new dataset with corrected `latitude` and `longitude` coordinates.
@@ -435,9 +458,6 @@ def orthorectify_geolocation(
         - Atmospheric refraction and ellipsoidal geometry effects are not considered.
         - Accuracy may degrade near the poles where `cos(latitude) → 0`.
     """
-    # load coordinates of dataset
-    ds_lat = dataset.latitude.values
-    ds_lon = dataset.longitude.values
 
     # interpolate satellite zenith and azimuth angle
     def _interpolate(
@@ -463,11 +483,18 @@ def orthorectify_geolocation(
 
         return angle_interp.reshape(lat_target.shape)
 
+    # load coordinates of dataset
+    ds_lat = dataset.latitude.values
+    ds_lon = dataset.longitude.values
+    # load coordinates of angles
+    angles_lat = angles.latitude.values
+    angles_lon = angles.longitude.values
+
     sat_zenith_interp = _interpolate(
-        sat_zenith.values, lat.values, lon.values, ds_lat, ds_lon
+        angles.sat_zenith.values, angles_lat, angles_lon, ds_lat, ds_lon
     )
     sat_azimuth_interp = _interpolate(
-        sat_azimuth.values, lat.values, lon.values, ds_lat, ds_lon
+        angles.sat_azimuth.values, angles_lat, angles_lon, ds_lat, ds_lon
     )
 
     # Convert everything to rad
@@ -476,7 +503,7 @@ def orthorectify_geolocation(
     phi_v = np.deg2rad(sat_azimuth_interp)
 
     # Horizontal displacement
-    t = elev.values * np.tan(theta_v)
+    t = dataset.elevation.fillna(0).values * np.tan(theta_v)
     delta_phi = t * np.cos(phi_v) / MEAN_EARTH_RADIUS
     delta_lam = t * np.sin(phi_v) / (MEAN_EARTH_RADIUS * np.cos(phi_true))
 
@@ -490,3 +517,20 @@ def orthorectify_geolocation(
             longitude=(dataset.latitude.dims, ds_lon - lon_diff),
         )
     )
+
+
+def _clip_dataset_relative_bbox(
+    rel_bbox: Sequence[float], ds: xr.Dataset, buffer: int | tuple[int, int] = 50
+) -> tuple[xr.Dataset, tuple[int, int, int, int]]:
+    if isinstance(buffer, int):
+        buffer = (buffer, buffer)
+
+    w, h = ds.sizes["columns"] - 1, ds.sizes["rows"] - 1
+    col_min = int(np.clip((rel_bbox[0] * w) - buffer[0], 0, w))
+    row_min = int(np.clip((rel_bbox[1] * h) - buffer[1], 0, h))
+    col_max = int(np.clip((rel_bbox[2] * w) + buffer[0], 0, w))
+    row_max = int(np.clip((rel_bbox[3] * h) + buffer[1], 0, h))
+
+    ds_sub = ds.isel(rows=slice(row_min, row_max), columns=slice(col_min, col_max))
+
+    return ds_sub, (col_min, row_min, col_max, row_max)

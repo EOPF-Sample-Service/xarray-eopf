@@ -34,7 +34,7 @@ dataset = xr.open_dataset(
 )
 ```
 
-Returns a EOPF data product from Sentinel-1, -2, or -3 in an analysis-ready, convenient 
+Returns an EOPF data product from Sentinel-1, -2, or -3 in an analysis-ready, convenient 
 form. Common parameters are:
 
 - `resolution`: Target resolution for all spatial data variables / bands.

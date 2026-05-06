@@ -254,7 +254,7 @@ for details.
 
 The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
 Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in [Remarks on Specific Sentinel Missions](#remark-to-specific-sentinel-missions-).
+mission is provided in [Remarks on Specific Sentinel Missions](#remarks-on-specific-sentinel-missions).
 
 Example:  
 

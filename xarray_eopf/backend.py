@@ -16,11 +16,11 @@ from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from .amode import AnalysisMode
 from .amodes import register_analysis_modes
 from .constants import (
-    Sen1InterpMethods,
     OP_MODE_ANALYSIS,
     OP_MODE_NATIVE,
     OP_MODES,
     OpMode,
+    Sen1InterpMethods,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict

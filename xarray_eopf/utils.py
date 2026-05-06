@@ -4,7 +4,16 @@
 import re
 import time
 from collections.abc import Collection, Iterable
-from typing import Any, Type, TypeAlias, TypeVar, get_origin, get_args
+from typing import (
+    Any,
+    Literal,
+    Sequence,
+    Type,
+    TypeAlias,
+    TypeVar,
+    get_origin,
+    get_args,
+)
 
 import numpy as np
 import pyproj

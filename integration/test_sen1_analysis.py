@@ -2,12 +2,11 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-from unittest import TestCase
 from pathlib import Path
+from unittest import TestCase
 
 import xarray as xr
 import zarr
-
 
 from integration.helpers import assert_dataset_is_chunked
 from xarray_eopf.utils import timeit

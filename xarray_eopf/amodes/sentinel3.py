@@ -25,9 +25,9 @@ from xarray_eopf.constants import CRS_WGS84, MEAN_EARTH_RADIUS, FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import (
     NameFilter,
-    find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
+    find_relative_bbox,
 )
 
 _CHUNKSIZE = (2048, 2048)

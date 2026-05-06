@@ -12,11 +12,11 @@ import xarray as xr
 from tests.helpers import make_s2_msi
 from xarray_eopf.utils import (
     NameFilter,
-    find_relative_bbox,
     assert_arg_has_length,
     assert_arg_is_instance,
     assert_arg_is_one_of,
     build_footprint_uv_mapping,
+    find_relative_bbox,
     get_data_tree_item,
     timeit,
 )

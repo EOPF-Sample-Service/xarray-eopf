@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -15,6 +15,7 @@ CRS_WGS84 = pyproj.CRS("EPSG:4326")
 
 FloatInt = float | int
 OpMode: TypeAlias = Literal["analysis", "native"]
+Sen1InterpMethods: TypeAlias = Literal["bilinear", "nearest"]
 
 # Keywords arguments passed to dataset.merge(other) when flattening
 # data trees.

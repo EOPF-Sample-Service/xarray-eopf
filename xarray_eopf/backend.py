@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -20,6 +20,7 @@ from .constants import (
     OP_MODE_NATIVE,
     OP_MODES,
     OpMode,
+    Sen1InterpMethods,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
@@ -124,8 +125,11 @@ class EopfBackend(BackendEntrypoint):
         resolution: int | float | None = None,
         bbox: Sequence[int | float] | None = None,
         crs: pyproj.CRS | str | None = None,
-        interp_methods: SpatialInterpMethods | None = None,
+        interp_methods: SpatialInterpMethods | Sen1InterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
+        dem: xr.DataArray | None = None,
+        footprint_scale_factor: tuple[float | int, float | int] | None = None,
+        apply_rtc: bool = True,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons
@@ -154,18 +158,29 @@ class EopfBackend(BackendEntrypoint):
                 data variables / bands. For Sentinel-2 products it be one of
                 `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
             bbox: Bounding box [west, south, east, north], used for subsetting.
-            crs: coordinate reference system of output dataset.
+            crs: coordinate reference system of output dataset. Can be provided as a
+                `str` or a `pyproj.CRS` object. If a string is given, it will be parsed
+                using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
             interp_methods: Optional interpolation method to be used if
-                `op_mode="analysis"`, for upsampling / interpolating
-                spatial data variables. Can be a single interpolation method for all
-                variables or a dictionary mapping variable names or dtypes to
-                interpolation method. Supported methods include:
+                `op_mode="analysis"`,
+                - for Sentinel-1:
+                    method used during geometric and radiometric terrain correction
+                    (GTC and RTC).
 
-                - `0` (nearest neighbor)
-                - `1` (linear / bilinear)
-                - `"nearest"`
-                - `"triangular"`
-                - `"bilinear"`
+                    - `"nearest"`
+                    - `"bilinear"`
+
+                - for Sentinel-2 and Sentinel-3:
+                    for upsampling / interpolating spatial data variables. Can be a
+                    single interpolation method for all variables or a dictionary
+                    mapping variable names or dtypes to interpolation method.
+                    Supported methods include:
+
+                    - `0` (nearest neighbor)
+                    - `1` (linear / bilinear)
+                    - `"nearest"`
+                    - `"triangular"`
+                    - `"bilinear"`
 
                 The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
                 else `1`.
@@ -177,6 +192,20 @@ class EopfBackend(BackendEntrypoint):
                     "mode", "min", "prod", "std", "sum", and "var".
                 Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),
                 else "mean".
+            dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with
+                Sentinel-1 products for geometric and radiometric terrain correction
+                (foreshooting und overlay) using zero doppler geometry. If None, data
+                is fetched from the [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);
+                note that the S3 credentials for CDSE access need to be set up as
+                environment variables, which can be obtained from
+                [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
+            footprint_scale_factor: Optional `(azimuth_scale, slant_range_scale)` tuple
+                used for Sentinel-1 RTC grid parameter construction. Defaults to
+                `(3.0, 3.0)`, the factor between Copernicus DEM at 30m and GRD
+                product (10m resolution), in `Sen1GRD.convert_datatree()`
+                when not provided.
+            apply_rtc: Whether to apply radiometric terrain correction (RTC) for
+                Sentinel-1 analysis mode. Defaults to `True`.
             variables: Variables to include in the dataset. Can be a name or
                 regex pattern or iterable of the latter.
             drop_variables: Variable name or iterable of variable names
@@ -233,6 +262,9 @@ class EopfBackend(BackendEntrypoint):
                     crs=crs,
                     interp_methods=interp_methods,
                     agg_methods=agg_methods,
+                    dem=dem,
+                    footprint_scale_factor=footprint_scale_factor,
+                    apply_rtc=apply_rtc,
                 )
                 dataset = analysis_mode.convert_datatree(
                     datatree, includes=variables, **params

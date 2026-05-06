@@ -4,6 +4,8 @@
   (and its subpackages) is included in the PyPI wheel.
 - Remove the `coarsen.py` module, as it has been moved to [xcube-resampling](https://github.com/xcube-dev/xcube-resampling) 
   and is no longer used internally.
+- Add support for Sentinel-1 GRD analysis mode.
+- Updated year in the headers.
 - Added footprint-based subsetting for Sentinel-3 OLCI and SLSTR LST using STAC 
   metadata, improving performance by avoiding full latitude/longitude grid downloads 
   during subsetting.

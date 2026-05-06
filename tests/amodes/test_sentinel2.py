@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -30,10 +30,7 @@ class MsiTestMixin:
         pass
 
     def test_get_applicable_params(self: TestCase):
-        self.assertEqual(
-            {},
-            self.mode.get_applicable_params(),
-        )
+        self.assertEqual({}, self.mode.get_applicable_params())
         self.assertEqual(
             {
                 "resolution": 10,

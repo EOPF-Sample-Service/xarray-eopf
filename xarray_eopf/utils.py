@@ -1,10 +1,19 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 import re
 import time
 from collections.abc import Collection, Iterable
-from typing import Any, Literal, Sequence, Type, TypeAlias, TypeVar
+from typing import (
+    Any,
+    Literal,
+    Sequence,
+    Type,
+    TypeAlias,
+    TypeVar,
+    get_origin,
+    get_args,
+)
 
 import numpy as np
 import pyproj
@@ -46,6 +55,18 @@ def assert_arg_is_instance(value: Any, name: str, data_type: Type | tuple[Type, 
     """Check if the `value` of the argument `name` has the given `data_type`.
     If not, raise `TypeError`.
     """
+    origin = get_origin(data_type)
+
+    # --- Handle Literal[...] ---
+    if origin is not None and origin.__name__ == "Literal":
+        allowed_values = get_args(data_type)
+        if value not in allowed_values:
+            raise TypeError(
+                f"{name} argument must be one of {allowed_values}, was {value!r}"
+            )
+        return
+
+    # --- Handle normal types / tuples ---
     if not isinstance(value, data_type):
         if isinstance(data_type, tuple):
             data_type_name = _text_items_to_text(t.__name__ for t in data_type)

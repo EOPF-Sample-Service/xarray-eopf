@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -58,12 +58,12 @@ class Sentinel3AnalysisTest(TestCase):
 
     def test_open_dataset_sen3_slstr_l1_rbt(self):
         expected_vars = ["s1_radiance_an", "s7_bt_in", "s7_bt_io"]
-        expected_size = (2948, 3343)
+        expected_size = (2967, 3455)
         self._test_sen3(sl1rbt_url, expected_vars, expected_size)
 
     def test_open_dataset_sen3_slstr_l2_lst(self):
         expected_vars = ["lst"]
-        expected_size = (1474, 1667)
+        expected_size = (1484, 1727)
         self._test_sen3(sl2lst_url, expected_vars, expected_size)
 
     def _test_sen3(

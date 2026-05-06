@@ -1,4 +1,4 @@
-#  Copyright (c) 2025 by EOPF Sample Service team and contributors
+#  Copyright (c) 2025-2026 by EOPF Sample Service team and contributors
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
@@ -73,7 +73,7 @@ class AnalysisMode(ABC):
         """
 
     @abstractmethod
-    def get_applicable_params(self, **kwargs) -> dict[str, any]:
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         """Get applicable and validated parameters from keyword arguments `kwargs`.
         The extracted parameters will be passed to `transform_datatree()`
         and `convert_datatree()`.

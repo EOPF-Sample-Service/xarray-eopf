@@ -6,11 +6,13 @@ dependencies:
   - aiohttp
   - dask
   - dask-image
+  - flox
   - fsspec
   - numpy
   - pyproj
   - python >=3.11
   - requests
+  - rioxarray
   - s3fs
   - xarray >=2024.10
   - xcube-resampling >=0.3.2

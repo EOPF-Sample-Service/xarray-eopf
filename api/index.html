@@ -444,6 +444,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/sentinel_1_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Sentinel-1 in Analysis Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../examples/sentinel_2_native/" class="md-nav__link">
         
   
@@ -831,8 +859,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 30</span>
-<span class="normal"> 31</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 31</span>
 <span class="normal"> 32</span>
 <span class="normal"> 33</span>
 <span class="normal"> 34</span>
@@ -1062,7 +1089,39 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">258</span>
 <span class="normal">259</span>
 <span class="normal">260</span>
-<span class="normal">261</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
@@ -1159,8 +1218,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="n">Sen1InterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">dem</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">footprint_scale_factor</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">apply_rtc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="c1"># params required by xarray backend interface</span>
         <span class="n">drop_variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params for other reasons</span>
@@ -1189,18 +1251,29 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">                data variables / bands. For Sentinel-2 products it be one of</span>
 <span class="sd">                `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
 <span class="sd">            bbox: Bounding box [west, south, east, north], used for subsetting.</span>
-<span class="sd">            crs: coordinate reference system of output dataset.</span>
+<span class="sd">            crs: coordinate reference system of output dataset. Can be provided as a</span>
+<span class="sd">                `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
+<span class="sd">                using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">            interp_methods: Optional interpolation method to be used if</span>
-<span class="sd">                `op_mode=&quot;analysis&quot;`, for upsampling / interpolating</span>
-<span class="sd">                spatial data variables. Can be a single interpolation method for all</span>
-<span class="sd">                variables or a dictionary mapping variable names or dtypes to</span>
-<span class="sd">                interpolation method. Supported methods include:</span>
+<span class="sd">                `op_mode=&quot;analysis&quot;`,</span>
+<span class="sd">                - for Sentinel-1:</span>
+<span class="sd">                    method used during geometric and radiometric terrain correction</span>
+<span class="sd">                    (GTC and RTC).</span>
 
-<span class="sd">                - `0` (nearest neighbor)</span>
-<span class="sd">                - `1` (linear / bilinear)</span>
-<span class="sd">                - `&quot;nearest&quot;`</span>
-<span class="sd">                - `&quot;triangular&quot;`</span>
-<span class="sd">                - `&quot;bilinear&quot;`</span>
+<span class="sd">                    - `&quot;nearest&quot;`</span>
+<span class="sd">                    - `&quot;bilinear&quot;`</span>
+
+<span class="sd">                - for Sentinel-2 and Sentinel-3:</span>
+<span class="sd">                    for upsampling / interpolating spatial data variables. Can be a</span>
+<span class="sd">                    single interpolation method for all variables or a dictionary</span>
+<span class="sd">                    mapping variable names or dtypes to interpolation method.</span>
+<span class="sd">                    Supported methods include:</span>
+
+<span class="sd">                    - `0` (nearest neighbor)</span>
+<span class="sd">                    - `1` (linear / bilinear)</span>
+<span class="sd">                    - `&quot;nearest&quot;`</span>
+<span class="sd">                    - `&quot;triangular&quot;`</span>
+<span class="sd">                    - `&quot;bilinear&quot;`</span>
 
 <span class="sd">                The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">                else `1`.</span>
@@ -1212,6 +1285,20 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">                    &quot;mode&quot;, &quot;min&quot;, &quot;prod&quot;, &quot;std&quot;, &quot;sum&quot;, and &quot;var&quot;.</span>
 <span class="sd">                Defaults to &quot;center&quot; for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">                else &quot;mean&quot;.</span>
+<span class="sd">            dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with</span>
+<span class="sd">                Sentinel-1 products for geometric and radiometric terrain correction</span>
+<span class="sd">                (foreshooting und overlay) using zero doppler geometry. If None, data</span>
+<span class="sd">                is fetched from the [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);</span>
+<span class="sd">                note that the S3 credentials for CDSE access need to be set up as</span>
+<span class="sd">                environment variables, which can be obtained from</span>
+<span class="sd">                [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).</span>
+<span class="sd">            footprint_scale_factor: Optional `(azimuth_scale, slant_range_scale)` tuple</span>
+<span class="sd">                used for Sentinel-1 RTC grid parameter construction. Defaults to</span>
+<span class="sd">                `(3.0, 3.0)`, the factor between Copernicus DEM at 30m and GRD</span>
+<span class="sd">                product (10m resolution), in `Sen1GRD.convert_datatree()`</span>
+<span class="sd">                when not provided.</span>
+<span class="sd">            apply_rtc: Whether to apply radiometric terrain correction (RTC) for</span>
+<span class="sd">                Sentinel-1 analysis mode. Defaults to `True`.</span>
 <span class="sd">            variables: Variables to include in the dataset. Can be a name or</span>
 <span class="sd">                regex pattern or iterable of the latter.</span>
 <span class="sd">            drop_variables: Variable name or iterable of variable names</span>
@@ -1268,6 +1355,9 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
                     <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">,</span>
                     <span class="n">interp_methods</span><span class="o">=</span><span class="n">interp_methods</span><span class="p">,</span>
                     <span class="n">agg_methods</span><span class="o">=</span><span class="n">agg_methods</span><span class="p">,</span>
+                    <span class="n">dem</span><span class="o">=</span><span class="n">dem</span><span class="p">,</span>
+                    <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="n">footprint_scale_factor</span><span class="p">,</span>
+                    <span class="n">apply_rtc</span><span class="o">=</span><span class="n">apply_rtc</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">convert_datatree</span><span class="p">(</span>
                     <span class="n">datatree</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="n">variables</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span>
@@ -1471,8 +1561,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 39</span>
-<span class="normal"> 40</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 40</span>
 <span class="normal"> 41</span>
 <span class="normal"> 42</span>
 <span class="normal"> 43</span>
@@ -1543,7 +1632,8 @@ to drop from the underlying file. See
 <span class="normal">108</span>
 <span class="normal">109</span>
 <span class="normal">110</span>
-<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
+<span class="normal">111</span>
+<span class="normal">112</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1626,7 +1716,7 @@ to drop from the underlying file. See
 
 
 <h3 id="xarray_eopf.backend.EopfBackend.open_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_rtc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1779,7 +1869,9 @@ data variables / bands. For Sentinel-2 products it be one of
             </td>
             <td>
               <div class="doc-md-description">
-                <p>coordinate reference system of output dataset.</p>
+                <p>coordinate reference system of output dataset. Can be provided as a
+<code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed
+using <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.</p>
               </div>
             </td>
             <td>
@@ -1791,21 +1883,33 @@ data variables / bands. For Sentinel-2 products it be one of
                 <code>interp_methods</code>
             </td>
             <td>
-                  <code><span title="xcube_resampling.constants.SpatialInterpMethods">SpatialInterpMethods</span> | None</code>
+                  <code><span title="xcube_resampling.constants.SpatialInterpMethods">SpatialInterpMethods</span> | <span title="xarray_eopf.constants.Sen1InterpMethods">Sen1InterpMethods</span> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
                 <p>Optional interpolation method to be used if
-<code>op_mode="analysis"</code>, for upsampling / interpolating
-spatial data variables. Can be a single interpolation method for all
-variables or a dictionary mapping variable names or dtypes to
-interpolation method. Supported methods include:</p>
+<code>op_mode="analysis"</code>,
+- for Sentinel-1:
+    method used during geometric and radiometric terrain correction
+    (GTC and RTC).</p>
+<pre><code>- `"nearest"`
+- `"bilinear"`
+</code></pre>
+<ul>
+<li>
+<p>for Sentinel-2 and Sentinel-3:
+    for upsampling / interpolating spatial data variables. Can be a
+    single interpolation method for all variables or a dictionary
+    mapping variable names or dtypes to interpolation method.
+    Supported methods include:</p>
 <ul>
 <li><code>0</code> (nearest neighbor)</li>
 <li><code>1</code> (linear / bilinear)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
 <li><code>"bilinear"</code></li>
+</ul>
+</li>
 </ul>
 <p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
 else <code>1</code>.</p>
@@ -1836,6 +1940,65 @@ else "mean".</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dem</code>
+            </td>
+            <td>
+                  <code><span title="xarray.DataArray">DataArray</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional DEM as a CF-compliant <code>xarray.DataArray</code> to use with
+Sentinel-1 products for geometric and radiometric terrain correction
+(foreshooting und overlay) using zero doppler geometry. If None, data
+is fetched from the <a href="https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog">CDSE STAC API (CopDEM COG (30 m))</a>;
+note that the S3 credentials for CDSE access need to be set up as
+environment variables, which can be obtained from
+<a href="https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets">here</a>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>footprint_scale_factor</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="float">float</span> | <span title="int">int</span>, <span title="float">float</span> | <span title="int">int</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>(azimuth_scale, slant_range_scale)</code> tuple
+used for Sentinel-1 RTC grid parameter construction. Defaults to
+<code>(3.0, 3.0)</code>, the factor between Copernicus DEM at 30m and GRD
+product (10m resolution), in <code>Sen1GRD.convert_datatree()</code>
+when not provided.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>apply_rtc</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to apply radiometric terrain correction (RTC) for
+Sentinel-1 analysis mode. Defaults to <code>True</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1919,8 +2082,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
-<span class="normal">114</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
 <span class="normal">117</span>
@@ -2049,7 +2211,39 @@ to drop from the underlying file. See
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
-<span class="normal">243</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2063,8 +2257,11 @@ to drop from the underlying file. See
     <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="n">Sen1InterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dem</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">footprint_scale_factor</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">apply_rtc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="c1"># params required by xarray backend interface</span>
     <span class="n">drop_variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params for other reasons</span>
@@ -2093,18 +2290,29 @@ to drop from the underlying file. See
 <span class="sd">            data variables / bands. For Sentinel-2 products it be one of</span>
 <span class="sd">            `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
 <span class="sd">        bbox: Bounding box [west, south, east, north], used for subsetting.</span>
-<span class="sd">        crs: coordinate reference system of output dataset.</span>
+<span class="sd">        crs: coordinate reference system of output dataset. Can be provided as a</span>
+<span class="sd">            `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
+<span class="sd">            using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">        interp_methods: Optional interpolation method to be used if</span>
-<span class="sd">            `op_mode=&quot;analysis&quot;`, for upsampling / interpolating</span>
-<span class="sd">            spatial data variables. Can be a single interpolation method for all</span>
-<span class="sd">            variables or a dictionary mapping variable names or dtypes to</span>
-<span class="sd">            interpolation method. Supported methods include:</span>
+<span class="sd">            `op_mode=&quot;analysis&quot;`,</span>
+<span class="sd">            - for Sentinel-1:</span>
+<span class="sd">                method used during geometric and radiometric terrain correction</span>
+<span class="sd">                (GTC and RTC).</span>
 
-<span class="sd">            - `0` (nearest neighbor)</span>
-<span class="sd">            - `1` (linear / bilinear)</span>
-<span class="sd">            - `&quot;nearest&quot;`</span>
-<span class="sd">            - `&quot;triangular&quot;`</span>
-<span class="sd">            - `&quot;bilinear&quot;`</span>
+<span class="sd">                - `&quot;nearest&quot;`</span>
+<span class="sd">                - `&quot;bilinear&quot;`</span>
+
+<span class="sd">            - for Sentinel-2 and Sentinel-3:</span>
+<span class="sd">                for upsampling / interpolating spatial data variables. Can be a</span>
+<span class="sd">                single interpolation method for all variables or a dictionary</span>
+<span class="sd">                mapping variable names or dtypes to interpolation method.</span>
+<span class="sd">                Supported methods include:</span>
+
+<span class="sd">                - `0` (nearest neighbor)</span>
+<span class="sd">                - `1` (linear / bilinear)</span>
+<span class="sd">                - `&quot;nearest&quot;`</span>
+<span class="sd">                - `&quot;triangular&quot;`</span>
+<span class="sd">                - `&quot;bilinear&quot;`</span>
 
 <span class="sd">            The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">            else `1`.</span>
@@ -2116,6 +2324,20 @@ to drop from the underlying file. See
 <span class="sd">                &quot;mode&quot;, &quot;min&quot;, &quot;prod&quot;, &quot;std&quot;, &quot;sum&quot;, and &quot;var&quot;.</span>
 <span class="sd">            Defaults to &quot;center&quot; for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">            else &quot;mean&quot;.</span>
+<span class="sd">        dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with</span>
+<span class="sd">            Sentinel-1 products for geometric and radiometric terrain correction</span>
+<span class="sd">            (foreshooting und overlay) using zero doppler geometry. If None, data</span>
+<span class="sd">            is fetched from the [CDSE STAC API (CopDEM COG (30 m))](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog);</span>
+<span class="sd">            note that the S3 credentials for CDSE access need to be set up as</span>
+<span class="sd">            environment variables, which can be obtained from</span>
+<span class="sd">            [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).</span>
+<span class="sd">        footprint_scale_factor: Optional `(azimuth_scale, slant_range_scale)` tuple</span>
+<span class="sd">            used for Sentinel-1 RTC grid parameter construction. Defaults to</span>
+<span class="sd">            `(3.0, 3.0)`, the factor between Copernicus DEM at 30m and GRD</span>
+<span class="sd">            product (10m resolution), in `Sen1GRD.convert_datatree()`</span>
+<span class="sd">            when not provided.</span>
+<span class="sd">        apply_rtc: Whether to apply radiometric terrain correction (RTC) for</span>
+<span class="sd">            Sentinel-1 analysis mode. Defaults to `True`.</span>
 <span class="sd">        variables: Variables to include in the dataset. Can be a name or</span>
 <span class="sd">            regex pattern or iterable of the latter.</span>
 <span class="sd">        drop_variables: Variable name or iterable of variable names</span>
@@ -2172,6 +2394,9 @@ to drop from the underlying file. See
                 <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">,</span>
                 <span class="n">interp_methods</span><span class="o">=</span><span class="n">interp_methods</span><span class="p">,</span>
                 <span class="n">agg_methods</span><span class="o">=</span><span class="n">agg_methods</span><span class="p">,</span>
+                <span class="n">dem</span><span class="o">=</span><span class="n">dem</span><span class="p">,</span>
+                <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="n">footprint_scale_factor</span><span class="p">,</span>
+                <span class="n">apply_rtc</span><span class="o">=</span><span class="n">apply_rtc</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">convert_datatree</span><span class="p">(</span>
                 <span class="n">datatree</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="n">variables</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span>
@@ -2259,23 +2484,23 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span>
-<span class="normal">252</span>
-<span class="normal">253</span>
-<span class="normal">254</span>
-<span class="normal">255</span>
-<span class="normal">256</span>
-<span class="normal">257</span>
-<span class="normal">258</span>
-<span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

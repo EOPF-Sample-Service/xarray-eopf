@@ -621,6 +621,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/sentinel_1_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Sentinel-1 in Analysis Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../examples/sentinel_2_native/" class="md-nav__link">
         
   
@@ -969,7 +997,10 @@
 
 <p>The xarray backend for EOPF data products <code>"eopf-zarr"</code> has two modes of operation,
 namely <em>analysis mode</em> (the default) and <em>native mode</em>, which are described in 
-the following. </p>
+the following.</p>
+<p>An introductory example notebook is available at : 
+- <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/">Docs - Intoduction to the xarray EOPF backend</a>
+- <a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/">Notebook Gallery - Intoduction to the xarray EOPF backend</a></p>
 <hr />
 <h2 id="analysis-mode">Analysis Mode</h2>
 <p>This mode aims at representing the EOPF data products in an analysis-ready and 
@@ -989,49 +1020,80 @@ single shared pair of 1d <code>x</code> and <code>y</code> coordinates in the re
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Returns a EOPF data product from Sentinel-1, -2, or -3 in a analysis-ready, convenient 
-form. All bands and quality flags are resampled to a unified, user-provided resolution. </p>
-<p>Parameters <code>**kwargs</code>:</p>
+<p>Returns an EOPF data product from Sentinel-1, -2, or -3 in an analysis-ready, convenient 
+form. Common parameters are:</p>
 <ul>
 <li><code>resolution</code>: Target resolution for all spatial data variables / bands.</li>
-<li><code>crs</code>: Coordinate reference system of the output dataset. If not provided, a
-  mission-specific default CRS is used (see the respective mission sections below).</li>
+<li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a 
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>. 
+  If not specified, a mission-specific default CRS will be applied (see the respective 
+  mission sections below).</li>
 <li><code>bbox</code>: Bounding box <code>[west, south, east, north]</code> used for spatial subsetting;
   coordinates must be in the same CRS as <code>crs</code>.</li>
-<li>
-<p><code>interp_methods</code>: for upsampling / interpolating
-  spatial data variables. Can be a single interpolation method for all
-  variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:</p>
-<ul>
-<li><code>0</code> (nearest neighbor)</li>
-<li><code>1</code> (linear / bilinear)</li>
-<li><code>"nearest"</code></li>
-<li><code>"triangular"</code></li>
-<li><code>"bilinear"</code></li>
-</ul>
-</li>
-</ul>
-<p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
-- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
-  spatial data variables / bands. Can be a single method for all variables or 
-  a dictionary mapping variable names or dtypes to methods. Supported methods include:
-    <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
-    <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
-  Defaults to <code>"center"</code> for integer arrays (e.g. Sentinel-2 L2A SCL), else <code>"mean"</code>.
-  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
-- <code>variables</code>: Variables to include in the dataset. Can be a name or regex pattern 
-  or iterable of the latter.
-- <code>product_type</code>: Product type name, such as <code>"MSIL1C"</code>. 
+<li><code>variables</code>: Variables to include in the dataset. Can be a name or regex pattern 
+  or iterable of the latter.</li>
+<li><code>product_type</code>: Product type name, such as <code>"MSIL1C"</code>. 
   Only required if <code>filename_or_obj</code> is not a path or URL that refers to a product 
-  path adhering to EOPF naming conventions.</p>
-<p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in <a href="#remark-to-specific-sentinel-missions-">Remarks on Specific Sentinel Missions</a>.</p>
+  path adhering to EOPF naming conventions.</li>
+</ul>
+<p>Additional parameters specific to each Sentinel mission are described below.</p>
 <h4 id="remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</h4>
 <h5 id="sentinel-1">Sentinel-1</h5>
-<p>Support for Sentinel-1 analysis mode will be added in a future release.</p>
+<blockquote>
+<p>Note: Support for Sentinel-1 GRD products in analysis mode is available.
+Support for SLC products is planned for a future release.</p>
+</blockquote>
+<p>Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
+(<code>azimuth_time</code>, <code>ground_range</code>). To transform this data into an
+<strong>analysis-ready dataset</strong>, the following processing steps are applied:</p>
+<ol>
+<li><strong>Radiometric Calibration:</strong> Raw pixel values (DN) are converted into physically
+   meaningful backscatter values using the <code>beta_nought</code> calibration lookup table (LUT).</li>
+<li><strong>Geometric Terrain Correction (GTC):</strong> Using a Digital Elevation Model (DEM),
+   the processor performs <strong>inverse geocoding</strong> by solving the zero-Doppler equation
+   based on satellite orbit information and terrain elevation. This step maps the
+   data from radar geometry to a georeferenced grid.</li>
+<li><strong>Radiometric Terrain Correction (RTC):</strong> (Optional) RTC compensates for 
+   terrain-induced radiometric distortions such as foreshortening, layover, 
+   and slope-dependent brightness variations.</li>
+</ol>
+<p>📖 <a href="https://ieeexplore.ieee.org/document/5752845">D. Small, <em>Flattening Gamma: Radiometric Terrain Correction for SAR Imagery</em></a></p>
+<p><strong>Supported Products:</strong></p>
+<ul>
+<li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd">Sentinel-1 GRD</a></li>
+</ul>
+<p><strong>Supported Variables</strong></p>
+<ul>
+<li><strong>Polarization bands</strong>:<br />
+<code>vv</code>, <code>vh</code>, <code>hh</code>, <code>hv</code> <em>(each GRD product contains only a subset of these bands)</em></li>
+</ul>
+<p><strong>Specific Sentinel-1 parameters <code>**kwargs</code>:</strong></p>
+<ul>
+<li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a 
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.
+  If not specified, <a href="https://epsg.io/4326">EPSG:4326</a> is used.</li>
+<li><code>resolution</code>: Target resolution for all spatial variables expressed in the units 
+  of the specified <code>crs</code>. If not specified, the resolution is derived (in degrees) 
+  from the CopDEM (30 m).</li>
+<li><code>dem</code>: Digital Elevation Model (DEM) as a CF-compliant <code>xarray.DataArray</code> used for
+  terrain correction. If provided, the parameters <code>crs</code>, <code>bbox</code>, and <code>resolution</code> are 
+  ignored, and the target grid is derived from the DEM. If not provided, the
+  <a href="https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog">CopDEM COG (30 m)</a><br />
+  is automatically retrieved via the CDSE STAC API. This requires
+  <a href="https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets">CDSE S3 credentials</a>.</li>
+<li><code>apply_rtc</code>: Enable or disable radiometric terrain correction (RTC). Default is <code>True</code>.</li>
+<li><code>interp_methods</code>: Interpolation method used during GTC and RTC. Supported methods:
+  <code>nearest</code>, <code>bilinear</code>.</li>
+<li><code>footprint_scale_factor</code>: Defines how radar pixels contribute to the output grid.
+  Default: <code>(3.0, 3.0)</code>, accounting for resolution differences (e.g., ~10 m GRD
+  vs. ~30 m DEM).</li>
+</ul>
+<p>Examples:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
+</ul>
 <h5 id="sentinel-2">Sentinel-2</h5>
 <p>Sentinel-2 provides multi-spectral imagery at different native resolutions:</p>
 <ul>
@@ -1057,16 +1119,45 @@ bands from multiple resolutions onto the same grid using <a href="https://xcube-
 <ul>
 <li><code>variables</code>: Select specific spectral bands using the names listed above in
   <em>Supported Variables</em>. Common spectral band names from the <a href="https://github.com/stac-extensions/eo?tab=readme-ov-file#common-band-names">STAC EO extension</a> are also supported for Sentinel-2 analysis mode.</li>
-<li><code>crs</code>: Coordinate reference system of the output dataset.
+<li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a 
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.
   If not specified, the UTM grid of the native data is used.</li>
 <li><code>resolution</code>: Target resolution for all spatial variables/bands.
   Choose 10, 20, or 60 meters to minimize resampling and retain some of the native
   data resolution.</li>
+<li>
+<p><code>interp_methods</code>: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:</p>
+<ul>
+<li><code>0</code> (nearest neighbor)</li>
+<li><code>1</code> (linear / bilinear)</li>
+<li><code>"nearest"</code></li>
+<li><code>"triangular"</code></li>
+<li><code>"bilinear"</code></li>
 </ul>
-<p>Examples:<br />
-- <a href="https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen2.ipynb">Example notebook - open-sen2.ipynb</a><br />
-- <a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction-xarray-eopf-plugin/">Notebook gallery - Introduction to xarray-eopf backend</a><br />
-- <a href="https://zarr.eopf.copernicus.eu/webinars/webinar-3-access-eopf-zarr-products-with-the-new-xarray-eopf-backend/">Webinar 3 - Access EOPF Zarr Products with the New xarray EOPF Backend</a>  </p>
+</li>
+</ul>
+<p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
+- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
+    <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
+  Defaults to <code>"center"</code> for integer arrays (e.g. Sentinel-2 L2A SCL), else <code>"mean"</code>.
+  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+<p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
+Further explanation of the meaning and usage of these parameters for each Sentinel 
+mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>
+<p>Examples:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_analysis/">Docs - Sentinel-2 Analysis Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-2-analysis/">Notebook Gallery - Sentinel-2 Analysis Mode</a></li>
+<li><a href="https://www.youtube.com/watch?v=AJz2WJNdFbw">Webinar - Access EOPF Zarr Products with the new xarray EOPF Backend</a></li>
+</ul>
 <h5 id="sentinel-3">Sentinel-3</h5>
 <p>Sentinel-3 products are provided on their <strong>native grid mapping</strong>, where each pixel 
 is defined by a latitude/longitude pair, forming a <strong>2D irregular grid</strong>.</p>
@@ -1111,7 +1202,9 @@ for details.</p>
 <p><strong>Specific Sentinel-3 parameters <code>**kwargs</code>:</strong></p>
 <ul>
 <li><code>variables</code>: Select variables using the names listed above in <em>Supported Variables</em>.</li>
-<li><code>crs</code>: Coordinate reference system of the output dataset.
+<li><code>crs</code>: Coordinate reference system of the output dataset.  Can be provided as a 
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.
   If not specified, <a href="https://epsg.io/4326">EPSG:4326</a> is used.</li>
 <li>
 <p><code>resolution</code>: Target resolution for all spatial variables/bands.
@@ -1122,11 +1215,39 @@ for details.</p>
 <li>Sentinel-3 OLCI Level-2 LFR: 300 meter</li>
 <li>Sentinel-3 SLSTR Level-1 RBT: 500 meter (1000 meter if selected variables come from F- or I-stripe)</li>
 <li>Sentinel-3 SLSTR Level-2 LST: 1000 meter</li>
+<li>
+<p><code>interp_methods</code>: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:</p>
+</li>
+<li>
+<p><code>0</code> (nearest neighbor)</p>
+</li>
+<li><code>1</code> (linear / bilinear)</li>
+<li><code>"nearest"</code></li>
+<li><code>"triangular"</code></li>
+<li><code>"bilinear"</code></li>
 </ul>
 </li>
 </ul>
-<p>Example:<br />
-- <a href="https://github.com/EOPF-Sample-Service/xarray-eopf/blob/main/examples/open-sen3.ipynb">Example notebook (open-sen3.ipynb)</a>  </p>
+<p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
+- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
+    <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
+  Defaults to <code>"center"</code> for integer arrays (e.g. Sentinel-2 L2A SCL), else <code>"mean"</code>.
+  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+<p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
+Further explanation of the meaning and usage of these parameters for each Sentinel 
+mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>
+<p>Example:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_3_analysis/">Docs - Sentinel-3 Analysis Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-3-analysis/">Notebook Gallery - Sentinel-3 Analysis Mode</a></li>
+</ul>
 <h3 id="function-open_datatree">Function <code>open_datatree()</code></h3>
 <p>Synopsis: </p>
 <div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
@@ -1180,6 +1301,15 @@ dimensions and variables is not an issue.</p>
 <p>Opens a data product as-is including Zarr groups and returns a data tree object.</p>
 <p>This function currently returns the result of calling 
 <code>xr.open_datatree(filename_or_obj, engine="zarr", **kwargs)</code>.  </p>
+<p>Example:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_native/">Docs - Sentinel-1 Native Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_native/">Docs - Sentinel-2 Native Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_3_native/">Docs - Sentinel-3 Native Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-1-native/">Notebook Gallery - Sentinel-1 Native Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-2-native/">Notebook Gallery - Sentinel-2 Native Mode</a></li>
+<li><a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/sentinel-3-native/">Notebook Gallery - Sentinel-3 Native Mode</a></li>
+</ul>
 
 
 

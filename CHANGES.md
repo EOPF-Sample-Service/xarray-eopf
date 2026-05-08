@@ -1,4 +1,4 @@
-## Changes in 0.2.8 (under development)
+## Changes in 0.2.8 (from 2026-05-08)
 
 - Fix package discovery in `pyproject.toml` to ensure only `xarray_eopf` 
   (and its subpackages) is included in the PyPI wheel.

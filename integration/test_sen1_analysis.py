@@ -43,8 +43,8 @@ class Sentinel2AnalysisTest(TestCase):
             )
         self.assertTrue(result.time_delta < allowed_open_time)
 
-        self.assertIn("vv", ds)
-        self.assertIn("vh", ds)
+        self.assertIn("gamma0_vv", ds)
+        self.assertIn("gamma0_vh", ds)
 
         assert_dataset_is_chunked(self, ds, verbose=show_chunking)
         for var_name in ds.data_vars:

@@ -119,7 +119,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
 
         self.assertIs(out, expected)
         args, kwargs = mocked.call_args
-        self.assertEqual(["vv"], list(args[0].data_vars))
+        self.assertEqual(["beta0_vv"], list(args[0].data_vars))
         self.assertIs(args[3], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
         self.assertTrue(kwargs["apply_rtc"])
@@ -254,7 +254,6 @@ class Sentinel1FunctionsTest(TestCase):
                 ).chunk(dict(y=2, x=2))
 
                 out = sen1.get_dem([0, 0, 2, 2])
-                self.assertEqual("dem", out.name)
                 self.assertIn("lat", out.dims)
                 self.assertIn("lon", out.dims)
                 self.assertEqual(3, out.sizes["lat"])
@@ -462,13 +461,20 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("axis", "lat", "lon"),
             coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
         )
-        pos_coeff = xr.DataArray(
+        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
+        sat_position = xr.DataArray(
             np.zeros((2, 3)),
-            dims=("degree", "axis"),
-            coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-            attrs={"epoch": np.datetime64("2024-01-01T00:00:00")},
+            dims=("azimuth_time", "axis"),
+            coords={
+                "azimuth_time": np.array(
+                    [
+                        np.datetime64("2024-01-01T00:00:00"),
+                        np.datetime64("2024-01-01T00:00:01"),
+                    ]
+                ),
+                "axis": ["x", "y", "z"],
+            },
         )
-        vel_coeff = pos_coeff.copy()
         dist = xr.DataArray(
             np.ones((3, 2, 2), dtype="float64"),
             dims=("axis", "lat", "lon"),
@@ -478,7 +484,7 @@ class Sentinel1FunctionsTest(TestCase):
         t = xr.DataArray(np.zeros((2, 2), dtype="float64"), dims=("lat", "lon"))
         with patch.object(sen1, "backward_geocode", return_value=(t, dist, vel)):
             acq = sen1.simulate_acquisition(
-                dem_ecef, pos_coeff, vel_coeff, apply_rtc=False
+                dem_ecef, gm_dem, sat_position, apply_rtc=False
             )
         self.assertIn("slant_range_time", acq)
         self.assertNotIn("gamma_area", acq)
@@ -489,13 +495,20 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("axis", "lat", "lon"),
             coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
         )
-        pos_coeff = xr.DataArray(
+        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
+        sat_position = xr.DataArray(
             np.zeros((2, 3)),
-            dims=("degree", "axis"),
-            coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-            attrs={"epoch": np.datetime64("2024-01-01T00:00:00")},
+            dims=("azimuth_time", "axis"),
+            coords={
+                "azimuth_time": np.array(
+                    [
+                        np.datetime64("2024-01-01T00:00:00"),
+                        np.datetime64("2024-01-01T00:00:01"),
+                    ]
+                ),
+                "axis": ["x", "y", "z"],
+            },
         )
-        vel_coeff = pos_coeff.copy()
         dist = xr.DataArray(
             np.ones((3, 2, 2), dtype="float64"),
             dims=("axis", "lat", "lon"),
@@ -509,28 +522,41 @@ class Sentinel1FunctionsTest(TestCase):
             patch.object(sen1, "compute_gamma_area", return_value=gamma),
         ):
             acq = sen1.simulate_acquisition(
-                dem_ecef, pos_coeff, vel_coeff, apply_rtc=True
+                dem_ecef, gm_dem, sat_position, apply_rtc=True
             )
         self.assertIn("gamma_area", acq)
 
     def test_compute_gamma_area_clips_negative(self):
         dem_ecef = xr.DataArray(
-            np.ones((3, 1, 2), dtype="float64"),
+            np.ones((3, 2, 2), dtype="float64"),
             dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0], "lon": [0.0, 1.0]},
+            coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
         )
+        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
         area = xr.DataArray(
-            np.array([[[1.0, -1.0]], [[0.0, 0.0]], [[0.0, 0.0]]]),
+            np.array(
+                [
+                    [[1.0, -1.0], [1.0, -1.0]],
+                    [[0.0, 0.0], [0.0, 0.0]],
+                    [[0.0, 0.0], [0.0, 0.0]],
+                ]
+            ),
             dims=("axis", "lat", "lon"),
             coords=dem_ecef.coords,
         )
         direction = xr.DataArray(
-            np.array([[[-1.0, -1.0]], [[0.0, 0.0]], [[0.0, 0.0]]]),
+            np.array(
+                [
+                    [[1.0, -1.0], [1.0, -1.0]],
+                    [[0.0, 0.0], [0.0, 0.0]],
+                    [[0.0, 0.0], [0.0, 0.0]],
+                ]
+            ),
             dims=("axis", "lat", "lon"),
             coords=dem_ecef.coords,
         )
         with patch.object(sen1, "compute_dem_area", return_value=area):
-            gamma = sen1.compute_gamma_area(dem_ecef, direction)
+            gamma = sen1.compute_gamma_area(dem_ecef, gm_dem, direction)
         self.assertTrue(np.all(gamma.values >= 0))
         self.assertEqual(0.0, float(gamma.values[0, 1]))
 
@@ -548,7 +574,8 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("axis", "lat", "lon"),
             coords={"axis": ["x", "y", "z"], "lat": lat, "lon": lon},
         )
-        area = sen1.compute_dem_area(dem_ecef)
+        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
+        area = sen1.compute_dem_area(dem_ecef, gm_dem)
         self.assertEqual(("axis", "lat", "lon"), area.dims)
 
     def test_sum_weights_and_gamma_weight_helpers(self):

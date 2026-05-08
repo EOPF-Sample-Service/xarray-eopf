@@ -57,8 +57,9 @@ Additional parameters specific to each Sentinel mission are described below.
 
 ##### Sentinel-1
 
-> Note: Support for Sentinel-1 GRD products in analysis mode is available.
-> Support for SLC products is planned for a future release.
+> Note: Support for Sentinel-1 GRD products in analysis mode is 
+> currently experimental and undergoing validation. Support for SLC products is 
+> planned for a future release.
 
 Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
 (`azimuth_time`, `ground_range`). To transform this data into an

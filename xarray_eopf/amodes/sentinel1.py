@@ -32,7 +32,7 @@ _S_TO_NS = 10**9
 _ONE_SECOND = np.timedelta64(_S_TO_NS, "ns")
 _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
-_DEM_CHUNKSIZE = dict(lat=3600, lon=3600)
+_DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
 
 
 @dataclass(frozen=True)
@@ -194,6 +194,12 @@ class Sen1GRD(Sen1):
         if dem is None:
             if bbox is None:
                 bbox = datatree.attrs["stac_discovery"]["bbox"]
+                bbox = [
+                    min(bbox[0], bbox[2]),
+                    min(bbox[1], bbox[3]),
+                    max(bbox[0], bbox[2]),
+                    max(bbox[1], bbox[3]),
+                ]
             dem = get_dem(bbox, resolution=resolution, crs=crs)
 
         # load measurement data
@@ -225,7 +231,13 @@ class Sen1GRD(Sen1):
             dict(azimuth_time=2048)
         )
         grd = (grd / lut_interp) ** 2
-        grd.assign_attrs(long_name="beta nought", units="m2 m-2")
+        rename_dict = {name: f"beta0_{name}" for name in variable_names}
+        grd = grd.rename(rename_dict)
+        for var in grd.data_vars:
+            grd[var].attrs.update(
+                long_name="beta nought backscatter coefficient",
+                units="1",
+            )
 
         orbit = datatree[f"{group}/conditions/orbit"].to_dataset()
         sat_position = orbit["position"]
@@ -342,7 +354,6 @@ def get_dem(
         das.append(rioxarray.open_rasterio(item.assets["data"].href, chunks={}))
     dem = xr.combine_by_coords(das, join="outer", fill_value=0.0).sel(band=1, drop=True)
     dem = dem.rename({"x": "lon", "y": "lat"})
-    dem = dem.rename("dem")
 
     if crs is None and resolution is None:
         dem = dem.sel(
@@ -370,10 +381,12 @@ def convert_dem_to_ecef(dem: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
 
     Args:
         dem: DEM data array.
+        gm_dem: GridMapping of the DEM data array.
 
     Returns:
         DEM expressed in ECEF axes.
     """
+
     x_dim, y_dim = gm_dem.xy_var_names
     transformer = pyproj.Transformer.from_crs(gm_dem.crs, _CRS_ECEF, always_xy=True)
 
@@ -400,11 +413,12 @@ def convert_dem_to_ecef(dem: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
 
     return xr.DataArray(
         xyz_transformed,
-        dims=("axis", "lat", "lon"),
+        dims=("axis", y_dim, x_dim),
         coords={
-            "lat": dem[y_dim].data,
-            "lon": dem[x_dim].data,
+            y_dim: dem[y_dim].data,
+            x_dim: dem[x_dim].data,
             "axis": ["x", "y", "z"],
+            "spatial_ref": xr.DataArray(0, attrs=gm_dem.crs.to_cf()),
         },
     )
 
@@ -656,21 +670,23 @@ def backward_geocode(
 
 def simulate_acquisition(
     dem_ecef: xr.DataArray,
-    pos_coeff: xr.DataArray,
-    vel_coeff: xr.DataArray,
+    gm_dem: GridMapping,
+    sat_position: xr.DataArray,
     apply_rtc: bool = True,
 ) -> Acquisition:
     """Simulate SAR acquisition geometry for a DEM.
 
     Args:
         dem_ecef: DEM in ECEF coordinates.
-        pos_coeff: Position polynomial coefficients.
-        vel_coeff: Velocity polynomial coefficients.
+        gm_dem: GridMapping of the DEM data array.
+        sat_position: Satellite positions over time.
         apply_rtc: Whether to compute gamma area.
 
     Returns:
         Simulated acquisition geometry.
     """
+    pos_coeff = fit_position(sat_position)
+    vel_coeff = poly_derivative(pos_coeff)
     time_orbit, dist, vel = backward_geocode(dem_ecef, pos_coeff, vel_coeff)
 
     slant_range = np.sqrt((dist**2).sum("axis"))
@@ -684,53 +700,56 @@ def simulate_acquisition(
     )
 
     if apply_rtc:
-        out.gamma_area = compute_gamma_area(dem_ecef, dist / slant_range)
+        out.gamma_area = compute_gamma_area(dem_ecef, gm_dem, dist / slant_range)
 
     return out
 
 
-def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
+def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: xr.DataArray) -> xr.DataArray:
     """Compute per-pixel surface area on the DEM in ECEF coordinates.
 
     Args:
         dem_ecef: DEM in ECEF coordinates.
+        gm_dem: GridMapping of the DEM data array.
 
     Returns:
         Area vectors per DEM pixel.
     """
+    x_dim, y_dim = gm_dem.xy_var_names
+    x = dem_ecef[x_dim]
+    y = dem_ecef[y_dim]
+
     # construct corner coordinates
-    lon = dem_ecef.lon
-    lat = dem_ecef.lat
-    lon_c = np.concatenate(
+    x_corner = np.concatenate(
         [
-            [lon[0] + (lon[0] - lon[1]) / 2],
-            ((lon[:-1].data + lon[1:].data) / 2),
-            [lon[-1] + (lon[-1] - lon[-2]) / 2],
+            [x[0] + (x[0] - x[1]) / 2],
+            ((x[:-1].data + x[1:].data) / 2),
+            [x[-1] + (x[-1] - x[-2]) / 2],
         ]
     )
 
-    lat_c = np.concatenate(
+    y_corner = np.concatenate(
         [
-            [lat[0] + (lat[0] - lat[1]) / 2],
-            ((lat[:-1].data + lat[1:].data) / 2),
-            [lat[-1] + (lat[-1] - lat[-2]) / 2],
+            [y[0] + (y[0] - y[1]) / 2],
+            ((y[:-1].data + y[1:].data) / 2),
+            [y[-1] + (y[-1] - y[-2]) / 2],
         ]
     )
 
     # interpolate DEM to pixel corners
     chunksizes = {key: val[0] for key, val in dem_ecef.chunksizes.items()}
-    xyz_c = dem_ecef.interp(lon=lon_c).chunk(dict(lon=chunksizes["lon"]))
-    xyz_c = xyz_c.interp(lat=lat_c).chunk(chunksizes)
+    xyz_c = dem_ecef.interp({x_dim: x_corner}).chunk({x_dim: chunksizes[x_dim]})
+    xyz_c = xyz_c.interp({y_dim: y_corner}).chunk(chunksizes)
 
     # compute edge vectors
-    dx = xyz_c.diff("lon")
-    dy = xyz_c.diff("lat")
+    dx = xyz_c.diff(x_dim)
+    dy = xyz_c.diff(y_dim)
 
     # align shapes for two triangles
-    dx1 = dx.isel(lat=slice(1, None))
-    dy1 = dy.isel(lon=slice(1, None))
-    dx2 = dx.isel(lat=slice(None, -1))
-    dy2 = dy.isel(lon=slice(None, -1))
+    dx1 = dx.isel({y_dim: slice(1, None)})
+    dy1 = dy.isel({x_dim: slice(1, None)})
+    dx2 = dx.isel({y_dim: slice(None, -1)})
+    dy2 = dy.isel({x_dim: slice(None, -1)})
 
     # restore original coords
     dx1 = dx1.assign_coords(dem_ecef.coords).chunk(chunksizes)
@@ -749,17 +768,20 @@ def compute_dem_area(dem_ecef: xr.DataArray) -> xr.DataArray:
     return cross1 * sign1 + cross2 * sign2
 
 
-def compute_gamma_area(dem_ecef: xr.DataArray, direction: xr.DataArray) -> xr.DataArray:
+def compute_gamma_area(
+    dem_ecef: xr.DataArray, gm_dem: xr.DataArray, direction: xr.DataArray
+) -> xr.DataArray:
     """Compute gamma area by projecting DEM areas onto look direction.
 
     Args:
         dem_ecef: DEM in ECEF coordinates.
+        gm_dem: GridMapping of the DEM data array.
         direction: Look direction vectors.
 
     Returns:
         Gamma area for each DEM pixel.
     """
-    area = compute_dem_area(dem_ecef)
+    area = compute_dem_area(dem_ecef, gm_dem)
     gamma_area = xr.dot(area, -direction, dim="axis")
     return gamma_area.where(gamma_area > 0, 0)
 
@@ -969,14 +991,10 @@ def terrain_correct(
         ValueError: If RTC is enabled without grid parameters.
     """
     gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
-
     dem_ecef = convert_dem_to_ecef(dem, gm_dem)
 
-    polyfit_pos = fit_position(sat_position)
-    polyfit_vel = poly_derivative(polyfit_pos)
-
     acquisition = simulate_acquisition(
-        dem_ecef, polyfit_pos, polyfit_vel, apply_rtc=apply_rtc
+        dem_ecef, gm_dem, sat_position, apply_rtc=apply_rtc
     )
 
     geocoded = geocode_data(
@@ -997,14 +1015,21 @@ def terrain_correct(
             weights_fn = gamma_weights_nearest
         beta_sim = apply_gamma_weights(acquisition, weights_fn, grid_params)
         geocoded = geocoded / beta_sim
+        rename_dict = {
+            name: name.replace("beta0", "gamma0") for name in geocoded.data_vars
+        }
+        geocoded = geocoded.rename(rename_dict)
+        for var in geocoded.data_vars:
+            geocoded[var].attrs.update(
+                long_name="gamma nought backscatter coefficient",
+                units="1",
+            )
 
-    geocoded = assign_grid_mapping(geocoded, gm_dem.crs)
+    geocoded = assign_grid_mapping(geocoded)
     return geocoded
 
 
-def assign_grid_mapping(dataset: xr.Dataset, crs: pyproj.CRS) -> xr.Dataset:
-    dataset = dataset.assign_coords({"spatial_ref": xr.DataArray(0, attrs=crs.to_cf())})
+def assign_grid_mapping(dataset: xr.Dataset) -> xr.Dataset:
     for var_name, data_var in dataset.data_vars.items():
         dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
-
     return dataset

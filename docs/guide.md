@@ -55,11 +55,10 @@ Additional parameters specific to each Sentinel mission are described below.
 
 #### Remarks on Specific Sentinel Missions
 
+Processing workflows differ significantly across Sentinel-1 product types. Therefore, 
+each product family is documented in its own dedicated section.
 
-Since the processing of the different Sentinel-1 products changes drastically, these 
-are explained in different sections 
-
-> Note: Support for SLC products is planned for a future release.
+> **Note:** Support for SLC products is planned for a future release.
 
 ##### Sentinel-1 Level-1 GRD
 
@@ -118,7 +117,6 @@ Examples:
 - [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
 
 ##### Sentinel-1 Level-2 OCN
-
 
 Sentinel-1 Level-2 OCN products are geolocated datasets provided on their 
 **native grid**, where each pixel is associated with an individual 

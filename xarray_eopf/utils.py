@@ -11,8 +11,8 @@ from typing import (
     Type,
     TypeAlias,
     TypeVar,
-    get_origin,
     get_args,
+    get_origin,
 )
 
 import numpy as np

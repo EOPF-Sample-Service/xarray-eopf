@@ -14,49 +14,30 @@ import pytest
 import xarray as xr
 from xcube_resampling.gridmapping import GridMapping
 
-from tests.helpers import make_s1_grd_datatree
+from tests.helpers import make_s1_grd_datatree, make_s1_ocn_datatree
 from xarray_eopf.amode import AnalysisModeRegistry
 from xarray_eopf.amodes import sentinel1 as sen1
-from xarray_eopf.amodes.sentinel1 import Sen1GRD, register
+from xarray_eopf.amodes.sentinel1 import Sen1GRD, Sen1OCN, register
 
 
 class Sentinel1AnalysisModeTest(TestCase):
     def test_register(self):
         registry = AnalysisModeRegistry()
         register(registry)
-        self.assertEqual(1, len(list(registry.keys())))
-        self.assertEqual(Sen1GRD.product_type, registry.keys()[0])
+        self.assertEqual(2, len(list(registry.keys())))
+        self.assertIn(Sen1GRD.product_type, registry.keys())
+        self.assertIn(Sen1OCN.product_type, registry.keys())
 
 
 # noinspection PyUnresolvedReferences
 class Sen1TestMixin:
-    def test_get_applicable_params(self: TestCase):
-        dem = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
-        self.assertEqual({}, self.mode.get_applicable_params())
-        self.assertEqual(
-            {
-                "resolution": 10,
-                "bbox": [1, 3, 4, 5],
-                "crs": pyproj.CRS.from_string("EPSG:4326"),
-                "dem": dem,
-                "footprint_scale_factor": (2.0, 3.0),
-                "apply_rtc": False,
-            },
-            self.mode.get_applicable_params(
-                resolution=10,
-                bbox=[1, 3, 4, 5],
-                crs="EPSG:4326",
-                dem=dem,
-                footprint_scale_factor=(2.0, 3.0),
-                apply_rtc=False,
-            ),
-        )
-
     def test_process_metadata(self: TestCase):
         self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
         dt = xr.DataTree()
         dt.attrs["other_metadata"] = {"test_key": "test_val"}
-        self.assertEqual({"test_key": "test_val"}, self.mode.process_metadata(dt))
+        self.assertEqual(
+            {"other_metadata": {"test_key": "test_val"}}, self.mode.process_metadata(dt)
+        )
 
     def test_transform_datatree(self: TestCase):
         dt = xr.DataTree()
@@ -69,21 +50,6 @@ class Sen1TestMixin:
         ds = xr.Dataset({"a": xr.DataArray([1, 2], dims=("x",))})
         out = self.mode.transform_dataset(ds, stac_meta={"k": "v"})
         self.assertIs(out, ds)
-
-    def test_get_applicable_params_interp_methods_branch(self: TestCase):
-        with pytest.raises(TypeError):
-            self.mode.get_applicable_params(interp_methods="cubic")
-
-    def test_get_applicable_params_interp_methods_update_line(self: TestCase):
-        with patch.object(sen1, "assert_arg_is_instance"):
-            params = self.mode.get_applicable_params(interp_methods="nearest")
-        self.assertEqual("nearest", params["interp_methods"])
-
-    def test_get_applicable_params_footprint_scale_factor_invalid_values(
-        self: TestCase,
-    ):
-        with pytest.raises(TypeError, match="footprint_scale_factor"):
-            self.mode.get_applicable_params(footprint_scale_factor=(1.0, "x"))
 
 
 class Sen1GRDTest(Sen1TestMixin, TestCase):
@@ -108,6 +74,34 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         self.assertEqual(np.datetime64("2024-01-01T00:00:00"), params["az0"])
         self.assertEqual(1.0, params["d_az"])
         self.assertEqual(40.0, params["spacing_az"])
+
+    def test_get_applicable_params(self: TestCase):
+        dem = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
+        self.assertEqual({}, self.mode.get_applicable_params())
+        self.assertEqual(
+            {
+                "resolution": 10,
+                "bbox": [1, 3, 4, 5],
+                "crs": pyproj.CRS.from_string("EPSG:4326"),
+                "dem": dem,
+                "interp_methods": "nearest",
+                "footprint_scale_factor": (2.0, 3.0),
+                "apply_rtc": False,
+            },
+            self.mode.get_applicable_params(
+                resolution=10,
+                bbox=[1, 3, 4, 5],
+                crs="EPSG:4326",
+                dem=dem,
+                interp_methods="nearest",
+                footprint_scale_factor=(2.0, 3.0),
+                apply_rtc=False,
+            ),
+        )
+        with pytest.raises(TypeError, match="interp_methods"):
+            self.mode.get_applicable_params(interp_methods="cubic")
+        with pytest.raises(TypeError, match="footprint_scale_factor"):
+            self.mode.get_applicable_params(footprint_scale_factor=(1.0, "x"))
 
     def test_convert_datatree(self):
         expected = xr.Dataset(
@@ -141,6 +135,95 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
     def test_convert_datatree_fail(self):
         with pytest.raises(ValueError, match="No valid variable names"):
             self.mode.convert_datatree(self.dt, includes="bibo", dem=self.dem)
+
+
+class Sen1OCNTest(Sen1TestMixin, TestCase):
+    mode = Sen1OCN()
+    dt = make_s1_ocn_datatree()
+
+    def test_is_valid_source_ok(self):
+        self.assertTrue(self.mode.is_valid_source("data/S1A_IW_OCN_20240201.zarr"))
+        self.assertTrue(self.mode.is_valid_source("S1A_IW_OCN_TEST"))
+
+    def test_is_not_valid_source(self):
+        self.assertFalse(self.mode.is_valid_source("data/S1A_IW_SLC_20240201.zarr"))
+        self.assertFalse(self.mode.is_valid_source(dict()))
+
+    def test_get_applicable_params(self: TestCase):
+        self.assertEqual({}, self.mode.get_applicable_params())
+        self.assertEqual(
+            {
+                "resolution": 1,
+                "bbox": [1, 3, 4, 5],
+                "crs": pyproj.CRS.from_string("EPSG:4326"),
+                "interp_methods": "nearest",
+                "agg_methods": "nearest",
+            },
+            self.mode.get_applicable_params(
+                resolution=1,
+                bbox=[1, 3, 4, 5],
+                crs="EPSG:4326",
+                interp_methods="nearest",
+                agg_methods="nearest",
+            ),
+        )
+        with pytest.raises(TypeError):
+            self.mode.get_applicable_params(interp_methods="cubic")
+
+    def test_convert_datatree(self):
+        # with bbox and resolution
+        out = self.mode.convert_datatree(
+            self.dt,
+            includes=["wind_direction", "wind_speed"],
+            resolution=1,
+            bbox=[-1, 1, 2, 4],
+        )
+        self.assertCountEqual(["wind_direction", "wind_speed"], out.keys())
+        self.assertEqual({"lat": 3, "lon": 3}, out.sizes)
+        self.assertListEqual([-0.5, 0.5, 1.5], out.lon.values.tolist())
+        self.assertListEqual([3.5, 2.5, 1.5], out.lat.values.tolist())
+        self.assertTrue(np.all(out.wind_direction.values == 1))
+        self.assertTrue(np.all(out.wind_speed.values == 1))
+
+        # without bbox and resolution
+        out = self.mode.convert_datatree(self.dt)
+        self.assertCountEqual(
+            [
+                "wind_direction",
+                "wind_speed",
+                "inversion_quality",
+                "wind_quality",
+                "percentage_bright_points",
+            ],
+            out.keys(),
+        )
+        self.assertEqual({"lat": 7, "lon": 7}, out.sizes)
+        self.assertListEqual(
+            [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], out.lon.values.tolist()
+        )
+        self.assertListEqual(
+            [6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0], out.lat.values.tolist()
+        )
+
+        # projected crs
+        out = self.mode.convert_datatree(
+            self.dt, crs=pyproj.CRS.from_string("EPSG:32631")
+        )
+        self.assertCountEqual(
+            [
+                "wind_direction",
+                "wind_speed",
+                "inversion_quality",
+                "wind_quality",
+                "percentage_bright_points",
+            ],
+            out.keys(),
+        )
+        self.assertEqual({"y": 7, "x": 8}, out.sizes)
+
+    def test_convert_datatree_fail(self):
+        with pytest.raises(ValueError, match="No valid variable names"):
+            self.mode.convert_datatree(self.dt, includes="invalid_var")
 
 
 class Sentinel1FunctionsTest(TestCase):

@@ -1,10 +1,14 @@
+## Changes in 0.2.9 (under development)
+
+- Add support for Sentinel-1 Level-2 OCN analysis mode.
+
 ## Changes in 0.2.8 (from 2026-05-08)
 
 - Fix package discovery in `pyproject.toml` to ensure only `xarray_eopf` 
   (and its subpackages) is included in the PyPI wheel.
 - Remove the `coarsen.py` module, as it has been moved to [xcube-resampling](https://github.com/xcube-dev/xcube-resampling) 
   and is no longer used internally.
-- Add support for Sentinel-1 GRD analysis mode.
+- Add support for Sentinel-1 Level-1 GRD analysis mode.
 - Updated year in the headers.
 - Added footprint-based subsetting for Sentinel-3 OLCI and SLSTR LST using STAC 
   metadata, improving performance by avoiding full latitude/longitude grid downloads 

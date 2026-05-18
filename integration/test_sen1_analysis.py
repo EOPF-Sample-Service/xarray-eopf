@@ -49,3 +49,29 @@ class Sentinel2AnalysisTest(TestCase):
         assert_dataset_is_chunked(self, ds, verbose=show_chunking)
         for var_name in ds.data_vars:
             self.assertEqual((541, 1081), ds[var_name].shape, msg=var_name)
+
+    def test_open_datatree_sen1_onc(self):
+        url = (
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202507-s01siwocn"
+            "/31/products/cpm_v256/S1A_IW_OCN__2SDV_20250731T213433_20250731T213458_"
+            "060333_077FA7_8163.zarr"
+        )
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            ds = xr.open_dataset(
+                url,
+                engine="eopf-zarr",
+                op_mode="analysis",
+                chunks={},
+            )
+        self.assertTrue(result.time_delta < allowed_open_time)
+
+        self.assertIn("wind_direction", ds)
+        self.assertIn("wind_speed", ds)
+        self.assertIn("inversion_quality", ds)
+        self.assertIn("wind_quality", ds)
+        self.assertIn("percentage_bright_points", ds)
+
+        assert_dataset_is_chunked(self, ds, verbose=show_chunking)
+        for var_name in ds.data_vars:
+            self.assertEqual((222, 290), ds[var_name].shape, msg=var_name)

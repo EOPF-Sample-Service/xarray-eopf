@@ -319,8 +319,7 @@ class Msi(AnalysisMode, ABC):
         return dataset
 
     def process_metadata(self, datatree: xr.DataTree) -> dict:
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
+        return datatree.attrs
 
 
 class MsiL1c(Msi):

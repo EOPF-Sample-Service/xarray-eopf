@@ -20,8 +20,10 @@ import pystac_client
 import rioxarray
 import xarray as xr
 from xcube_resampling import resample_in_space
+from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
-from xcube_resampling.utils import reproject_bbox
+from xcube_resampling.rectify import rectify_dataset
+from xcube_resampling.utils import reproject_bbox, resolution_degrees_to_meters
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
@@ -33,6 +35,7 @@ _ONE_SECOND = np.timedelta64(_S_TO_NS, "ns")
 _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
+_CHUNKSIZE = (2048, 2048)
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,25 @@ class Sen1(AnalysisMode, ABC):
         pattern = re.compile(rf"S1[A-D]_[A-Z]{{2}}_{self.product_type}_[^/]+$")
         return bool(pattern.search(root_path)) if root_path else False
 
+    def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
+        warnings.warn(
+            "Analysis mode not implemented for given source, return data tree as-is."
+        )
+        return datatree
+
+    def transform_dataset(
+        self, dataset: xr.Dataset, stac_meta: dict, **params
+    ) -> xr.Dataset:
+        # ToDo: what should be added when opening a subgroup in analysis mode?
+        return dataset
+
+    def process_metadata(self, datatree: xr.DataTree) -> dict:
+        return datatree.attrs
+
+
+class Sen1GRD(Sen1):
+    product_type = "GRDH"
+
     def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
 
@@ -156,26 +178,6 @@ class Sen1(AnalysisMode, ABC):
             params.update(apply_rtc=apply_rtc)
 
         return params
-
-    def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
-        warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is."
-        )
-        return datatree
-
-    def transform_dataset(
-        self, dataset: xr.Dataset, stac_meta: dict, **params
-    ) -> xr.Dataset:
-        # ToDo: what should be added when opening a subgroup in analysis mode?
-        return dataset
-
-    def process_metadata(self, datatree: xr.DataTree) -> dict:
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
-
-
-class Sen1GRD(Sen1):
-    product_type = "GRDH"
 
     def convert_datatree(
         self,
@@ -290,9 +292,134 @@ class Sen1GRD(Sen1):
         )
 
 
+class Sen1OCN(Sen1):
+    product_type = "OCN"
+
+    def get_applicable_params(self, **kwargs) -> dict[str, Any]:
+        params = {}
+
+        resolution = kwargs.get("resolution")
+        if resolution is not None:
+            assert_arg_is_instance(resolution, "resolution", (float, int))
+            params.update(resolution=resolution)
+
+        bbox = kwargs.get("bbox")
+        if bbox is not None:
+            assert_arg_is_instance(bbox, "bbox", (Sequence,))
+            assert_arg_has_length(bbox, "bbox", 4)
+            params.update(bbox=bbox)
+
+        crs = kwargs.get("crs")
+        if crs is not None:
+            if isinstance(crs, str):
+                crs = pyproj.CRS.from_string(crs)
+            assert_arg_is_instance(crs, "crs", (pyproj.CRS,))
+            params.update(crs=crs)
+
+        interp_methods = kwargs.get("interp_methods")
+        if interp_methods is not None:
+            assert_arg_is_instance(
+                interp_methods, "interp_methods", Literal["nearest", "bilinear"]
+            )
+            params.update(interp_methods=interp_methods)
+
+        agg_methods = kwargs.get("agg_methods")
+        if agg_methods is not None:
+            assert_arg_is_instance(agg_methods, "agg_methods", (str, dict))
+            params.update(agg_methods=agg_methods)
+
+        return params
+
+    def convert_datatree(
+        self,
+        datatree: xr.DataTree,
+        includes: str | Iterable[str] | None = None,
+        excludes: str | Iterable[str] | None = None,
+        resolution: float = None,
+        bbox: Sequence[float | int] | None = None,
+        crs: pyproj.CRS | None = None,
+        interp_methods: SpatialInterpMethods | None = None,
+        agg_methods: SpatialAggMethods | None = None,
+    ) -> xr.Dataset:
+        # load measurement data
+        assert (
+            len(datatree.owi.children) == 1
+        ), "Expected one child in OCN OWI sub data tree"
+        sub_dt = next(iter(datatree.owi.children.values()))
+        dataset = sub_dt.measurements.to_dataset()
+        dataset.update(sub_dt.quality.to_dataset().drop_vars("calibration_constant"))
+
+        # correct attributes and encoding
+        def _apply_valid_range(da, *, dtype=None, fill_value=None):
+            if dtype is not None:
+                da = da.astype(dtype)
+
+            if fill_value is not None:
+                da.encoding["_FillValue"] = fill_value
+
+            eopf_attrs = da.attrs["_eopf_attrs"]
+            da.attrs.update(
+                valid_min=eopf_attrs["valid_min"],
+                valid_max=eopf_attrs["valid_max"],
+            )
+
+            return da
+
+        dataset["inversion_quality"] = _apply_valid_range(
+            dataset.inversion_quality,
+            dtype="uint8",
+            fill_value=255,
+        )
+        dataset["wind_quality"] = _apply_valid_range(
+            dataset.wind_quality,
+            dtype="uint8",
+            fill_value=255,
+        )
+        dataset["percentage_bright_points"] = _apply_valid_range(
+            dataset.percentage_bright_points,
+        )
+
+        # filter dataset by variable names
+        name_filter = NameFilter(includes=includes, excludes=excludes)
+        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No valid variable names found in dataset")
+        dataset = dataset[variable_names]
+
+        # reproject dataset to regular grid
+        source_gm = GridMapping.from_dataset(dataset)
+        if bbox is None:
+            if crs:
+                bbox = reproject_bbox(source_gm.xy_bbox, source_gm.crs, crs)
+            else:
+                bbox = source_gm.xy_bbox
+        if resolution is None:
+            if crs and not crs.is_geographic:
+                center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
+                resolution = resolution_degrees_to_meters(source_gm.xy_res, center_lat)
+            else:
+                resolution = source_gm.xy_res
+        if crs is None:
+            crs = source_gm.crs
+        target_gm = GridMapping.regular_from_bbox(
+            bbox=bbox, xy_res=resolution, crs=crs, tile_size=_CHUNKSIZE
+        )
+
+        rectified_dataset = rectify_dataset(
+            dataset,
+            source_gm=source_gm,
+            target_gm=target_gm,
+            interp_methods=interp_methods,
+            agg_methods=agg_methods,
+        )
+        rectified_dataset.attrs = self.process_metadata(datatree)
+        return rectified_dataset
+
+
 def register(registry: AnalysisModeRegistry):
     """Register Sentinel-1 analysis modes."""
     registry.register(Sen1GRD)
+    registry.register(Sen1OCN)
 
 
 def get_dem(

@@ -54,7 +54,9 @@ class Sen3TestMixin:
         self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
         dt = xr.DataTree()
         dt.attrs["other_metadata"] = {"test_key": "test_val"}
-        self.assertEqual({"test_key": "test_val"}, self.mode.process_metadata(dt))
+        self.assertEqual(
+            {"other_metadata": {"test_key": "test_val"}}, self.mode.process_metadata(dt)
+        )
 
     @staticmethod
     def create_simple_dataset() -> xr.Dataset:
@@ -211,7 +213,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
             includes=["oa01_radiance"],
             resolution=0.1,
         )
-        self.assertEqual({"test_key": "test_val"}, ds.attrs)
+        self.assertCountEqual(["stac_discovery", "other_metadata"], ds.attrs.keys())
 
 
 class SlstrRbtTest(Sen3TestMixin, TestCase):

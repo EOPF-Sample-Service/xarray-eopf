@@ -191,10 +191,8 @@ class Sen3(AnalysisMode, ABC):
 
         return dataset
 
-    # noinspection PyMethodMayBeStatic
     def process_metadata(self, datatree: xr.DataTree) -> dict:
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
+        return datatree.attrs
 
     def _apply_orthorectification(
         self,

@@ -50,6 +50,11 @@ class MsiTestMixin:
 
     def test_process_metadata(self: TestCase):
         self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))
+        dt = xr.DataTree()
+        dt.attrs["other_metadata"] = {"test_key": "test_val"}
+        self.assertEqual(
+            {"other_metadata": {"test_key": "test_val"}}, self.mode.process_metadata(dt)
+        )
 
     def test_assign_grid_mapping(self: TestCase):
         def make_band():

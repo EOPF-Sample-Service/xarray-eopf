@@ -838,7 +838,7 @@ def simulate_acquisition(
     return out
 
 
-def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: xr.DataArray) -> xr.DataArray:
+def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
     """Compute per-pixel surface area on the DEM in ECEF coordinates.
 
     Args:
@@ -871,8 +871,16 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: xr.DataArray) -> xr.DataArr
 
     # interpolate DEM to pixel corners
     chunksizes = {key: val[0] for key, val in dem_ecef.chunksizes.items()}
-    xyz_c = dem_ecef.interp({x_dim: x_corner}).chunk({x_dim: chunksizes[x_dim]})
-    xyz_c = xyz_c.interp({y_dim: y_corner}).chunk(chunksizes)
+    xyz_c = dem_ecef.interp(
+        {x_dim: x_corner},
+        method="linear",
+        kwargs={"fill_value": "extrapolate"},
+    ).chunk({x_dim: chunksizes[x_dim]})
+    xyz_c = xyz_c.interp(
+        {y_dim: y_corner},
+        method="linear",
+        kwargs={"fill_value": "extrapolate"},
+    ).chunk(chunksizes)
 
     # compute edge vectors
     dx = xyz_c.diff(x_dim)
@@ -902,7 +910,7 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: xr.DataArray) -> xr.DataArr
 
 
 def compute_gamma_area(
-    dem_ecef: xr.DataArray, gm_dem: xr.DataArray, direction: xr.DataArray
+    dem_ecef: xr.DataArray, gm_dem: GridMapping, direction: xr.DataArray
 ) -> xr.DataArray:
     """Compute gamma area by projecting DEM areas onto look direction.
 

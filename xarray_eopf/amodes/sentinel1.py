@@ -23,7 +23,7 @@ from xcube_resampling import resample_in_space
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import reproject_bbox, resolution_degrees_to_meters
+from xcube_resampling.utils import reproject_bbox, transform_resolution
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
@@ -396,8 +396,13 @@ class Sen1OCN(Sen1):
                 bbox = source_gm.xy_bbox
         if resolution is None:
             if crs and not crs.is_geographic:
-                center_lat = (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2
-                resolution = resolution_degrees_to_meters(source_gm.xy_res, center_lat)
+                center_lat = (
+                    (source_gm.xy_bbox[0] + source_gm.xy_bbox[2]) / 2,
+                    (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2,
+                )
+                resolution = transform_resolution(
+                    center_lat, source_gm.xy_res, source_gm.crs, crs
+                )
             else:
                 resolution = source_gm.xy_res
         if crs is None:

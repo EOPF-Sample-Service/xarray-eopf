@@ -219,7 +219,7 @@ class Sen1OCNTest(Sen1TestMixin, TestCase):
             ],
             out.keys(),
         )
-        self.assertEqual({"y": 7, "x": 8}, out.sizes)
+        self.assertEqual({"y": 8, "x": 8}, out.sizes)
 
     def test_convert_datatree_fail(self):
         with pytest.raises(ValueError, match="No valid variable names"):

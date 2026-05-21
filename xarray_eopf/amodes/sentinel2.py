@@ -143,7 +143,8 @@ class Msi(AnalysisMode, ABC):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is."
+            "Analysis mode not implemented for given source, "
+            "returning data tree as-is."
         )
         return datatree
 
@@ -319,8 +320,7 @@ class Msi(AnalysisMode, ABC):
         return dataset
 
     def process_metadata(self, datatree: xr.DataTree) -> dict:
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
+        return datatree.attrs
 
 
 class MsiL1c(Msi):

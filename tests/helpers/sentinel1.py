@@ -84,3 +84,89 @@ def make_s1_grd_datatree() -> xr.DataTree:
         }
     }
     return dt
+
+
+def _make_owi_measurements(height: int, width: int):
+    shape = (height, width)
+
+    return xr.Dataset(
+        {
+            "wind_speed": xr.DataArray(
+                np.ones(shape, dtype="float32"),
+                dims=("height", "width"),
+            ),
+            "wind_direction": xr.DataArray(
+                np.ones(shape, dtype="float32"),
+                dims=("height", "width"),
+            ),
+        },
+        coords=_make_lat_lon_coords(height, width),
+    )
+
+
+def _make_owi_quality(height: int, width: int):
+    shape = (height, width)
+
+    return xr.Dataset(
+        {
+            "calibration_constant": xr.DataArray(
+                np.zeros(shape, dtype="float32"),
+                dims=("height", "width"),
+            ),
+            "inversion_quality": xr.DataArray(
+                np.zeros(shape, dtype="float64"),
+                dims=("height", "width"),
+                attrs={"_eopf_attrs": {"valid_min": 0, "valid_max": 3}},
+            ),
+            "wind_quality": xr.DataArray(
+                np.zeros(shape, dtype="float64"),
+                dims=("height", "width"),
+                attrs={"_eopf_attrs": {"valid_min": 0, "valid_max": 3}},
+            ),
+            "percentage_bright_points": xr.DataArray(
+                np.ones(shape, dtype="float32"),
+                dims=("height", "width"),
+                attrs={"_eopf_attrs": {"valid_min": 0, "valid_max": 100}},
+            ),
+        },
+        coords=_make_lat_lon_coords(height, width),
+    )
+
+
+def _make_lat_lon_coords(height: int, width: int):
+    y = np.arange(height - 1, -1, -1)
+    x = np.arange(width)
+
+    latitude = y[:, None] + x[None, :]
+    longitude = -y[:, None] + x[None, :]
+
+    return {
+        "latitude": (
+            ("height", "width"),
+            latitude,
+        ),
+        "longitude": (
+            ("height", "width"),
+            longitude,
+        ),
+    }
+
+
+def make_s1_ocn_datatree() -> xr.DataTree:
+    height = 4
+    width = 4
+
+    product = "S1A_IW_OCN"
+
+    return xr.DataTree.from_dict(
+        {
+            f"/owi/{product}/measurements": _make_owi_measurements(
+                height,
+                width,
+            ),
+            f"/owi/{product}/quality": _make_owi_quality(
+                height,
+                width,
+            ),
+        }
+    )

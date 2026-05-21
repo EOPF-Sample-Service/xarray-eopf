@@ -55,13 +55,17 @@ Additional parameters specific to each Sentinel mission are described below.
 
 #### Remarks on Specific Sentinel Missions
 
-##### Sentinel-1
+Processing workflows differ significantly across Sentinel-1 product types. Therefore, 
+each product family is documented in its own dedicated section.
+
+> **Note:** Support for SLC products is planned for a future release.
+
+##### Sentinel-1 Level-1 GRD
 
 > Note: Support for Sentinel-1 GRD products in analysis mode is 
-> currently experimental and undergoing validation. Support for SLC products is 
-> planned for a future release.
+> currently experimental and undergoing validation.
 
-Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
+Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (`azimuth_time`, `ground_range`). To transform this data into an
 **analysis-ready dataset**, the following processing steps are applied:
 
@@ -77,17 +81,16 @@ Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
 
 📖 [D. Small, *Flattening Gamma: Radiometric Terrain Correction for SAR Imagery*](https://ieeexplore.ieee.org/document/5752845)
 
-
 **Supported Products:**
 
-- [Sentinel-1 GRD](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd)
+- [Sentinel-1 Level-1 GRD](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd)
 
 **Supported Variables**
 
 - **Polarization bands**:  
   `vv`, `vh`, `hh`, `hv` *(each GRD product contains only a subset of these bands)*
 
-**Specific Sentinel-1 parameters `**kwargs`:**
+**Specific Sentinel-1 Level-1 GRD parameters `**kwargs`:**
 
 - `crs`: Coordinate reference system of the output dataset. Can be provided as a 
   `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
@@ -108,6 +111,61 @@ Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
 - `footprint_scale_factor`: Defines how radar pixels contribute to the output grid.
   Default: `(3.0, 3.0)`, accounting for resolution differences (e.g., ~10 m GRD
   vs. ~30 m DEM).
+
+Examples:  
+
+- [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
+
+##### Sentinel-1 Level-2 OCN
+
+Sentinel-1 Level-2 OCN products are geolocated datasets provided on their 
+**native grid**, where each pixel is associated with an individual 
+latitude/longitude pair. As a result, the spatial coordinates form a 
+**2D irregular grid** rather than a regular latitude/longitude raster.
+
+The analysis mode uses the [rectification algorithm from xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification)
+to transform the irregular grid into a regular spatial grid with 1D latitude and 
+longitude coordinates.
+
+**Supported Products:**
+
+- [Sentinel-1 Level-2 OCN](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l2-ocn)
+
+**Supported Variables**
+
+- **Wind Variables**:
+  `wind_speed`, `wind_direction`
+- **Auxiliary Variables**:
+  `inversion_quality`, `wind_quality`, `percentage_bright_points`
+
+**Specific Sentinel-1 Level-2 OCN parameters `**kwargs`:**
+
+- `crs`: Coordinate reference system of the output dataset. Can be provided as a 
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using 
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
+  If not specified, [EPSG:4326](https://epsg.io/4326) is used.
+- `resolution`: Target resolution for all spatial variables expressed in the units 
+  of the specified `crs`. If not specified, the resolution is derived from the data.
+- `interp_methods`: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:
+
+    - `0` (nearest neighbor)
+    - `1` (linear / bilinear)
+    - `"nearest"`
+    - `"triangular"`
+    - `"bilinear"`
+
+  The default is `0` for integer arrays,
+  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
+- `agg_methods`: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
+    `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
+  Defaults to `"center"` for integer arrays, else `"mean"`.
+  For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 
 Examples:  
 
@@ -253,14 +311,14 @@ for details.
     - `"triangular"`
     - `"bilinear"`
 
-  The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
+  The default is `0` for integer arrays,
   else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 - `agg_methods`: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     `"center"`, `"count"`, `"first"`, `"last"`, `"max"`, `"mean"`, `"median"`, 
     `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
-  Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
+  Defaults to `"center"` for integer arrays, else `"mean"`.
   For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 
 The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).

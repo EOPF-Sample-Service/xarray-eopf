@@ -86,8 +86,8 @@ class Sen3(AnalysisMode, ABC):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is.",
-            UserWarning,
+            "Analysis mode not implemented for given source, "
+            "returning data tree as-is."
         )
         return datatree
 
@@ -191,10 +191,8 @@ class Sen3(AnalysisMode, ABC):
 
         return dataset
 
-    # noinspection PyMethodMayBeStatic
     def process_metadata(self, datatree: xr.DataTree) -> dict:
-        other_metadata = datatree.attrs.get("other_metadata", {})
-        return other_metadata
+        return datatree.attrs
 
     def _apply_orthorectification(
         self,

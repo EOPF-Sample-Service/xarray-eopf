@@ -143,7 +143,8 @@ class Msi(AnalysisMode, ABC):
 
     def transform_datatree(self, datatree: xr.DataTree, **params) -> xr.DataTree:
         warnings.warn(
-            "Analysis mode not implemented for given source, return data tree as-is."
+            "Analysis mode not implemented for given source, "
+            "returning data tree as-is."
         )
         return datatree
 

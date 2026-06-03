@@ -163,14 +163,15 @@ class EopfBackend(BackendEntrypoint):
                 using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
             interp_methods: Optional interpolation method to be used if
                 `op_mode="analysis"`,
-                - for Sentinel-1:
+
+                - for Sentinel-1 GRD:
                     method used during geometric and radiometric terrain correction
                     (GTC and RTC).
 
                     - `"nearest"`
                     - `"bilinear"`
 
-                - for Sentinel-2 and Sentinel-3:
+                - for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:
                     for upsampling / interpolating spatial data variables. Can be a
                     single interpolation method for all variables or a dictionary
                     mapping variable names or dtypes to interpolation method.

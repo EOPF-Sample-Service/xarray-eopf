@@ -1,6 +1,8 @@
-## Changes in 0.2.9 (under development)
+## Changes in 0.2.9 (from 2026-06-03)
 
-- Add support for Sentinel-1 Level-2 OCN analysis mode.
+- Added support for Sentinel-1 Level-2 OCN analysis mode.
+- Fixed an issue in Sentinel-1 GRD analysis mode that could produce NaN values along 
+  the edges of the bounding box.
 
 ## Changes in 0.2.8 (from 2026-05-08)
 

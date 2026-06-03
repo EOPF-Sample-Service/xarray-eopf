@@ -149,16 +149,15 @@ longitude coordinates.
 - `interp_methods`: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:
+  interpolation method (for more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms)). 
+  Supported methods include:
 
-    - `0` (nearest neighbor)
-    - `1` (linear / bilinear)
+    - `0` (nearest neighbor, default for integer arrays)
+    - `1` (linear / bilinear, default for float arrays)
     - `"nearest"`
     - `"triangular"`
     - `"bilinear"`
 
-  The default is `0` for integer arrays,
-  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 - `agg_methods`: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
@@ -209,16 +208,15 @@ bands from multiple resolutions onto the same grid using [affine transformation 
 - `interp_methods`: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:
+  interpolation method (for more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms)). 
+  Supported methods include:
 
-    - `0` (nearest neighbor)
-    - `1` (linear / bilinear)
+    - `0` (nearest neighbor, default for integer arrays)
+    - `1` (linear / bilinear, default for float arrays)
     - `"nearest"`
     - `"triangular"`
     - `"bilinear"`
 
-  The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),
-  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 - `agg_methods`: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
@@ -300,19 +298,19 @@ for details.
     - Sentinel-3 OLCI Level-2 LFR: 300 meter
     - Sentinel-3 SLSTR Level-1 RBT: 500 meter (1000 meter if selected variables come from F- or I-stripe)
     - Sentinel-3 SLSTR Level-2 LST: 1000 meter
+
 - `interp_methods`: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:
+  interpolation method (for more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms)). 
+  Supported methods include:
 
-    - `0` (nearest neighbor)
-    - `1` (linear / bilinear)
+    - `0` (nearest neighbor, default for integer arrays)
+    - `1` (linear / bilinear, default for float arrays)
     - `"nearest"`
     - `"triangular"`
     - `"bilinear"`
 
-  The default is `0` for integer arrays,
-  else `1`. For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 - `agg_methods`: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:

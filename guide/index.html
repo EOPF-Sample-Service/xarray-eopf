@@ -1158,19 +1158,21 @@ longitude coordinates.</p>
 <li><code>1</code> (linear / bilinear)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code></li>
+<li><code>"bilinear"</code>
+  The default is <code>0</code> for integer arrays,
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.  </li>
 </ul>
 </li>
-</ul>
-<p>The default is <code>0</code> for integer arrays,
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.<br />
-- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+<li>
+<p><code>agg_methods</code>: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
     <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
   Defaults to <code>"center"</code> for integer arrays, else <code>"mean"</code>.
   For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+</li>
+</ul>
 <p>Examples:  </p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
@@ -1217,19 +1219,21 @@ bands from multiple resolutions onto the same grid using <a href="https://xcube-
 <li><code>1</code> (linear / bilinear)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code></li>
+<li><code>"bilinear"</code>
+  The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>. </li>
 </ul>
 </li>
-</ul>
-<p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.<br />
-- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+<li>
+<p><code>agg_methods</code>: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
     <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
   Defaults to <code>"center"</code> for integer arrays (e.g. Sentinel-2 L2A SCL), else <code>"mean"</code>.
   For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+</li>
+</ul>
 <p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
 Further explanation of the meaning and usage of these parameters for each Sentinel 
 mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>
@@ -1308,20 +1312,20 @@ for details.</p>
 <li><code>1</code> (linear / bilinear)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code></li>
+<li><code>"bilinear"</code>
+  The default is <code>0</code> for integer arrays,
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</li>
 </ul>
 </li>
-</ul>
-<p>The default is <code>0</code> for integer arrays,
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
-<ul>
-<li><code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+<li>
+<p><code>agg_methods</code>: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
     <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
   Defaults to <code>"center"</code> for integer arrays, else <code>"mean"</code>.
-  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</li>
+  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+</li>
 </ul>
 <p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
 Further explanation of the meaning and usage of these parameters for each Sentinel 

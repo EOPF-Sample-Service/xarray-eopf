@@ -1152,15 +1152,14 @@ longitude coordinates.</p>
 <p><code>interp_methods</code>: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:</p>
+  interpolation method (for more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>). 
+  Supported methods include:</p>
 <ul>
-<li><code>0</code> (nearest neighbor)</li>
-<li><code>1</code> (linear / bilinear)</li>
+<li><code>0</code> (nearest neighbor, default for integer arrays)</li>
+<li><code>1</code> (linear / bilinear, default for float arrays)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code>
-  The default is <code>0</code> for integer arrays,
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.  </li>
+<li><code>"bilinear"</code></li>
 </ul>
 </li>
 <li>
@@ -1213,15 +1212,14 @@ bands from multiple resolutions onto the same grid using <a href="https://xcube-
 <p><code>interp_methods</code>: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:</p>
+  interpolation method (for more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>). 
+  Supported methods include:</p>
 <ul>
-<li><code>0</code> (nearest neighbor)</li>
-<li><code>1</code> (linear / bilinear)</li>
+<li><code>0</code> (nearest neighbor, default for integer arrays)</li>
+<li><code>1</code> (linear / bilinear, default for float arrays)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code>
-  The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>. </li>
+<li><code>"bilinear"</code></li>
 </ul>
 </li>
 <li>
@@ -1306,15 +1304,14 @@ for details.</p>
 <p><code>interp_methods</code>: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
-  interpolation method. Supported methods include:</p>
+  interpolation method (for more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>). 
+  Supported methods include:</p>
 <ul>
-<li><code>0</code> (nearest neighbor)</li>
-<li><code>1</code> (linear / bilinear)</li>
+<li><code>0</code> (nearest neighbor, default for integer arrays)</li>
+<li><code>1</code> (linear / bilinear, default for float arrays)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
-<li><code>"bilinear"</code>
-  The default is <code>0</code> for integer arrays,
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</li>
+<li><code>"bilinear"</code></li>
 </ul>
 </li>
 <li>

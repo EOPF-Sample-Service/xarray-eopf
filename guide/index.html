@@ -1296,15 +1296,15 @@ for details.</p>
 <li>Sentinel-3 OLCI Level-2 LFR: 300 meter</li>
 <li>Sentinel-3 SLSTR Level-1 RBT: 500 meter (1000 meter if selected variables come from F- or I-stripe)</li>
 <li>Sentinel-3 SLSTR Level-2 LST: 1000 meter</li>
+</ul>
+</li>
 <li>
 <p><code>interp_methods</code>: for upsampling / interpolating
   spatial data variables. Can be a single interpolation method for all
   variables or a dictionary mapping variable names or dtypes to
   interpolation method. Supported methods include:</p>
-</li>
-<li>
-<p><code>0</code> (nearest neighbor)</p>
-</li>
+<ul>
+<li><code>0</code> (nearest neighbor)</li>
 <li><code>1</code> (linear / bilinear)</li>
 <li><code>"nearest"</code></li>
 <li><code>"triangular"</code></li>
@@ -1313,14 +1313,16 @@ for details.</p>
 </li>
 </ul>
 <p>The default is <code>0</code> for integer arrays,
-  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.<br />
-- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+<ul>
+<li><code>agg_methods</code>: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
     <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
   Defaults to <code>"center"</code> for integer arrays, else <code>"mean"</code>.
-  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
+  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</li>
+</ul>
 <p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
 Further explanation of the meaning and usage of these parameters for each Sentinel 
 mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>

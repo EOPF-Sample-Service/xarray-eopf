@@ -1258,14 +1258,14 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">            interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">                `op_mode=&quot;analysis&quot;`,</span>
 
-<span class="sd">                - for Sentinel-1:</span>
+<span class="sd">                - for Sentinel-1 GRD:</span>
 <span class="sd">                    method used during geometric and radiometric terrain correction</span>
 <span class="sd">                    (GTC and RTC).</span>
 
 <span class="sd">                    - `&quot;nearest&quot;`</span>
 <span class="sd">                    - `&quot;bilinear&quot;`</span>
 
-<span class="sd">                - for Sentinel-2 and Sentinel-3:</span>
+<span class="sd">                - for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:</span>
 <span class="sd">                    for upsampling / interpolating spatial data variables. Can be a</span>
 <span class="sd">                    single interpolation method for all variables or a dictionary</span>
 <span class="sd">                    mapping variable names or dtypes to interpolation method.</span>
@@ -1893,7 +1893,7 @@ using <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.
 <code>op_mode="analysis"</code>,</p>
 <ul>
 <li>
-<p>for Sentinel-1:
+<p>for Sentinel-1 GRD:
     method used during geometric and radiometric terrain correction
     (GTC and RTC).</p>
 <ul>
@@ -1902,7 +1902,7 @@ using <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.
 </ul>
 </li>
 <li>
-<p>for Sentinel-2 and Sentinel-3:
+<p>for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:
     for upsampling / interpolating spatial data variables. Can be a
     single interpolation method for all variables or a dictionary
     mapping variable names or dtypes to interpolation method.
@@ -2302,14 +2302,14 @@ to drop from the underlying file. See
 <span class="sd">        interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">            `op_mode=&quot;analysis&quot;`,</span>
 
-<span class="sd">            - for Sentinel-1:</span>
+<span class="sd">            - for Sentinel-1 GRD:</span>
 <span class="sd">                method used during geometric and radiometric terrain correction</span>
 <span class="sd">                (GTC and RTC).</span>
 
 <span class="sd">                - `&quot;nearest&quot;`</span>
 <span class="sd">                - `&quot;bilinear&quot;`</span>
 
-<span class="sd">            - for Sentinel-2 and Sentinel-3:</span>
+<span class="sd">            - for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:</span>
 <span class="sd">                for upsampling / interpolating spatial data variables. Can be a</span>
 <span class="sd">                single interpolation method for all variables or a dictionary</span>
 <span class="sd">                mapping variable names or dtypes to interpolation method.</span>

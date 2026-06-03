@@ -1121,7 +1121,8 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">290</span>
 <span class="normal">291</span>
 <span class="normal">292</span>
-<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
+<span class="normal">293</span>
+<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
@@ -1256,6 +1257,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">                using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">            interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">                `op_mode=&quot;analysis&quot;`,</span>
+
 <span class="sd">                - for Sentinel-1:</span>
 <span class="sd">                    method used during geometric and radiometric terrain correction</span>
 <span class="sd">                    (GTC and RTC).</span>
@@ -1888,14 +1890,17 @@ using <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.
             <td>
               <div class="doc-md-description">
                 <p>Optional interpolation method to be used if
-<code>op_mode="analysis"</code>,
-- for Sentinel-1:
+<code>op_mode="analysis"</code>,</p>
+<ul>
+<li>
+<p>for Sentinel-1:
     method used during geometric and radiometric terrain correction
     (GTC and RTC).</p>
-<pre><code>- `"nearest"`
-- `"bilinear"`
-</code></pre>
 <ul>
+<li><code>"nearest"</code></li>
+<li><code>"bilinear"</code></li>
+</ul>
+</li>
 <li>
 <p>for Sentinel-2 and Sentinel-3:
     for upsampling / interpolating spatial data variables. Can be a
@@ -2243,7 +2248,8 @@ to drop from the underlying file. See
 <span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
-<span class="normal">275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
+<span class="normal">275</span>
+<span class="normal">276</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2295,6 +2301,7 @@ to drop from the underlying file. See
 <span class="sd">            using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">        interp_methods: Optional interpolation method to be used if</span>
 <span class="sd">            `op_mode=&quot;analysis&quot;`,</span>
+
 <span class="sd">            - for Sentinel-1:</span>
 <span class="sd">                method used during geometric and radiometric terrain correction</span>
 <span class="sd">                (GTC and RTC).</span>
@@ -2484,8 +2491,7 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">277</span>
-<span class="normal">278</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">278</span>
 <span class="normal">279</span>
 <span class="normal">280</span>
 <span class="normal">281</span>
@@ -2500,7 +2506,8 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 <span class="normal">290</span>
 <span class="normal">291</span>
 <span class="normal">292</span>
-<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
+<span class="normal">293</span>
+<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

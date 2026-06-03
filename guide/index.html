@@ -406,10 +406,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sentinel-1" class="md-nav__link">
+  <a href="#sentinel-1-level-1-grd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sentinel-1
+        Sentinel-1 Level-1 GRD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentinel-1-level-2-ocn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinel-1 Level-2 OCN
       
     </span>
   </a>
@@ -876,10 +887,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#sentinel-1" class="md-nav__link">
+  <a href="#sentinel-1-level-1-grd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sentinel-1
+        Sentinel-1 Level-1 GRD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentinel-1-level-2-ocn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinel-1 Level-2 OCN
       
     </span>
   </a>
@@ -1039,13 +1061,17 @@ form. Common parameters are:</p>
 </ul>
 <p>Additional parameters specific to each Sentinel mission are described below.</p>
 <h4 id="remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</h4>
-<h5 id="sentinel-1">Sentinel-1</h5>
+<p>Processing workflows differ significantly across Sentinel-1 product types. Therefore, 
+each product family is documented in its own dedicated section.</p>
+<blockquote>
+<p><strong>Note:</strong> Support for SLC products is planned for a future release.</p>
+</blockquote>
+<h5 id="sentinel-1-level-1-grd">Sentinel-1 Level-1 GRD</h5>
 <blockquote>
 <p>Note: Support for Sentinel-1 GRD products in analysis mode is 
-currently experimental and undergoing validation. Support for SLC products is 
-planned for a future release.</p>
+currently experimental and undergoing validation.</p>
 </blockquote>
-<p>Sentinel-1 GRD data is provided in radar geometry, defined by the coordinates
+<p>Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (<code>azimuth_time</code>, <code>ground_range</code>). To transform this data into an
 <strong>analysis-ready dataset</strong>, the following processing steps are applied:</p>
 <ol>
@@ -1062,14 +1088,14 @@ planned for a future release.</p>
 <p>📖 <a href="https://ieeexplore.ieee.org/document/5752845">D. Small, <em>Flattening Gamma: Radiometric Terrain Correction for SAR Imagery</em></a></p>
 <p><strong>Supported Products:</strong></p>
 <ul>
-<li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd">Sentinel-1 GRD</a></li>
+<li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l1-grd">Sentinel-1 Level-1 GRD</a></li>
 </ul>
 <p><strong>Supported Variables</strong></p>
 <ul>
 <li><strong>Polarization bands</strong>:<br />
 <code>vv</code>, <code>vh</code>, <code>hh</code>, <code>hv</code> <em>(each GRD product contains only a subset of these bands)</em></li>
 </ul>
-<p><strong>Specific Sentinel-1 parameters <code>**kwargs</code>:</strong></p>
+<p><strong>Specific Sentinel-1 Level-1 GRD parameters <code>**kwargs</code>:</strong></p>
 <ul>
 <li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a 
   <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
@@ -1091,6 +1117,60 @@ planned for a future release.</p>
   Default: <code>(3.0, 3.0)</code>, accounting for resolution differences (e.g., ~10 m GRD
   vs. ~30 m DEM).</li>
 </ul>
+<p>Examples:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
+</ul>
+<h5 id="sentinel-1-level-2-ocn">Sentinel-1 Level-2 OCN</h5>
+<p>Sentinel-1 Level-2 OCN products are geolocated datasets provided on their 
+<strong>native grid</strong>, where each pixel is associated with an individual 
+latitude/longitude pair. As a result, the spatial coordinates form a 
+<strong>2D irregular grid</strong> rather than a regular latitude/longitude raster.</p>
+<p>The analysis mode uses the <a href="https://xcube-dev.github.io/xcube-resampling/guide/#3-rectification">rectification algorithm from xcube-resampling</a>
+to transform the irregular grid into a regular spatial grid with 1D latitude and 
+longitude coordinates.</p>
+<p><strong>Supported Products:</strong></p>
+<ul>
+<li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-1-l2-ocn">Sentinel-1 Level-2 OCN</a></li>
+</ul>
+<p><strong>Supported Variables</strong></p>
+<ul>
+<li><strong>Wind Variables</strong>:
+  <code>wind_speed</code>, <code>wind_direction</code></li>
+<li><strong>Auxiliary Variables</strong>:
+  <code>inversion_quality</code>, <code>wind_quality</code>, <code>percentage_bright_points</code></li>
+</ul>
+<p><strong>Specific Sentinel-1 Level-2 OCN parameters <code>**kwargs</code>:</strong></p>
+<ul>
+<li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a 
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using 
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.
+  If not specified, <a href="https://epsg.io/4326">EPSG:4326</a> is used.</li>
+<li><code>resolution</code>: Target resolution for all spatial variables expressed in the units 
+  of the specified <code>crs</code>. If not specified, the resolution is derived from the data.</li>
+<li>
+<p><code>interp_methods</code>: for upsampling / interpolating
+  spatial data variables. Can be a single interpolation method for all
+  variables or a dictionary mapping variable names or dtypes to
+  interpolation method. Supported methods include:</p>
+<ul>
+<li><code>0</code> (nearest neighbor)</li>
+<li><code>1</code> (linear / bilinear)</li>
+<li><code>"nearest"</code></li>
+<li><code>"triangular"</code></li>
+<li><code>"bilinear"</code></li>
+</ul>
+</li>
+</ul>
+<p>The default is <code>0</code> for integer arrays,
+  else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
+- <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
+  spatial data variables / bands. Can be a single method for all variables or 
+  a dictionary mapping variable names or dtypes to methods. Supported methods include:
+    <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
+    <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
+  Defaults to <code>"center"</code> for integer arrays, else <code>"mean"</code>.
+  For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
 <p>Examples:  </p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
@@ -1232,14 +1312,14 @@ for details.</p>
 </ul>
 </li>
 </ul>
-<p>The default is <code>0</code> for integer arrays (e.g. Sentinel-2 L2A SCL),
+<p>The default is <code>0</code> for integer arrays,
   else <code>1</code>. For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.
 - <code>agg_methods</code>: Optional aggregation methods to be used for downsampling
   spatial data variables / bands. Can be a single method for all variables or 
   a dictionary mapping variable names or dtypes to methods. Supported methods include:
     <code>"center"</code>, <code>"count"</code>, <code>"first"</code>, <code>"last"</code>, <code>"max"</code>, <code>"mean"</code>, <code>"median"</code>, 
     <code>"mode"</code>, <code>"min"</code>, <code>"prod"</code>, <code>"std"</code>, <code>"sum"</code>, and <code>"var"</code>.
-  Defaults to <code>"center"</code> for integer arrays (e.g. Sentinel-2 L2A SCL), else <code>"mean"</code>.
+  Defaults to <code>"center"</code> for integer arrays, else <code>"mean"</code>.
   For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
 <p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
 Further explanation of the meaning and usage of these parameters for each Sentinel 

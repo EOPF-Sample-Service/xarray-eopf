@@ -143,39 +143,34 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             self.mode.get_applicable_params(cache_uri=123)
 
     def test_convert_datatree(self):
-        expected = xr.Dataset(
-            {"vv": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))}
-        )
-
         with patch.object(
-            self.mode, "_terrain_correct", return_value=expected
+            self.mode, "_terrain_correct", return_value=self.expected_vv
         ) as mocked:
             out = self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
 
-        self.assertIs(out, expected)
+        self.assertIs(out, self.expected_vv)
         args, kwargs = mocked.call_args
         self.assertEqual(["beta0_vv"], list(args[0].data_vars))
         self.assertIs(args[3], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
         self.assertTrue(kwargs["apply_rtc"])
         self.assertIn("gr0", args[4])
+        self.mode._cleanup()
 
     def test_convert_datatree_with_cache_uri_uses_fs(self):
-        expected = xr.Dataset(
-            {"vv": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))}
-        )
         fs = SimpleNamespace()
         with (
             patch.object(
                 sen1.fsspec, "url_to_fs", return_value=(fs, "/cache")
             ) as url_to_fs,
-            patch.object(self.mode, "_terrain_correct", return_value=expected),
+            patch.object(self.mode, "_terrain_correct", return_value=self.expected_vv),
         ):
             _ = self.mode.convert_datatree(
                 self.dt, includes=["vv"], dem=self.dem, cache_uri="file:///cache/"
             )
         url_to_fs.assert_called_once_with("file:///cache")
         self.assertEqual("file:///cache", self.mode.cache_uri)
+        self.mode._cleanup()
 
     def test_convert_datatree_uses_get_dem(self):
 
@@ -188,10 +183,12 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         get_dem_mock.assert_called_once()
         args, _ = get_dem_mock.call_args
         self.assertEqual(self.dt.attrs["stac_discovery"]["bbox"], args[0])
+        self.mode._cleanup()
 
     def test_convert_datatree_fail(self):
         with pytest.raises(ValueError, match="No valid variable names"):
             self.mode.convert_datatree(self.dt, includes="bibo", dem=self.dem)
+        self.mode._cleanup()
 
     def test_convert_datatree_cleans_up_on_failure(self):
         with (
@@ -203,6 +200,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             with pytest.raises(RuntimeError, match="boom"):
                 self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
         cleanup.assert_called_once()
+        self.mode._cleanup()
 
     def test_terrain_correct_with_rtc_nearest(self):
         with (
@@ -227,6 +225,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
+        self.mode._cleanup()
 
     def test_terrain_correct_with_rtc_bilinear(self):
         with (
@@ -251,6 +250,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
+        self.mode._cleanup()
 
     def test_cleanup_removes_cache(self):
         with patch.object(sen1.fsspec, "url_to_fs") as url_to_fs:

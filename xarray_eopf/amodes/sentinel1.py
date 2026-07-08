@@ -873,6 +873,8 @@ def backward_geocode(
         out["gamma_area"] = compute_gamma_area(
             dem_ecef, gm_dem_params, dist / slant_range
         )
+    print(out["gamma_area"].min().values)
+    print(out["gamma_area"].max().values)
     return out
 
 

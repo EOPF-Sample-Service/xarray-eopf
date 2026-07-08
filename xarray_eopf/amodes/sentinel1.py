@@ -9,10 +9,12 @@ import re
 import warnings
 from abc import ABC
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Callable, Literal
+import uuid
 
 import dask.array as da
+import fsspec
 import flox.xarray
 import numpy as np
 import pyproj
@@ -23,7 +25,13 @@ from xcube_resampling import resample_in_space
 from xcube_resampling.constants import SpatialAggMethods, SpatialInterpMethods
 from xcube_resampling.gridmapping import GridMapping
 from xcube_resampling.rectify import rectify_dataset
-from xcube_resampling.utils import reproject_bbox, transform_resolution
+from xcube_resampling.utils import (
+    reproject_bbox,
+    resolution_degrees_to_meters,
+    _reorganize_tiled_array,
+    transform_resolution,
+    SourceTileIndexing,
+)
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
@@ -42,60 +50,23 @@ _CHUNKSIZE = (2048, 2048)
 class GridParams:
     """RTC grid parameters."""
 
-    slr0: float
-    d_slr: float
-    spacing_slr: float
+    gr0: float
+    d_gr: float
+    d_gr_scale: float
     az0: np.datetime64
     d_az: float
+    d_az_scale: float
     spacing_az: float
+    spacing_az_scale: float
 
     def __iter__(self):
-        return iter(("slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"))
+        return (f.name for f in fields(self))
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str):
         return getattr(self, key)
 
-    def __contains__(self, key: object) -> bool:
-        return key in {"slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"}
-
-
-@dataclass
-class Acquisition:
-    """Simulated acquisition geometry."""
-
-    azimuth_time: xr.DataArray
-    distance: xr.DataArray
-    velocity: xr.DataArray
-    slant_range_time: xr.DataArray
-    gamma_area: xr.DataArray | None = None
-
-    def __iter__(self):
-        keys = ["azimuth_time", "distance", "velocity", "slant_range_time"]
-        if self.gamma_area is not None:
-            keys.append("gamma_area")
-        return iter(keys)
-
-    def __getitem__(self, key: str) -> xr.DataArray:
-        value = getattr(self, key)
-        if value is None:
-            raise KeyError(key)
-        return value
-
-    def __contains__(self, key: object) -> bool:
-        return key in set(iter(self))
-
-    def to_dataset(self) -> xr.Dataset:
-        dataset = xr.Dataset(
-            {
-                "azimuth_time": self.azimuth_time,
-                "distance": self.distance,
-                "velocity": self.velocity,
-                "slant_range_time": self.slant_range_time,
-            }
-        )
-        if self.gamma_area is not None:
-            dataset["gamma_area"] = self.gamma_area
-        return dataset
+    def __contains__(self, key):
+        return key in {f.name for f in fields(self)}
 
 
 class Sen1(AnalysisMode, ABC):
@@ -124,6 +95,8 @@ class Sen1(AnalysisMode, ABC):
 
 class Sen1GRD(Sen1):
     product_type = "GRDH"
+    cache_fs: fsspec.AbstractFileSystem | None = None
+    cache_uri: str | None = None
 
     def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
@@ -178,6 +151,11 @@ class Sen1GRD(Sen1):
             assert_arg_is_instance(apply_rtc, "apply_rtc", bool)
             params.update(apply_rtc=apply_rtc)
 
+        cache_uri = kwargs.get("cache_uri")
+        if cache_uri is not None:
+            assert_arg_is_instance(cache_uri, "cache_uri", str)
+            params.update(cache_uri=cache_uri)
+
         return params
 
     def convert_datatree(
@@ -192,7 +170,17 @@ class Sen1GRD(Sen1):
         footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
         dem: xr.DataArray | None = None,
         apply_rtc: bool = True,
+        cache_uri: str | None = None,
     ) -> xr.Dataset:
+
+        if cache_uri is None:
+            self.cache_fs = fsspec.filesystem("file")
+            self.cache_uri = f"tmp/{uuid.uuid4().hex}"
+        else:
+            cache_uri = cache_uri.rstrip("/")
+            self.cache_fs, _ = fsspec.url_to_fs(cache_uri)
+            self.cache_uri = cache_uri
+
         # get dem data array
         if dem is None:
             if bbox is None:
@@ -243,22 +231,97 @@ class Sen1GRD(Sen1):
             )
 
         orbit = datatree[f"{group}/conditions/orbit"].to_dataset()
-        sat_position = orbit["position"]
+        sat_position = orbit["position"].compute()
 
         gcp = datatree[f"{group}/conditions/gcp"].to_dataset()
         time_slr_gcp = gcp["slant_range_time_gcp"]
 
         grid_params = self._get_grid_parameters(datatree, footprint_scale_factor)
 
-        return terrain_correct(
-            grd,
+        try:
+            return self._terrain_correct(
+                grd,
+                time_slr_gcp,
+                sat_position,
+                dem,
+                grid_params,
+                apply_rtc=apply_rtc,
+                interp_method=interp_methods,
+            )
+
+        except Exception as _:
+            self._cleanup()
+            raise
+
+    def _terrain_correct(
+        self,
+        data: xr.Dataset,
+        time_slr_gcp: xr.DataArray,
+        sat_position: xr.DataArray,
+        dem: xr.DataArray,
+        grid_params: GridParams | None = None,
+        apply_rtc: bool = True,
+        interp_method: Literal["nearest", "bilinear"] = "nearest",
+    ) -> xr.Dataset:
+        """Apply terrain correction to SAR data.
+
+        Args:
+            data: Input SAR dataset.
+            time_slr_gcp: GCP slant-range times.
+            sat_position: Satellite positions over time.
+            dem: DEM for terrain correction.
+            apply_rtc: Whether to apply radiometric terrain correction.
+            grid_params: Grid parameters for RTC.
+            interp_method: Interpolation method.
+
+        Returns:
+            Terrain-corrected dataset.
+
+        Raises:
+            ValueError: If RTC is enabled without grid parameters.
+        """
+        gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
+        src_loc = get_source_location(
+            dem,
             time_slr_gcp,
             sat_position,
-            dem,
-            grid_params=grid_params,
-            apply_rtc=apply_rtc,
-            interp_method=interp_methods,
+            grid_params,
+            gm_dem,
+            apply_rtc,
         )
+        store = fsspec.get_mapper(f"{self.cache_uri}/src_location.zarr")
+        src_loc.to_zarr(store)
+
+        src_loc = xr.open_zarr(store)
+        geocoded = geocode_data(data, src_loc, grid_params, interp_method)
+
+        if apply_rtc:
+            if interp_method == "bilinear":
+                weights_fn = gamma_weights_bilinear
+            else:  # interp_method == "nearest"
+                weights_fn = gamma_weights_nearest
+            gamma_weights = apply_gamma_weights(src_loc, weights_fn, grid_params)
+            geocoded /= gamma_weights
+            rename_dict = {
+                name: name.replace("beta0", "gamma0") for name in geocoded.data_vars
+            }
+            geocoded = geocoded.rename(rename_dict)
+            for var in geocoded.data_vars:
+                geocoded[var].attrs.update(
+                    long_name="gamma nought backscatter coefficient",
+                    units="1",
+                )
+
+        geocoded = assign_grid_mapping(geocoded)
+        return geocoded
+
+    def _cleanup(self):
+        if not self.cache_uri:
+            return
+
+        fs, path = fsspec.url_to_fs(self.cache_uri)
+        if fs.exists(path):
+            fs.rm(path, recursive=True)
 
     @staticmethod
     def _get_grid_parameters(
@@ -275,21 +338,20 @@ class Sen1GRD(Sen1):
             Grid parameters for terrain correction.
         """
 
-        group_VH = [x for x in dt.children if "VH" in x][0]
-        attrs = dt[f"{group_VH}"].attrs["other_metadata"]["image_annotation"][
+        group_vh = [x for x in dt.children if "VH" in x][0]
+        attrs = dt[f"{group_vh}"].attrs["other_metadata"]["image_annotation"][
             "image_information"
         ]
 
-        slant_range_spacing_m = attrs["range_pixel_spacing"] * footprint_scale_factor[1]
-        slant_range_time_interval_s = slant_range_spacing_m * 2 / _SPEED_OF_LIGHT
-
         return GridParams(
-            slr0=attrs["slant_range_time"],
-            d_slr=slant_range_time_interval_s,
-            spacing_slr=slant_range_spacing_m,
+            gr0=0.0,
+            d_gr=attrs["range_pixel_spacing"],
+            d_gr_scale=attrs["range_pixel_spacing"] * footprint_scale_factor[1],
             az0=np.datetime64(attrs["product_first_line_utc_time"]),
-            d_az=attrs["azimuth_time_interval"] * footprint_scale_factor[0],
-            spacing_az=attrs["azimuth_pixel_spacing"] * footprint_scale_factor[0],
+            d_az=attrs["azimuth_time_interval"],
+            spacing_az=attrs["azimuth_pixel_spacing"],
+            d_az_scale=attrs["azimuth_time_interval"] * footprint_scale_factor[0],
+            spacing_az_scale=attrs["azimuth_pixel_spacing"] * footprint_scale_factor[0],
         )
 
 
@@ -351,20 +413,20 @@ class Sen1OCN(Sen1):
         dataset.update(sub_dt.quality.to_dataset().drop_vars("calibration_constant"))
 
         # correct attributes and encoding
-        def _apply_valid_range(da, *, dtype=None, fill_value=None):
+        def _apply_valid_range(array, *, dtype=None, fill_value=None):
             if dtype is not None:
-                da = da.astype(dtype)
+                array = array.astype(dtype)
 
             if fill_value is not None:
-                da.encoding["_FillValue"] = fill_value
+                array.encoding["_FillValue"] = fill_value
 
-            eopf_attrs = da.attrs["_eopf_attrs"]
-            da.attrs.update(
+            eopf_attrs = array.attrs["_eopf_attrs"]
+            array.attrs.update(
                 valid_min=eopf_attrs["valid_min"],
                 valid_max=eopf_attrs["valid_max"],
             )
 
-            return da
+            return array
 
         dataset["inversion_quality"] = _apply_valid_range(
             dataset.inversion_quality,
@@ -473,8 +535,7 @@ def get_dem(
         bbox_wgs84 = bbox
 
     # get STAC items
-    STAC_URL = "https://stac.dataspace.copernicus.eu/v1"
-    client = pystac_client.Client.open(STAC_URL)
+    client = pystac_client.Client.open("https://stac.dataspace.copernicus.eu/v1")
     search = client.search(
         collections=["cop-dem-glo-30-dged-cog"],
         bbox=list(bbox_wgs84),
@@ -509,7 +570,7 @@ def get_dem(
     return dem
 
 
-def convert_dem_to_ecef(dem: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
+def convert_dem_to_ecef(dem: xr.DataArray, gm_dem_params: dict) -> xr.DataArray:
     """Convert a DEM from its native CRS to ECEF coordinates.
 
     Args:
@@ -520,38 +581,21 @@ def convert_dem_to_ecef(dem: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
         DEM expressed in ECEF axes.
     """
 
-    x_dim, y_dim = gm_dem.xy_var_names
-    transformer = pyproj.Transformer.from_crs(gm_dem.crs, _CRS_ECEF, always_xy=True)
+    x_dim, y_dim = gm_dem_params["xy_var_names"]
+    xx, yy = np.meshgrid(dem[x_dim].values, dem[y_dim].values, indexing="xy")
 
-    def _transform(
-        block_xx: np.ndarray, block_yy: np.ndarray, block_dem: np.ndarray
-    ) -> np.ndarray:
-        x, y, z = transformer.transform(block_xx, block_yy, block_dem)
-        return np.stack([x, y, z], axis=0)
-
-    xx, yy = da.meshgrid(
-        da.from_array(dem[x_dim].values, chunks=dem.data.chunks[1][0]),
-        da.from_array(dem[y_dim].values, chunks=dem.data.chunks[0][0]),
-        indexing="xy",
+    transformer = pyproj.Transformer.from_crs(
+        gm_dem_params["crs"], _CRS_ECEF, always_xy=True
     )
-
-    xyz_transformed = da.map_blocks(
-        _transform,
-        xx,
-        yy,
-        dem.data,
-        dtype=np.float32,
-        chunks=(3, *dem.data.chunks),
-    )
+    x, y, z = transformer.transform(xx, yy, dem.values)
 
     return xr.DataArray(
-        xyz_transformed,
+        np.stack([x, y, z], axis=0),
         dims=("axis", y_dim, x_dim),
         coords={
             y_dim: dem[y_dim].data,
             x_dim: dem[x_dim].data,
             "axis": ["x", "y", "z"],
-            "spatial_ref": xr.DataArray(0, attrs=gm_dem.crs.to_cf()),
         },
     )
 
@@ -753,15 +797,19 @@ def newton(
 
 
 def backward_geocode(
-    dem_ecef: xr.DataArray,
-    pos_coeff: xr.DataArray,
-    vel_coeff: xr.DataArray,
+    dem: xr.DataArray,
+    pos_coeff: xr.DataArray = None,
+    vel_coeff: xr.DataArray = None,
+    gr_coeff: xr.DataArray = None,
+    grid_params: GridParams = None,
+    apply_rtc: bool = True,
+    gm_dem_params: dict = None,
     method="newton",
     tol=1.0,
     speed=7500.0,
     maxiter=10,
     t_shift=-0.1,
-) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+) -> xr.Dataset:
     """Compute orbit time and vectors for a DEM using inverse geocoding.
 
     Args:
@@ -775,11 +823,19 @@ def backward_geocode(
         t_shift: Time shift for the secant method.
 
     Returns:
-        Orbit time, distance vector, and velocity vector.
+        Orbit time and distance vector
 
     Raises:
         ValueError: If the method is not supported.
     """
+    assert pos_coeff is not None
+    assert vel_coeff is not None
+    assert gr_coeff is not None
+    assert grid_params is not None
+    assert gm_dem_params is not None
+
+    dem_ecef = convert_dem_to_ecef(dem, gm_dem_params)
+
     f = functools.partial(zero_doppler, dem_ecef, pos_coeff, vel_coeff)
 
     t0 = xr.zeros_like(dem_ecef.sel(axis="x", drop=True), dtype="float64")
@@ -797,48 +853,30 @@ def backward_geocode(
     else:
         raise ValueError("method needs to be either 'secant' or 'newton'")
 
-    dist, vel = payload
-    return time_orbit, dist, vel
+    dist, _ = payload
 
+    # apply bistatic correction
+    slant_range = np.sqrt((dist**2).sum("axis"))
+    time_orbit += slant_range / _SPEED_OF_LIGHT
 
-def simulate_acquisition(
-    dem_ecef: xr.DataArray,
-    gm_dem: GridMapping,
-    sat_position: xr.DataArray,
-    apply_rtc: bool = True,
-) -> Acquisition:
-    """Simulate SAR acquisition geometry for a DEM.
-
-    Args:
-        dem_ecef: DEM in ECEF coordinates.
-        gm_dem: GridMapping of the DEM data array.
-        sat_position: Satellite positions over time.
-        apply_rtc: Whether to compute gamma area.
-
-    Returns:
-        Simulated acquisition geometry.
-    """
-    pos_coeff = fit_position(sat_position)
-    vel_coeff = poly_derivative(pos_coeff)
-    time_orbit, dist, vel = backward_geocode(dem_ecef, pos_coeff, vel_coeff)
-
+    # recalculate slant range
+    sat = xr.polyval(time_orbit, pos_coeff)
+    dist = dem_ecef - sat
     slant_range = np.sqrt((dist**2).sum("axis"))
     time_slr = 2 * slant_range / _SPEED_OF_LIGHT
 
-    out = Acquisition(
-        azimuth_time=orbit_to_az(time_orbit, pos_coeff.attrs["epoch"]),
-        distance=dist,
-        velocity=vel.transpose(*dist.dims),
-        slant_range_time=time_slr,
-    )
-
+    # convert to ground range
+    azimuth_time = orbit_to_az(time_orbit, pos_coeff.attrs["epoch"])
+    ground_range = get_ground_range(gr_coeff, azimuth_time, time_slr)
+    out = xr.Dataset({"azimuth_time": azimuth_time, "ground_range": ground_range})
     if apply_rtc:
-        out.gamma_area = compute_gamma_area(dem_ecef, gm_dem, dist / slant_range)
-
+        out["gamma_area"] = compute_gamma_area(
+            dem_ecef, gm_dem_params, dist / slant_range
+        )
     return out
 
 
-def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArray:
+def compute_dem_area(dem_ecef: xr.DataArray, gm_dem_params: dict) -> xr.DataArray:
     """Compute per-pixel surface area on the DEM in ECEF coordinates.
 
     Args:
@@ -848,7 +886,7 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArra
     Returns:
         Area vectors per DEM pixel.
     """
-    x_dim, y_dim = gm_dem.xy_var_names
+    x_dim, y_dim = gm_dem_params["xy_var_names"]
     x = dem_ecef[x_dim]
     y = dem_ecef[y_dim]
 
@@ -870,17 +908,11 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArra
     )
 
     # interpolate DEM to pixel corners
-    chunksizes = {key: val[0] for key, val in dem_ecef.chunksizes.items()}
     xyz_c = dem_ecef.interp(
-        {x_dim: x_corner},
+        {x_dim: x_corner, y_dim: y_corner},
         method="linear",
         kwargs={"fill_value": "extrapolate"},
-    ).chunk({x_dim: chunksizes[x_dim]})
-    xyz_c = xyz_c.interp(
-        {y_dim: y_corner},
-        method="linear",
-        kwargs={"fill_value": "extrapolate"},
-    ).chunk(chunksizes)
+    )
 
     # compute edge vectors
     dx = xyz_c.diff(x_dim)
@@ -893,10 +925,10 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArra
     dy2 = dy.isel({x_dim: slice(None, -1)})
 
     # restore original coords
-    dx1 = dx1.assign_coords(dem_ecef.coords).chunk(chunksizes)
-    dy1 = dy1.assign_coords(dem_ecef.coords).chunk(chunksizes)
-    dx2 = dx2.assign_coords(dem_ecef.coords).chunk(chunksizes)
-    dy2 = dy2.assign_coords(dem_ecef.coords).chunk(chunksizes)
+    dx1 = dx1.assign_coords(dem_ecef.coords)
+    dy1 = dy1.assign_coords(dem_ecef.coords)
+    dx2 = dx2.assign_coords(dem_ecef.coords)
+    dy2 = dy2.assign_coords(dem_ecef.coords)
 
     # compute triangle areas
     cross1 = xr.cross(dx1, dy1, dim="axis") / 2
@@ -910,7 +942,9 @@ def compute_dem_area(dem_ecef: xr.DataArray, gm_dem: GridMapping) -> xr.DataArra
 
 
 def compute_gamma_area(
-    dem_ecef: xr.DataArray, gm_dem: GridMapping, direction: xr.DataArray
+    dem_ecef: xr.DataArray,
+    gm_dem_params: dict,
+    direction: xr.DataArray,
 ) -> xr.DataArray:
     """Compute gamma area by projecting DEM areas onto look direction.
 
@@ -922,7 +956,7 @@ def compute_gamma_area(
     Returns:
         Gamma area for each DEM pixel.
     """
-    area = compute_dem_area(dem_ecef, gm_dem)
+    area = compute_dem_area(dem_ecef, gm_dem_params)
     gamma_area = xr.dot(area, -direction, dim="axis")
     return gamma_area.where(gamma_area > 0, 0)
 
@@ -930,34 +964,34 @@ def compute_gamma_area(
 def sum_weights(
     weights: xr.DataArray,
     az_idx: xr.DataArray,
-    slr_idx: xr.DataArray,
+    gr_idx: xr.DataArray,
 ) -> xr.DataArray:
     """Accumulate weights into the SAR image grid.
 
     Args:
         weights: Weights to accumulate.
         az_idx: Azimuth indices.
-        slr_idx: Slant-range indices.
+        gr_idx: Ground-range indices.
 
     Returns:
         Accumulated weights on the SAR grid.
     """
     reduced = flox.xarray.xarray_reduce(
         weights,
-        slr_idx,
+        gr_idx,
         az_idx,
         func="sum",
         method="map-reduce",
     )
 
     return reduced.interp(
-        slr_idx=slr_idx,
+        gr_idx=gr_idx,
         az_idx=az_idx,
         method="nearest",
-    ).drop_vars(("az_idx", "slr_idx"))
+    ).drop_vars(("az_idx", "gr_idx"))
 
 
-def gamma_weights_bilinear(acq: xr.Dataset) -> xr.DataArray:
+def gamma_weights_bilinear(src_loc: xr.Dataset) -> xr.DataArray:
     """Compute bilinear gamma weights for the acquisition grid.
 
     Args:
@@ -966,29 +1000,29 @@ def gamma_weights_bilinear(acq: xr.Dataset) -> xr.DataArray:
     Returns:
         Gamma weights on the SAR grid.
     """
-    az_idx = acq.az_idx
-    slr_idx = acq.slr_idx
+    az_idx = src_loc.az_idx
+    gr_idx = src_loc.gr_idx
 
     az0 = np.floor(az_idx).astype(np.intp)
     az1 = np.ceil(az_idx).astype(np.intp)
-    slr0 = np.floor(slr_idx).astype(np.intp)
-    slr1 = np.ceil(slr_idx).astype(np.intp)
+    gr0 = np.floor(gr_idx).astype(np.intp)
+    gr1 = np.ceil(gr_idx).astype(np.intp)
 
-    w00 = abs((az1 - az_idx) * (slr1 - slr_idx))
-    w01 = abs((az1 - az_idx) * (slr0 - slr_idx))
-    w10 = abs((az0 - az_idx) * (slr1 - slr_idx))
-    w11 = abs((az0 - az_idx) * (slr0 - slr_idx))
+    w00 = abs((az1 - az_idx) * (gr1 - gr_idx))
+    w01 = abs((az1 - az_idx) * (gr0 - gr_idx))
+    w10 = abs((az0 - az_idx) * (gr1 - gr_idx))
+    w11 = abs((az0 - az_idx) * (gr0 - gr_idx))
 
-    gamma = acq.gamma_area
+    gamma = src_loc.gamma_area
     return (
-        sum_weights(gamma * w00, az0, slr0)
-        + sum_weights(gamma * w01, az0, slr1)
-        + sum_weights(gamma * w10, az1, slr0)
-        + sum_weights(gamma * w11, az1, slr1)
+        sum_weights(gamma * w00, az0, gr0)
+        + sum_weights(gamma * w01, az0, gr1)
+        + sum_weights(gamma * w10, az1, gr0)
+        + sum_weights(gamma * w11, az1, gr1)
     )
 
 
-def gamma_weights_nearest(acq: xr.Dataset) -> xr.DataArray:
+def gamma_weights_nearest(src_loc: xr.Dataset) -> xr.DataArray:
     """Compute nearest-neighbor gamma weights for the acquisition grid.
 
     Args:
@@ -998,13 +1032,13 @@ def gamma_weights_nearest(acq: xr.Dataset) -> xr.DataArray:
         Gamma weights on the SAR grid.
     """
 
-    az_idx = np.round(acq.az_idx).astype(np.intp)
-    slr_idx = np.round(acq.slr_idx).astype(np.intp)
-    return sum_weights(acq.gamma_area, az_idx, slr_idx)
+    az_idx = np.round(src_loc.az_idx).astype(np.intp)
+    gr_idx = np.round(src_loc.gr_idx).astype(np.intp)
+    return sum_weights(src_loc.gamma_area, az_idx, gr_idx)
 
 
 def apply_gamma_weights(
-    acq: Acquisition,
+    src_loc: xr.Dataset,
     func: Callable[..., xr.DataArray],
     params: GridParams,
 ) -> xr.DataArray:
@@ -1018,14 +1052,15 @@ def apply_gamma_weights(
     Returns:
         Gamma-corrected area per pixel.
     """
-    acq_ds = acq.to_dataset()
-    acq_ds["az_idx"] = (acq_ds.azimuth_time - params.az0) / _ONE_SECOND / params.d_az
-    acq_ds["slr_idx"] = (acq_ds.slant_range_time - params.slr0) / params.d_slr
+    src_loc["az_idx"] = (
+        (src_loc.azimuth_time - params.az0) / _ONE_SECOND / params.d_az_scale
+    )
+    src_loc["gr_idx"] = (src_loc.ground_range - params.gr0) / params.d_gr_scale
 
-    template = acq_ds.gamma_area * 0
+    template = src_loc.gamma_area * 0
+    area = xr.map_blocks(func, src_loc, template=template)
 
-    area = xr.map_blocks(func, acq_ds, template=template)
-    return area / (params.spacing_slr * params.spacing_az)
+    return area / (params.d_gr_scale * params.spacing_az_scale)
 
 
 def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
@@ -1045,21 +1080,28 @@ def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
 
     # polynomial fit per azimuth line
     coeff = []
-    for i, time in enumerate(x_gcp.azimuth_time.values):
-        coeff.append(np.polyfit(x_gcp[i, :], x_gcp.ground_range, deg=deg))
+    for i, time in enumerate(x_gcp["azimuth_time"].values):
+        coeff.append(np.polyfit(x_gcp[i, :], x_gcp["ground_range"], deg=deg))
     return xr.DataArray(
         coeff,
-        coords=dict(azimuth_time=x_gcp.azimuth_time, degree=np.arange(deg, -1, -1)),
+        coords=dict(azimuth_time=x_gcp["azimuth_time"], degree=np.arange(deg, -1, -1)),
         dims=("azimuth_time", "degree"),
         attrs=dict(mean=mean, std=std),
     )
 
 
+def get_ground_range(
+    coeff: xr.DataArray, time_az: xr.DataArray, time_slr: xr.DataArray
+) -> xr.DataArray:
+    coeff_interp = coeff.interp(azimuth_time=time_az).drop_vars("azimuth_time")
+    x_tgt = (time_slr - coeff.attrs["mean"]) / coeff.attrs["std"]
+    return (coeff_interp * x_tgt**coeff.degree).sum("degree")
+
+
 def geocode_data(
     data: xr.Dataset,
-    time_az: xr.DataArray,
-    time_slr: xr.DataArray,
-    time_slr_gcp: xr.DataArray,
+    src_loc: xr.Dataset,
+    grid_params: GridParams,
     interp_method: Literal["nearest", "bilinear"],
 ) -> xr.Dataset:
     """Geocode data from SAR grid to map coordinates.
@@ -1067,110 +1109,198 @@ def geocode_data(
     Args:
         data: Input dataset on the SAR grid.
         time_az: Target azimuth times.
-        time_slr: Target slant-range times.
-        time_slr_gcp: GCP slant-range times.
+        ground_range: Target ground range.
         interp_method: Interpolation method.
 
     Returns:
         Geocoded dataset.
     """
+    az_idx = (src_loc.azimuth_time - grid_params.az0) / _ONE_SECOND / grid_params.d_az
+    gr_idx = (src_loc.ground_range - grid_params.gr0) / grid_params.d_gr
+    scr_indexing = _compute_indexing(data, az_idx, gr_idx)
+    temp_ij_bboxes = scr_indexing.ij_bboxes.copy()
+    temp_ij_bboxes[[1, 3]] -= scr_indexing.pad_width[0][0]
+    temp_ij_bboxes[[0, 2]] -= scr_indexing.pad_width[1][0]
+    tile_size = tuple(chunk[0] for chunk in gr_idx.chunks)
+    for j in range(temp_ij_bboxes.shape[1]):
+        for i in range(temp_ij_bboxes.shape[2]):
+            i_min = tile_size[1] * i
+            i_max = tile_size[1] * (i + 1)
+            j_min = tile_size[0] * j
+            j_max = tile_size[0] * (j + 1)
+            gr_idx[j_min:j_max, i_min:i_max] -= temp_ij_bboxes[0, j, i]
+            az_idx[j_min:j_max, i_min:i_max] -= temp_ij_bboxes[1, j, i]
 
-    coeff = fit_ground_range(time_slr_gcp)
-    method = "linear" if interp_method == "bilinear" else "nearest"
-
-    def _interp_block(block):
-        coeff_interp = coeff.interp(azimuth_time=block.time_az)
-        x_tgt = (block.time_slr - coeff.attrs["mean"]) / coeff.attrs["std"]
-        ground_range = (coeff_interp * x_tgt**coeff.degree).sum("degree")
-        return data.interp(
-            azimuth_time=block.time_az,
-            ground_range=ground_range,
-            method=method,
+    target_ds = xr.Dataset(coords=az_idx.coords)
+    for var_name, data_array in data.items():
+        tiled = _reorganize_tiled_array(data_array.data, scr_indexing, np.nan)
+        resampled = da.map_blocks(
+            _sample_array_at_indices,
+            tiled,
+            gr_idx.data,
+            az_idx.data,
+            interp_method=interp_method,
+            dtype=data.dtype,
+            chunks=gr_idx.data.chunks,
         )
+        target_ds[var_name] = (az_idx.dims, resampled)
 
-    # Build template with new coordinates
-    chunksizes = {}
-    for val in [time_az, time_slr]:
-        for dim in val.dims:
-            chunksizes[dim] = val.chunksizes[dim]
-    coeff_interp = coeff.interp(azimuth_time=time_az)
-    x_tgt = (time_slr - coeff.attrs["mean"]) / coeff.attrs["std"]
-    ground_range = (coeff_interp * x_tgt**coeff.degree).sum("degree")
-    template = data.interp(
-        azimuth_time=time_az,
-        ground_range=ground_range,
-    ).chunk(chunksizes)
-
-    target_coords = xr.Dataset({"time_az": time_az, "time_slr": time_slr})
-    return xr.map_blocks(_interp_block, target_coords, template=template)
+    return target_ds
 
 
-def terrain_correct(
-    data: xr.Dataset,
+def get_source_location(
+    dem: xr.DataArray,
     time_slr_gcp: xr.DataArray,
     sat_position: xr.DataArray,
-    dem: xr.DataArray,
-    apply_rtc: bool = True,
-    grid_params: GridParams | None = None,
-    interp_method: Literal["nearest", "bilinear"] = "nearest",
+    grid_params: GridParams,
+    gm_dem: GridMapping,
+    apply_rtc: bool,
 ) -> xr.Dataset:
-    """Apply terrain correction to SAR data.
 
-    Args:
-        data: Input SAR dataset.
-        time_slr_gcp: GCP slant-range times.
-        sat_position: Satellite positions over time.
-        dem: DEM for terrain correction.
-        apply_rtc: Whether to apply radiometric terrain correction.
-        grid_params: Grid parameters for RTC.
-        interp_method: Interpolation method.
+    # get polynomial coefficients to convert from slant range to ground range
+    gr_coeff = fit_ground_range(time_slr_gcp)
 
-    Returns:
-        Terrain-corrected dataset.
+    # get polynomial coefficient to convert from azimuth time to position and velocity
+    pos_coeff = fit_position(sat_position)
+    vel_coeff = poly_derivative(pos_coeff)
 
-    Raises:
-        ValueError: If RTC is enabled without grid parameters.
-    """
-    gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
-    dem_ecef = convert_dem_to_ecef(dem, gm_dem)
-
-    acquisition = simulate_acquisition(
-        dem_ecef, gm_dem, sat_position, apply_rtc=apply_rtc
+    data_array = xr.zeros_like(dem, dtype="float32").drop_vars("spatial_ref")
+    data_array_az = xr.zeros_like(dem, dtype="datetime64[ns]").drop_vars("spatial_ref")
+    template = xr.Dataset(
+        {"azimuth_time": data_array_az, "ground_range": data_array},
     )
-
-    geocoded = geocode_data(
-        data,
-        acquisition.azimuth_time,
-        acquisition.slant_range_time,
-        time_slr_gcp,
-        interp_method,
-    )
-
     if apply_rtc:
-        if grid_params is None:
-            raise ValueError("grid parameters required for RTC")
-
-        if interp_method == "bilinear":
-            weights_fn = gamma_weights_bilinear
-        else:  # interp_method == "nearest"
-            weights_fn = gamma_weights_nearest
-        beta_sim = apply_gamma_weights(acquisition, weights_fn, grid_params)
-        geocoded = geocoded / beta_sim
-        rename_dict = {
-            name: name.replace("beta0", "gamma0") for name in geocoded.data_vars
-        }
-        geocoded = geocoded.rename(rename_dict)
-        for var in geocoded.data_vars:
-            geocoded[var].attrs.update(
-                long_name="gamma nought backscatter coefficient",
-                units="1",
-            )
-
-    geocoded = assign_grid_mapping(geocoded)
-    return geocoded
+        template["gamma_area"] = data_array
+    gm_dem_params = {
+        "crs": gm_dem.crs.to_wkt(),
+        "xy_var_names": gm_dem.xy_var_names,
+    }
+    out = xr.map_blocks(
+        backward_geocode,
+        dem,
+        kwargs={
+            "pos_coeff": pos_coeff,
+            "vel_coeff": vel_coeff,
+            "gr_coeff": gr_coeff,
+            "grid_params": grid_params,
+            "apply_rtc": apply_rtc,
+            "gm_dem_params": gm_dem_params,
+        },
+        template=template,
+    )
+    out["spatial_ref"] = xr.DataArray(0, attrs=gm_dem.crs.to_cf())
+    return out
 
 
 def assign_grid_mapping(dataset: xr.Dataset) -> xr.Dataset:
     for var_name, data_var in dataset.data_vars.items():
         dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
     return dataset
+
+
+# INTERPOLATION -> xcube-resampling?
+def _xy_bbox_block(x_coords: np.ndarray, y_coords: np.ndarray):
+    x_edges = np.concatenate([x_coords[:, 0], x_coords[:, -1]])
+    y_edges = np.concatenate([y_coords[0, :], y_coords[-1, :]])
+    bbox = np.array(
+        [
+            np.floor(x_edges.min()),
+            np.floor(y_edges.min()),
+            np.ceil(x_edges.max()),
+            np.ceil(y_edges.max()),
+        ],
+        dtype=np.int32,
+    )
+    return bbox[:, None, None]
+
+
+def _compute_indexing(
+    data: xr.Dataset,
+    az_ix: xr.DataArray,
+    gr_idx: xr.DataArray,
+) -> SourceTileIndexing:
+
+    src_ij_bboxes = da.map_blocks(
+        _xy_bbox_block,
+        gr_idx.data,
+        az_ix.data,
+        dtype=gr_idx.dtype,
+        chunks=(4, 1, 1),
+    )
+    src_ij_bboxes = src_ij_bboxes.compute()
+
+    # Extend bounding box indices to match the largest bounding box.
+    # This ensures uniform chunk sizes, which are required for da.map_blocks.
+    i_diff = src_ij_bboxes[2] - src_ij_bboxes[0]
+    j_diff = src_ij_bboxes[3] - src_ij_bboxes[1]
+    i_diff_max = np.nanmax(i_diff) + 1
+    j_diff_max = np.nanmax(j_diff) + 1
+    i_half = (i_diff_max - i_diff) // 2
+    j_half = (j_diff_max - j_diff) // 2
+    src_ij_bboxes[0] -= i_half
+    src_ij_bboxes[2] = src_ij_bboxes[0] + i_diff_max
+    src_ij_bboxes[1] -= j_half
+    src_ij_bboxes[3] = src_ij_bboxes[1] + j_diff_max
+
+    # assign padding if needed
+    i_min = np.nanmin(src_ij_bboxes[0])
+    i_max = np.nanmax(src_ij_bboxes[2])
+    j_min = np.nanmin(src_ij_bboxes[[1, 3]])
+    j_max = np.nanmax(src_ij_bboxes[[1, 3]])
+    pad_width = (
+        (-min(0, int(j_min)), max(0, int(j_max - data.sizes["azimuth_time"]))),
+        (-min(0, int(i_min)), max(0, int(i_max - data.sizes["ground_range"]))),
+    )
+    src_ij_bboxes[[1, 3]] += pad_width[0][0]
+    src_ij_bboxes[[0, 2]] += pad_width[1][0]
+
+    tile_size = (int(j_diff_max), int(i_diff_max))
+    size = (
+        int(j_diff_max * src_ij_bboxes.shape[1]),
+        int(i_diff_max * src_ij_bboxes.shape[2]),
+    )
+
+    return SourceTileIndexing(
+        ij_bboxes=src_ij_bboxes,
+        pad_width=pad_width,
+        output_size=size,
+        tile_size=tile_size,
+    )
+
+
+def _sample_array_at_indices(
+    data: np.ndarray,
+    ix: np.ndarray,
+    iy: np.ndarray,
+    interp_method: Literal["nearest", "bilinear"] | None = None,
+) -> np.ndarray:
+    """
+    Sample a 3d array at fractional indices (iy, ix).
+    """
+    if interp_method == "nearest":
+        ix_i = np.ceil(ix - 0.5).astype(np.intp)
+        iy_i = np.ceil(iy - 0.5).astype(np.intp)
+        return data[iy_i, ix_i]
+
+    ix_floor = np.floor(ix).astype(np.intp)
+    iy_floor = np.floor(iy).astype(np.intp)
+    ix_ceil = np.ceil(ix).astype(np.intp)
+    iy_ceil = np.ceil(iy).astype(np.intp)
+
+    dx = ix - ix_floor
+    dy = iy - iy_floor
+
+    v00 = data[iy_floor, ix_floor]
+    v01 = data[iy_floor, ix_ceil]
+    v10 = data[iy_ceil, ix_floor]
+    v11 = data[iy_ceil, ix_ceil]
+
+    if interp_method == "bilinear":
+        u0 = v00 + dx * (v01 - v00)
+        u1 = v10 + dx * (v11 - v10)
+        return u0 + dy * (u1 - u0)
+
+    raise NotImplementedError(
+        f"interp_methods must be one of 'nearest', 'bilinear', "
+        f"was '{interp_method}'."
+    )

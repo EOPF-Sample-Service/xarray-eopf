@@ -110,7 +110,11 @@ Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordi
   `nearest`, `bilinear`.
 - `footprint_scale_factor`: Defines how radar pixels contribute to the output grid.
   Default: `(3.0, 3.0)`, accounting for resolution differences (e.g., ~10 m GRD
-  vs. ~30 m DEM).
+  vs. ~30 m DEM). 
+- `cache_uri`: Temporary path used to store intermediate results from the
+  backward geocoding step in the Sentinel-1 processing workflow. The cache is 
+  automatically removed when the Python process exits. If None, a temporary 
+  directory with a unique UUID-based name is created.
 
 Examples:  
 

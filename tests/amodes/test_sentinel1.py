@@ -17,7 +17,7 @@ from xcube_resampling.gridmapping import GridMapping
 from tests.helpers import make_s1_grd_datatree, make_s1_ocn_datatree
 from xarray_eopf.amode import AnalysisModeRegistry
 from xarray_eopf.amodes import sentinel1 as sen1
-from xarray_eopf.amodes.sentinel1 import Sen1GRD, Sen1OCN, register
+from xarray_eopf.amodes.sentinel1 import Sen1GRD, Sen1OCN, register, GridParams
 
 
 class Sentinel1AnalysisModeTest(TestCase):
@@ -68,12 +68,16 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
     def test_get_grid_parameters(self):
         params = self.mode._get_grid_parameters(self.dt, (2.0, 3.0))
 
-        self.assertEqual(1.0e-4, params["slr0"])
-        self.assertEqual(30.0, params["spacing_slr"])
-        self.assertAlmostEqual(30.0 * 2.0 / sen1._SPEED_OF_LIGHT, params["d_slr"])
+        self.assertEqual(0.0, params["gr0"])
+        self.assertEqual(20.0, params["spacing_az"])
+        self.assertEqual(10.0, params["d_gr"])
+        self.assertEqual(30.0, params["d_gr_scale"])
         self.assertEqual(np.datetime64("2024-01-01T00:00:00"), params["az0"])
-        self.assertEqual(1.0, params["d_az"])
-        self.assertEqual(40.0, params["spacing_az"])
+        self.assertEqual(0.5, params["d_az"])
+        self.assertEqual(40.0, params["spacing_az_scale"])
+        self.assertEqual(
+            np.datetime64("2024-01-01T00:00:00.250000000"), params["az0_scale"]
+        )
 
     def test_get_applicable_params(self: TestCase):
         dem = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
@@ -108,7 +112,9 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             {"vv": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))}
         )
 
-        with patch.object(sen1, "terrain_correct", return_value=expected) as mocked:
+        with patch.object(
+            self.mode, "_terrain_correct", return_value=expected
+        ) as mocked:
             out = self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
 
         self.assertIs(out, expected)
@@ -117,7 +123,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         self.assertIs(args[3], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
         self.assertTrue(kwargs["apply_rtc"])
-        self.assertIn("slr0", kwargs["grid_params"])
+        self.assertIn("gr0", args[4])
 
     def test_convert_datatree_uses_get_dem(self):
         expected = xr.Dataset(
@@ -125,7 +131,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         )
 
         with patch.object(sen1, "get_dem", return_value=self.dem) as get_dem_mock:
-            with patch.object(sen1, "terrain_correct", return_value=expected):
+            with patch.object(self.mode, "_terrain_correct", return_value=expected):
                 _ = self.mode.convert_datatree(self.dt, includes=["vv"])
 
         get_dem_mock.assert_called_once()
@@ -227,41 +233,69 @@ class Sen1OCNTest(Sen1TestMixin, TestCase):
 
 
 class Sentinel1FunctionsTest(TestCase):
-    def test_gridparams_iter(self):
-        params = sen1.GridParams(
-            slr0=0.0,
-            d_slr=1.0,
-            spacing_slr=2.0,
+
+    def setUp(self):
+        self.gm_dem_params = {
+            "crs": "EPSG:4326",
+            "xy_var_names": ("lat", "lon"),
+        }
+        self.grid_params = sen1.GridParams(
+            gr0=0.0,
+            gr0_scale=0.0,
+            d_gr=1.0,
+            d_gr_scale=1.0,
             az0=np.datetime64("2024-01-01T00:00:00"),
+            az0_scale=np.datetime64("2024-01-01T00:00:00"),
             d_az=1.0,
-            spacing_az=3.0,
+            d_az_scale=1.0,
+            spacing_az=2.0,
+            spacing_az_scale=2.0,
         )
+        self.dem = xr.DataArray(
+            np.ones((2, 2), dtype="float64"),
+            dims=("lat", "lon"),
+            coords={"lat": [0.0, 0.1], "lon": [0.0, 0.1]},
+        )
+        self.dem_ecef = xr.DataArray(
+            np.ones((3, 2, 2), dtype="float64"),
+            dims=("axis", "lat", "lon"),
+            coords={"axis": ["x", "y", "z"], "lat": [0.0, 0.1], "lon": [0.0, 0.1]},
+        )
+        self.posvel_coeff = xr.DataArray(
+            np.zeros((2, 3)),
+            dims=("degree", "axis"),
+            coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
+            attrs={"epoch": np.datetime64("2024-01-01T00:00:00")},
+        )
+        self.gr_coeff = xr.DataArray(
+            np.zeros((2, 9)),
+            dims=("azimuth_time", "degree"),
+            coords={
+                "degree": np.arange(8, -1, -1),
+                "azimuth_time": np.array(
+                    ["2024-01-01T00:00:00", "2024-01-01T00:00:02"],
+                    dtype="datetime64[ns]",
+                ),
+            },
+            attrs=dict(mean=1, std=1),
+        )
+
+    def test_gridparams_iter(self):
         self.assertEqual(
-            ["slr0", "d_slr", "spacing_slr", "az0", "d_az", "spacing_az"],
-            list(iter(params)),
+            [
+                "gr0",
+                "gr0_scale",
+                "d_gr",
+                "d_gr_scale",
+                "az0",
+                "az0_scale",
+                "d_az",
+                "d_az_scale",
+                "spacing_az",
+                "spacing_az_scale",
+            ],
+            list(iter(self.grid_params)),
         )
-
-    def test_acquisition_getitem_raises_for_missing_gamma_area(self):
-        acquisition = sen1.Acquisition(
-            azimuth_time=xr.DataArray(np.array([0]), dims=("lat",)),
-            distance=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
-            velocity=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
-            slant_range_time=xr.DataArray(np.array([0.0]), dims=("lon",)),
-            gamma_area=None,
-        )
-        with pytest.raises(KeyError, match="gamma_area"):
-            _ = acquisition["gamma_area"]
-
-    def test_acquisition_getitem_returns_existing_field(self):
-        distance = xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon"))
-        acquisition = sen1.Acquisition(
-            azimuth_time=xr.DataArray(np.array([0]), dims=("lat",)),
-            distance=distance,
-            velocity=xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
-            slant_range_time=xr.DataArray(np.array([0.0]), dims=("lon",)),
-            gamma_area=None,
-        )
-        self.assertIs(acquisition["distance"], distance)
 
     def test_get_dem_requires_credentials(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -392,7 +426,10 @@ class Sentinel1FunctionsTest(TestCase):
             coords={"lat": [0, 1, 2, 3], "lon": [0, 1, 2, 3]},
         )
         gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
-        out = sen1.convert_dem_to_ecef(dem, gm_dem)
+        out = sen1.convert_dem_to_ecef(
+            dem,
+            {"crs": gm_dem.crs.to_wkt(), "xy_var_names": gm_dem.xy_var_names},
+        )
         self.assertEqual(("axis", "lat", "lon"), out.dims)
         self.assertEqual(3, out.sizes["axis"])
 
@@ -482,40 +519,28 @@ class Sentinel1FunctionsTest(TestCase):
         self.assertEqual(0, k)
 
     def test_backward_geocode_invalid_method(self):
-        dem_ecef = xr.DataArray(
-            np.ones((3, 1, 1), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0], "lon": [0.0]},
-        )
-        coeff = xr.DataArray(
-            np.zeros((2, 3)),
-            dims=("degree", "axis"),
-            coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-        )
         with pytest.raises(ValueError, match="method needs to be either"):
-            sen1.backward_geocode(dem_ecef, coeff, coeff, method="x")
+            sen1.backward_geocode(
+                self.dem,
+                pos_coeff=self.posvel_coeff,
+                vel_coeff=self.posvel_coeff,
+                gr_coeff=self.gr_coeff,
+                gm_dem_params=self.gm_dem_params,
+                grid_params=self.grid_params,
+                method="x",
+            )
 
     def test_backward_geocode_secant_and_newton_paths(self):
-        dem_ecef = xr.DataArray(
-            np.ones((3, 1, 1), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0], "lon": [0.0]},
-        )
-        coeff = xr.DataArray(
-            np.zeros((2, 3)),
-            dims=("degree", "axis"),
-            coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-        )
         payload = (
-            xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
-            xr.DataArray(np.ones((3, 1, 1)), dims=("axis", "lat", "lon")),
+            xr.DataArray(np.ones((3, 2, 2)), dims=("axis", "lat", "lon")),
+            xr.DataArray(np.ones((3, 2, 2)), dims=("axis", "lat", "lon")),
         )
         with (
             patch.object(
                 sen1,
                 "secant",
                 return_value=(
-                    xr.DataArray([[0.0]], dims=("lat", "lon")),
+                    xr.DataArray([[0.0, 0.0], [0.0, 0.0]], dims=("lat", "lon")),
                     None,
                     None,
                     0,
@@ -526,88 +551,33 @@ class Sentinel1FunctionsTest(TestCase):
                 sen1,
                 "newton",
                 return_value=(
-                    xr.DataArray([[0.0]], dims=("lat", "lon")),
+                    xr.DataArray([[0.0, 0.0], [0.0, 0.0]], dims=("lat", "lon")),
                     None,
                     0,
                     payload,
                 ),
             ),
         ):
-            out_secant = sen1.backward_geocode(dem_ecef, coeff, coeff, method="secant")
-            out_newton = sen1.backward_geocode(dem_ecef, coeff, coeff, method="newton")
+            out_secant = sen1.backward_geocode(
+                self.dem,
+                pos_coeff=self.posvel_coeff,
+                vel_coeff=self.posvel_coeff,
+                gr_coeff=self.gr_coeff,
+                grid_params=self.grid_params,
+                gm_dem_params=self.gm_dem_params,
+                method="secant",
+            )
+            out_newton = sen1.backward_geocode(
+                self.dem,
+                pos_coeff=self.posvel_coeff,
+                vel_coeff=self.posvel_coeff,
+                gr_coeff=self.gr_coeff,
+                grid_params=self.grid_params,
+                gm_dem_params=self.gm_dem_params,
+                method="newton",
+            )
         self.assertEqual(3, len(out_secant))
         self.assertEqual(3, len(out_newton))
-
-    def test_simulate_acquisition_without_rtc(self):
-        dem_ecef = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
-        )
-        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
-        sat_position = xr.DataArray(
-            np.zeros((2, 3)),
-            dims=("azimuth_time", "axis"),
-            coords={
-                "azimuth_time": np.array(
-                    [
-                        np.datetime64("2024-01-01T00:00:00"),
-                        np.datetime64("2024-01-01T00:00:01"),
-                    ]
-                ),
-                "axis": ["x", "y", "z"],
-            },
-        )
-        dist = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
-        )
-        vel = dist.copy()
-        t = xr.DataArray(np.zeros((2, 2), dtype="float64"), dims=("lat", "lon"))
-        with patch.object(sen1, "backward_geocode", return_value=(t, dist, vel)):
-            acq = sen1.simulate_acquisition(
-                dem_ecef, gm_dem, sat_position, apply_rtc=False
-            )
-        self.assertIn("slant_range_time", acq)
-        self.assertNotIn("gamma_area", acq)
-
-    def test_simulate_acquisition_with_rtc(self):
-        dem_ecef = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
-        )
-        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
-        sat_position = xr.DataArray(
-            np.zeros((2, 3)),
-            dims=("azimuth_time", "axis"),
-            coords={
-                "azimuth_time": np.array(
-                    [
-                        np.datetime64("2024-01-01T00:00:00"),
-                        np.datetime64("2024-01-01T00:00:01"),
-                    ]
-                ),
-                "axis": ["x", "y", "z"],
-            },
-        )
-        dist = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
-        )
-        vel = dist.copy()
-        t = xr.DataArray(np.zeros((2, 2), dtype="float64"), dims=("lat", "lon"))
-        gamma = xr.DataArray(np.ones((2, 2)), dims=("lat", "lon"))
-        with (
-            patch.object(sen1, "backward_geocode", return_value=(t, dist, vel)),
-            patch.object(sen1, "compute_gamma_area", return_value=gamma),
-        ):
-            acq = sen1.simulate_acquisition(
-                dem_ecef, gm_dem, sat_position, apply_rtc=True
-            )
-        self.assertIn("gamma_area", acq)
 
     def test_compute_gamma_area_clips_negative(self):
         dem_ecef = xr.DataArray(
@@ -615,7 +585,12 @@ class Sentinel1FunctionsTest(TestCase):
             dims=("axis", "lat", "lon"),
             coords={"axis": ["x", "y", "z"], "lat": [0.0, 1.0], "lon": [0.0, 1.0]},
         )
-        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
+        gm_dem = {
+            "crs": GridMapping.from_dataset(
+                dem_ecef.to_dataset(name="dem")
+            ).crs.to_wkt(),
+            "xy_var_names": ("lon", "lat"),
+        }
         area = xr.DataArray(
             np.array(
                 [
@@ -651,14 +626,11 @@ class Sentinel1FunctionsTest(TestCase):
         y = 20.0 + lat2d
         z = 30.0 + lon2d + lat2d
         dem_ecef = xr.DataArray(
-            da.from_array(
-                np.stack([x, y, z], axis=0).astype("float32"), chunks=(3, 2, 2)
-            ),
+            np.stack([x, y, z], axis=0).astype("float32"),
             dims=("axis", "lat", "lon"),
             coords={"axis": ["x", "y", "z"], "lat": lat, "lon": lon},
         )
-        gm_dem = GridMapping.from_dataset(dem_ecef.to_dataset(name="dem"))
-        area = sen1.compute_dem_area(dem_ecef, gm_dem)
+        area = sen1.compute_dem_area(dem_ecef, self.gm_dem_params)
         self.assertEqual(("axis", "lat", "lon"), area.dims)
 
     def test_sum_weights_and_gamma_weight_helpers(self):
@@ -666,16 +638,16 @@ class Sentinel1FunctionsTest(TestCase):
             {
                 "gamma_area": xr.DataArray([[1.0, 2.0]], dims=("lat", "lon")),
                 "az_idx": xr.DataArray([[0.2, 0.8]], dims=("lat", "lon")),
-                "slr_idx": xr.DataArray([[1.2, 1.8]], dims=("lat", "lon")),
+                "gr_idx": xr.DataArray([[1.2, 1.8]], dims=("lat", "lon")),
             }
         )
         reduced = xr.DataArray(
             [[3.0]],
-            dims=("slr_idx", "az_idx"),
-            coords={"slr_idx": [1], "az_idx": [1]},
+            dims=("gr_idx", "az_idx"),
+            coords={"gr_idx": [1], "az_idx": [1]},
         )
         with patch.object(sen1.flox.xarray, "xarray_reduce", return_value=reduced):
-            summed = sen1.sum_weights(acq.gamma_area, acq.az_idx, acq.slr_idx)
+            summed = sen1.sum_weights(acq.gamma_area, acq.az_idx, acq.gr_idx)
         self.assertEqual(("lat", "lon"), summed.dims)
         self.assertEqual((1, 2), summed.data.shape)
 
@@ -691,39 +663,42 @@ class Sentinel1FunctionsTest(TestCase):
             sw.assert_called_once()
 
     def test_apply_gamma_weights(self):
-        azimuth_time = xr.DataArray(
-            np.array(
-                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"], dtype="datetime64[ns]"
-            ),
-            dims=("lat",),
+        params = sen1.GridParams(
+            gr0=0.0,
+            gr0_scale=0.0,
+            d_gr=1.0,
+            d_gr_scale=1.0,
+            az0=np.datetime64("2024-01-01T00:00:00"),
+            az0_scale=np.datetime64("2024-01-01T00:00:00"),
+            d_az=1.0,
+            d_az_scale=1.0,
+            spacing_az=2.0,
+            spacing_az_scale=2.0,
         )
-        slant_range_time = xr.DataArray(np.array([0.0, 2.0]), dims=("lon",))
-        distance = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"]},
-        )
-        acq = sen1.Acquisition(
-            azimuth_time=azimuth_time,
-            distance=distance,
-            velocity=distance,
-            slant_range_time=slant_range_time,
-            gamma_area=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
+        src_loc = xr.Dataset(
+            {
+                "azimuth_time": xr.DataArray(
+                    np.array(
+                        [
+                            ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                            ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                        ],
+                        dtype="datetime64[ns]",
+                    ),
+                    dims=("lat", "lon"),
+                ),
+                "ground_range": xr.DataArray(
+                    np.array([[0.0, 1.0], [0.0, 1.0]]), dims=("lat", "lon")
+                ),
+                "gamma_area": xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
+            }
         )
 
         def passthrough(ds):
             return ds.gamma_area * 2
 
-        params = sen1.GridParams(
-            az0=azimuth_time.values[0],
-            d_az=1.0,
-            slr0=0.0,
-            d_slr=1.0,
-            spacing_slr=2.0,
-            spacing_az=2.0,
-        )
-        out = sen1.apply_gamma_weights(acq, passthrough, params)
-        self.assertTrue(np.allclose(out.values, 0.5))
+        out = sen1.apply_gamma_weights(src_loc, passthrough, params)
+        self.assertTrue(np.allclose(out.values, 1.0))
 
     def test_fit_ground_range(self):
         time_slr_gcp = xr.DataArray(
@@ -745,188 +720,49 @@ class Sentinel1FunctionsTest(TestCase):
         data = xr.Dataset(
             {
                 "vv": xr.DataArray(
-                    np.ones((2, 3)), dims=("azimuth_time", "ground_range")
+                    da.ones((2, 3), chunks=(2, 3)),
+                    dims=("azimuth_time", "ground_range"),
                 )
             },
-            coords={"azimuth_time": [0, 1], "ground_range": [0, 1, 2]},
+            coords={
+                "azimuth_time": np.array(
+                    ["2023-12-31T23:59:50", "2024-01-01T00:00:20"],
+                    dtype="datetime64[ns]",
+                ),
+                "ground_range": [0, 3, 6],
+            },
         )
         time_az = xr.DataArray(
-            da.from_array(np.array([[0, 0], [1, 1]]), chunks=(2, 2)),
+            da.from_array(
+                np.array(
+                    [
+                        ["2024-01-01T00:00:00", "2024-01-01T00:00:02"],
+                        ["2024-01-01T00:00:04", "2024-01-01T00:00:06"],
+                    ],
+                    dtype="datetime64[ns]",
+                ),
+                chunks=(2, 2),
+            ),
             dims=("lat", "lon"),
         )
-        time_slr = xr.DataArray(
+        ground_range = xr.DataArray(
             da.from_array(np.array([[2, 3], [2, 3]]), chunks=(2, 2)),
             dims=("lat", "lon"),
         )
-        time_slr_gcp = xr.DataArray(
-            np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0]]),
-            dims=("azimuth_time", "ground_range"),
-            coords={"azimuth_time": [0, 1], "ground_range": [0, 1, 2]},
+        src_loc = xr.Dataset({"azimuth_time": time_az, "ground_range": ground_range})
+        grid_params = sen1.GridParams(
+            gr0=0.0,
+            gr0_scale=0.0,
+            d_gr=3.0,
+            d_gr_scale=3.0,
+            az0=np.datetime64("2023-12-31T23:59:50"),
+            az0_scale=np.datetime64("2023-12-31T23:59:50"),
+            d_az=20.0,
+            d_az_scale=20.0,
+            spacing_az=3.0,
+            spacing_az_scale=3.0,
         )
 
-        out = sen1.geocode_data(data, time_az, time_slr, time_slr_gcp, "nearest")
+        out = sen1.geocode_data(data, src_loc, grid_params, "nearest")
         self.assertIn("vv", out.data_vars)
         np.testing.assert_allclose(out.vv.values, np.ones((2, 2), dtype=float))
-
-    def test_terrain_correct_paths(self):
-        data = xr.Dataset(
-            {"vv": xr.DataArray(np.ones((2, 2)), dims=("azimuth_time", "ground_range"))}
-        )
-        time_slr_gcp = xr.DataArray(
-            np.ones((2, 2)),
-            dims=("azimuth_time", "ground_range"),
-            coords={"azimuth_time": [0, 1], "ground_range": [0, 1]},
-        )
-        sat_position = xr.DataArray(
-            np.ones((2, 3)),
-            dims=("azimuth_time", "axis"),
-            coords={"azimuth_time": [0, 1], "axis": ["x", "y", "z"]},
-        )
-        dem = xr.DataArray(
-            np.ones((2, 2)),
-            dims=("lat", "lon"),
-            coords={"lat": [0, 1], "lon": [0, 1]},
-        )
-        distance = xr.DataArray(
-            np.ones((3, 2, 2), dtype="float64"),
-            dims=("axis", "lat", "lon"),
-            coords={"axis": ["x", "y", "z"]},
-        )
-        acquisition = sen1.Acquisition(
-            azimuth_time=xr.DataArray(np.array([0, 1]), dims=("lat",)),
-            slant_range_time=xr.DataArray(np.array([0.0, 1.0]), dims=("lon",)),
-            distance=distance,
-            velocity=distance,
-            gamma_area=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
-        )
-        geocoded = xr.Dataset(
-            {"vv": xr.DataArray(np.full((2, 2), 2.0), dims=("lat", "lon"))}
-        )
-        with (
-            patch.object(sen1, "convert_dem_to_ecef", return_value=dem),
-            patch.object(
-                sen1,
-                "fit_position",
-                return_value=xr.DataArray(
-                    np.ones((2, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(
-                sen1,
-                "poly_derivative",
-                return_value=xr.DataArray(
-                    np.ones((1, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(sen1, "simulate_acquisition", return_value=acquisition),
-            patch.object(sen1, "geocode_data", return_value=geocoded),
-        ):
-            out = sen1.terrain_correct(
-                data, time_slr_gcp, sat_position, dem, apply_rtc=False
-            )
-            self.assertIn("vv", out)
-            self.assertEqual(2, out.vv.shape[0])
-            self.assertEqual(2, out.vv.values[0, 0])
-            with pytest.raises(ValueError, match="grid parameters required for RTC"):
-                sen1.terrain_correct(
-                    data, time_slr_gcp, sat_position, dem, apply_rtc=True
-                )
-
-        with (
-            patch.object(sen1, "convert_dem_to_ecef", return_value=dem),
-            patch.object(
-                sen1,
-                "fit_position",
-                return_value=xr.DataArray(
-                    np.ones((2, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(
-                sen1,
-                "poly_derivative",
-                return_value=xr.DataArray(
-                    np.ones((1, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(sen1, "simulate_acquisition", return_value=acquisition),
-            patch.object(sen1, "geocode_data", return_value=geocoded),
-            patch.object(
-                sen1,
-                "apply_gamma_weights",
-                return_value=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
-            ) as agw,
-        ):
-            out = sen1.terrain_correct(
-                data,
-                time_slr_gcp,
-                sat_position,
-                dem,
-                apply_rtc=True,
-                grid_params=sen1.GridParams(
-                    slr0=0.0,
-                    d_slr=1.0,
-                    spacing_slr=1.0,
-                    az0=np.datetime64("2024-01-01T00:00:00"),
-                    d_az=1.0,
-                    spacing_az=1.0,
-                ),
-                interp_method="bilinear",
-            )
-            self.assertIn("vv", out)
-            args, _ = agw.call_args
-            self.assertIs(args[1], sen1.gamma_weights_bilinear)
-
-        with (
-            patch.object(sen1, "convert_dem_to_ecef", return_value=dem),
-            patch.object(
-                sen1,
-                "fit_position",
-                return_value=xr.DataArray(
-                    np.ones((2, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [1, 0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(
-                sen1,
-                "poly_derivative",
-                return_value=xr.DataArray(
-                    np.ones((1, 3)),
-                    dims=("degree", "axis"),
-                    coords={"degree": [0], "axis": ["x", "y", "z"]},
-                ),
-            ),
-            patch.object(sen1, "simulate_acquisition", return_value=acquisition),
-            patch.object(sen1, "geocode_data", return_value=geocoded),
-            patch.object(
-                sen1,
-                "apply_gamma_weights",
-                return_value=xr.DataArray(np.ones((2, 2)), dims=("lat", "lon")),
-            ) as agw,
-        ):
-            _ = sen1.terrain_correct(
-                data,
-                time_slr_gcp,
-                sat_position,
-                dem,
-                apply_rtc=True,
-                grid_params=sen1.GridParams(
-                    slr0=0.0,
-                    d_slr=1.0,
-                    spacing_slr=1.0,
-                    az0=np.datetime64("2024-01-01T00:00:00"),
-                    d_az=1.0,
-                    spacing_az=1.0,
-                ),
-                interp_method="nearest",
-            )
-            args, _ = agw.call_args
-            self.assertIs(args[1], sen1.gamma_weights_nearest)

@@ -10,19 +10,19 @@ import xarray as xr
 class Sentinel1NativeTest(TestCase):
     def test_open_datatree_sen1_grd(self):
         path = (
-            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202603-"
-            "s01siwgrh-global/19/products/cpm_v262/S1A_IW_GRDH_1SDV_20260319"
-            "T102725_20260319T102758_063695_0801D3_2EC6.zarr"
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202606"
+            "-s01siwgrh-global/23/products/cpm_v270/S1D_IW_GRDH_1SDV_20260623"
+            "T225558_20260623T225623_003369_005EC5_B4C2.zarr"
         )
         # noinspection PyTypeChecker
         dt = xr.open_datatree(path, engine="eopf-zarr", op_mode="native")
         self.assertEqual(25, len(dt.groups))
         self.assertIn(
-            "/S01SIWGRD_20260319T102725_0033_A364_2EC6_0801D3_VH/measurements",
+            "/S01SIWGRD_20260623T225558_0025_D019_B4C2_005EC5_VH/measurements",
             dt.groups,
         )
-        ds = dt.S01SIWGRD_20260319T102725_0033_A364_2EC6_0801D3_VH.measurements
-        self.assertEqual({"azimuth_time": 22290, "ground_range": 25223}, ds.sizes)
+        ds = dt.S01SIWGRD_20260623T225558_0025_D019_B4C2_005EC5_VH.measurements
+        self.assertEqual({"azimuth_time": 16802, "ground_range": 25319}, ds.sizes)
 
     def test_open_datatree_sen1_slc(self):
         path = (

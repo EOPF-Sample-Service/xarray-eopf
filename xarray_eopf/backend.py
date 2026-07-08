@@ -127,9 +127,11 @@ class EopfBackend(BackendEntrypoint):
         crs: pyproj.CRS | str | None = None,
         interp_methods: SpatialInterpMethods | Sen1InterpMethods | None = None,
         agg_methods: SpatialAggMethods | None = None,
+        # params for Sentinel-1 specifically
         dem: xr.DataArray | None = None,
         footprint_scale_factor: tuple[float | int, float | int] | None = None,
         apply_rtc: bool = True,
+        cache_uri: str | None = None,
         # params required by xarray backend interface
         drop_variables: str | Iterable[str] | None = None,
         # params for other reasons
@@ -207,6 +209,10 @@ class EopfBackend(BackendEntrypoint):
                 when not provided.
             apply_rtc: Whether to apply radiometric terrain correction (RTC) for
                 Sentinel-1 analysis mode. Defaults to `True`.
+            cache_uri: Temporary path used to store intermediate results from the
+                backward geocoding step in the Sentinel-1 processing workflow. The cache
+                is automatically removed when the Python process exits. If None, a
+                temporary directory with a unique UUID-based name is created.
             variables: Variables to include in the dataset. Can be a name or
                 regex pattern or iterable of the latter.
             drop_variables: Variable name or iterable of variable names

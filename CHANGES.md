@@ -1,8 +1,15 @@
+## Changes in 0.2.10 (in development)
+
+- Sentinel-1 GRD analysis mode is now fully lazy, enabling seamless execution on 
+  local and distributed Dask clusters.
+
+
 ## Changes in 0.2.9 (from 2026-06-03)
 
 - Added support for Sentinel-1 Level-2 OCN analysis mode.
 - Fixed an issue in Sentinel-1 GRD analysis mode that could produce NaN values along 
   the edges of the bounding box.
+
 
 ## Changes in 0.2.8 (from 2026-05-08)
 

@@ -15,7 +15,7 @@ allowed_open_time = 1000  # seconds
 show_chunking = False
 
 
-class Sentinel2AnalysisTest(TestCase):
+class Sentinel1AnalysisTest(TestCase):
     def test_open_dataset_sen1_grd(self):
         dem_path = Path(__file__).resolve().parent / "test_data" / "dem_small.zarr.zip"
         store = zarr.ZipStore(str(dem_path), mode="r")
@@ -28,9 +28,9 @@ class Sentinel2AnalysisTest(TestCase):
         dem = dem.dem
 
         url = (
-            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202603-"
-            "s01siwgrh-global/19/products/cpm_v262/S1A_IW_GRDH_1SDV_20260319"
-            "T102725_20260319T102758_063695_0801D3_2EC6.zarr"
+            "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:202606"
+            "-s01siwgrh-global/23/products/cpm_v270/S1D_IW_GRDH_1SDV_20260623"
+            "T225558_20260623T225623_003369_005EC5_B4C2.zarr"
         )
         with timeit("open " + url) as result:
             # noinspection PyTypeChecker

@@ -301,6 +301,8 @@ class Sen1GRD(Sen1):
             else:  # interp_method == "nearest"
                 weights_fn = gamma_weights_nearest
             gamma_weights = apply_gamma_weights(src_loc, weights_fn, grid_params)
+            print(gamma_weights.min().values)
+            print(gamma_weights.max().values)
             geocoded /= gamma_weights
             rename_dict = {
                 name: name.replace("beta0", "gamma0") for name in geocoded.data_vars
@@ -873,8 +875,6 @@ def backward_geocode(
         out["gamma_area"] = compute_gamma_area(
             dem_ecef, gm_dem_params, dist / slant_range
         )
-    print(out["gamma_area"].min().values)
-    print(out["gamma_area"].max().values)
     return out
 
 

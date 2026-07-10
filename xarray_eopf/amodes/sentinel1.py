@@ -844,7 +844,7 @@ def backward_geocode(
         t_shift: Time shift for the secant method.
 
     Returns:
-        A dataset containging the optimized ground_range and azimuth time
+        A dataset containing the optimized ground_range and azimuth time
         for each target pixel and optinal the gamma area needed for RTC.
 
     Raises:

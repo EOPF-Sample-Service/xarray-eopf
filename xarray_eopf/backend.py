@@ -209,10 +209,11 @@ class EopfBackend(BackendEntrypoint):
                 when not provided.
             apply_rtc: Whether to apply radiometric terrain correction (RTC) for
                 Sentinel-1 analysis mode. Defaults to `True`.
-            cache_uri: Temporary path used to store intermediate results from the
-                backward geocoding step in the Sentinel-1 processing workflow. The cache
-                is automatically removed when the Python process exits. If None, a
-                temporary directory with a unique UUID-based name is created.
+            cache_uri: Temporary path, interpreted as a fsspec `urlpath`, where
+                intermediate results from the backward geocoding step of the Sentinel-1
+                processing workflow are stored. The cache is automatically deleted
+                when the Python process exits. If `None`, a temporary directory with
+                a unique UUID-based name is created automatically.
             variables: Variables to include in the dataset. Can be a name or
                 regex pattern or iterable of the latter.
             drop_variables: Variable name or iterable of variable names

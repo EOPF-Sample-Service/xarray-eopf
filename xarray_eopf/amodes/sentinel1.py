@@ -845,7 +845,7 @@ def backward_geocode(
 
     Returns:
         A dataset containing the optimized ground_range and azimuth time
-        for each target pixel and optinal the gamma area needed for RTC.
+        for each target pixel and optionally the gamma area needed for RTC.
 
     Raises:
         ValueError: If the method is not supported.

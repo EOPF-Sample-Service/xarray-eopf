@@ -213,13 +213,17 @@ class Sen1GRD(Sen1):
 
         grd = self._open_data(datatree, includes, excludes)
 
-        return self._terrain_correct(
-            datatree,
-            grd,
-            dem,
-            apply_rtc=apply_rtc,
-            interp_method=interp_methods,
-        )
+        try:
+            return self._terrain_correct(
+                datatree,
+                grd,
+                dem,
+                apply_rtc=apply_rtc,
+                interp_method=interp_methods,
+            )
+        except Exception:
+            self._cleanup()
+            raise
 
     @staticmethod
     def _open_data(
@@ -385,6 +389,29 @@ class Sen1SLC(Sen1GRD):
             dss_swaths[swath_i] = self._merge_bursts(dss_burst[swath_i, :])
         dss_swaths = self._align_azimuth(dss_swaths)
         merged = self._merge_swaths(dss_swaths)
+
+        def _expand_names(
+            names: str | Iterable[str] | None,
+        ) -> str | list[str] | None:
+            if names is None:
+                return None
+            if isinstance(names, str):
+                names = [names]
+            expanded = []
+            for name in names:
+                expanded.append(name)
+                if not str(name).startswith("beta0_"):
+                    expanded.append(f"beta0_{name}")
+            return expanded
+
+        name_filter = NameFilter(
+            includes=_expand_names(includes),
+            excludes=_expand_names(excludes),
+        )
+        variable_names = [k for k in merged.data_vars if name_filter.accept(str(k))]
+        if not variable_names:
+            raise ValueError("No valid variable names found in dataset")
+        merged = merged[variable_names]
         return merged
 
     @staticmethod
@@ -515,6 +542,8 @@ class Sen1SLC(Sen1GRD):
                 f"Aligned swaths have different azimuth sizes: {sizes}. "
                 "TOPSAR merge may require additional trimming."
             )
+            min_size = min(sizes)
+            dss_align = [ds.isel(azimuth_time=slice(0, min_size)) for ds in dss_align]
 
         # check azimuth spacing
         for i, ds in enumerate(dss_align):

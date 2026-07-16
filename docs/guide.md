@@ -58,12 +58,11 @@ Additional parameters specific to each Sentinel mission are described below.
 Processing workflows differ significantly across Sentinel-1 product types. Therefore, 
 each product family is documented in its own dedicated section.
 
-> **Note:** Support for SLC products is planned for a future release.
-
 ##### Sentinel-1 Level-1 GRD
 
 > Note: Support for Sentinel-1 GRD products in analysis mode is 
-> currently experimental and undergoing validation.
+> currently experimental and undergoing validation. So parameters are missing 
+> in the new EOPF product, which are currently estimated.
 
 Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (`azimuth_time`, `ground_range`). To transform this data into an
@@ -117,6 +116,70 @@ Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordi
   directory with a unique UUID-based name is created.
 
 Examples:  
+
+- [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
+
+##### Sentinel-1 Level-1 SLC
+
+> Note: Support for Sentinel-1 SLC products in analysis mode is
+> currently experimental and undergoing validation.
+
+Sentinel-1 Level-1 SLC data is provided in radar geometry, defined by the coordinates
+(`azimuth_time`, `slant_range_time`) and organized in bursts and swaths. To transform
+this data into an **analysis-ready dataset**, the following processing steps are applied:
+
+1. **Radiometric Calibration:** For each burst complex SLC measurements for are 
+   converted into `beta0` backscatter values using the `beta_nought` calibration 
+   lookup table (LUT).
+2. **Burst and Swath Merging:** Valid burst regions are extracted using burst metadata,
+   merged along azimuth time, aligned across swaths, and then merged along slant range
+   to produce one continuous acquisition grid per selected polarization.
+3. **Geometric Terrain Correction (GTC):** Using a Digital Elevation Model (DEM),
+   the processor performs **inverse geocoding** by solving the zero-Doppler equation
+   based on satellite orbit information and terrain elevation. This step maps the
+   data from radar geometry to a georeferenced grid.
+4. **Radiometric Terrain Correction (RTC):** (Optional) RTC compensates for
+   terrain-induced radiometric distortions such as foreshortening, layover,
+   and slope-dependent brightness variations.
+
+📖 [D. Small, *Flattening Gamma: Radiometric Terrain Correction for SAR Imagery*](https://ieeexplore.ieee.org/document/5752845)
+
+**Supported Products:**
+
+- Sentinel-1 Level-1 SLC
+
+**Supported Variables**
+
+- **Polarization bands**:
+  `vv`, `vh`, `hh`, `hv` *(each SLC product contains only a subset of these bands)*
+
+**Specific Sentinel-1 Level-1 SLC parameters `**kwargs`:**
+
+- `crs`: Coordinate reference system of the output dataset. Can be provided as a
+  `str` or a `pyproj.CRS` object. If a string is given, it will be parsed using
+  [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
+  If not specified, [EPSG:4326](https://epsg.io/4326) is used.
+- `resolution`: Target resolution for all spatial variables expressed in the units
+  of the specified `crs`. If not specified, the resolution is derived (in degrees)
+  from the CopDEM (30 m).
+- `dem`: Digital Elevation Model (DEM) as a CF-compliant `xarray.DataArray` used for
+  terrain correction. If provided, the parameters `crs`, `bbox`, and `resolution` are
+  ignored, and the target grid is derived from the DEM. If not provided, the
+  [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog)
+  is automatically retrieved via the CDSE STAC API. This requires
+  [CDSE S3 credentials](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
+- `apply_rtc`: Enable or disable radiometric terrain correction (RTC). Default is `True`.
+- `interp_methods`: Interpolation method used during GTC and RTC. Supported methods:
+  `nearest`, `bilinear`.
+- `footprint_scale_factor`: Defines how radar pixels contribute to the output grid.
+  Default: `(3.0, 15.0)`, reflecting the different scaling used for azimuth and
+  slant-range processing of SLC data.
+- `cache_uri`: Temporary path used to store intermediate results from the
+  backward geocoding step in the Sentinel-1 processing workflow. The cache is
+  automatically removed when the Python process exits. If `None`, a temporary
+  directory with a unique UUID-based name is created.
+
+Examples:
 
 - [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
 

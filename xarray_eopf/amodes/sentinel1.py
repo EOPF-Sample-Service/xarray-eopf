@@ -49,7 +49,7 @@ _CHUNKSIZE = (2048, 2048)
 
 @dataclass(frozen=True)
 class GridParams:
-    """RTC range/azimuth grid parameters."""
+    """Range and azimuth grid parameters used for geocoding and RTC."""
 
     range0: float
     range0_scale: float
@@ -100,6 +100,8 @@ class Sen1(AnalysisMode, ABC):
 
 class Sen1GRD(Sen1):
     product_type = "GRDH"
+    range_coord = "ground_range"
+    footprint_scale_factor = (3.0, 3.0)
     cache_fs: fsspec.AbstractFileSystem | None = None
     cache_uri: str | None = None
     _cleanup_registered: bool = False
@@ -173,11 +175,13 @@ class Sen1GRD(Sen1):
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: Literal["nearest", "bilinear"] = "bilinear",
-        footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
+        footprint_scale_factor: tuple[float, float] | None = None,
         dem: xr.DataArray | None = None,
         apply_rtc: bool = True,
         cache_uri: str | None = None,
     ) -> xr.Dataset:
+        if footprint_scale_factor is not None:
+            self.footprint_scale_factor = footprint_scale_factor
 
         if cache_uri is None:
             self.cache_fs = fsspec.filesystem("file")
@@ -190,9 +194,14 @@ class Sen1GRD(Sen1):
             atexit.register(self._cleanup)
             self._cleanup_registered = True
 
-        # get dem data array
+        # Build the DEM if one was not supplied. When no bbox was passed,
+        # fall back to the product footprint from STAC metadata.
         if dem is None:
             if bbox is None:
+                warnings.warn(
+                    f"No bounding box specified. Processing the full Sentinel-1 "
+                    f"{self.product_type} product, which may take some time."
+                )
                 bbox = datatree.attrs["stac_discovery"]["bbox"]
                 bbox = [
                     min(bbox[0], bbox[2]),
@@ -210,7 +219,6 @@ class Sen1GRD(Sen1):
             dem,
             apply_rtc=apply_rtc,
             interp_method=interp_methods,
-            footprint_scale_factor=footprint_scale_factor,
         )
 
     @staticmethod
@@ -219,44 +227,44 @@ class Sen1GRD(Sen1):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
     ) -> xr.Dataset:
+        """Load measurements from the input datatree and apply radiometric
+        calibration using look-up tables provided in the product.
+        """
 
-        grd = None
-        group = ""
+        dataset = None
+        measurement_group = ""
         for mode in ["VV", "VH", "HV", "HH"]:
             children = [x for x in datatree.children if mode in x]
             if children:
                 assert len(children) == 1
-                group = children[0]
-                if grd is None:
-                    grd = datatree[group].measurements.to_dataset()
-                    grd = grd.rename({"grd": mode.lower()})
+                measurement_group = children[0]
+                if dataset is None:
+                    dataset = datatree[measurement_group].measurements.to_dataset()
+                    dataset = dataset.rename({"grd": mode.lower()})
                 else:
-                    grd[mode.lower()] = datatree[group].measurements.to_dataset().grd
+                    dataset[mode.lower()] = (
+                        datatree[measurement_group].measurements.to_dataset().grd
+                    )
 
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
-        variable_names = [k for k in grd.data_vars if name_filter.accept(str(k))]
+        variable_names = [k for k in dataset.data_vars if name_filter.accept(str(k))]
         if not variable_names:
             raise ValueError("No valid variable names found in dataset")
-        grd = grd[variable_names]
+        dataset = dataset[variable_names]
 
-        # get calibration LUT data
-        lut = datatree[group].quality.calibration.beta_nought
-        lut_interp = lut.interp(ground_range=grd.ground_range).chunk(
-            dict(ground_range=2048)
-        )
-        lut_interp = lut_interp.interp(azimuth_time=grd.azimuth_time).chunk(
-            dict(azimuth_time=2048)
-        )
-        grd = (grd / lut_interp) ** 2
+        # convert amplitudes to beta nought backscatter.
+        beta_lut = datatree[measurement_group].quality.calibration.beta_nought.values
+        assert len(np.unique(beta_lut)) == 1
+        dataset = (dataset / beta_lut[0, 0]) ** 2
         rename_dict = {name: f"beta0_{name}" for name in variable_names}
-        grd = grd.rename(rename_dict)
-        for var in grd.data_vars:
-            grd[var].attrs.update(
+        dataset = dataset.rename(rename_dict)
+        for var in dataset.data_vars:
+            dataset[var].attrs.update(
                 long_name="beta nought backscatter coefficient",
                 units="1",
             )
-        return grd
+        return dataset
 
     def _terrain_correct(
         self,
@@ -265,38 +273,55 @@ class Sen1GRD(Sen1):
         dem: xr.DataArray,
         apply_rtc: bool = True,
         interp_method: Literal["nearest", "bilinear"] = "nearest",
-        footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
     ) -> xr.Dataset:
+        """Geocode the calibrated GRD data and optionally apply
+        radiometric terrain correction (RTC).
+        """
         group = next(iter(datatree.children))
         orbit = datatree[f"{group}/conditions/orbit"].to_dataset()
         sat_position = orbit["position"].compute()
 
-        gcp = datatree[f"{group}/conditions/gcp"].to_dataset()
-        time_slr_gcp = gcp["slant_range_time_gcp"]
+        if self.range_coord == "ground_range":
+            gcp = datatree[f"{group}/conditions/gcp"].to_dataset()
+            time_slr_gcp = gcp["slant_range_time_gcp"]
+        else:
+            time_slr_gcp = None
 
-        grid_params = _get_grid_parameters(datatree, footprint_scale_factor)
+        grid_params = _get_grid_parameters(
+            datatree,
+            self.footprint_scale_factor,
+            range_coord=self.range_coord,
+        )
 
         gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
         src_loc = get_source_location(
-            dem,
-            time_slr_gcp,
-            sat_position,
-            grid_params,
-            gm_dem,
-            apply_rtc,
+            dem=dem,
+            time_slr_gcp=time_slr_gcp,
+            sat_position=sat_position,
+            grid_params=grid_params,
+            gm_dem_grid=gm_dem,
+            apply_rtc=apply_rtc,
+            range_coord=self.range_coord,
         )
         store = fsspec.get_mapper(f"{self.cache_uri}/src_location.zarr")
         src_loc.to_zarr(store)
 
         src_loc = xr.open_zarr(store)
-        geocoded = geocode_data(data, src_loc, grid_params, interp_method)
+        geocoded = geocode_data(
+            data, src_loc, grid_params, interp_method, range_coord=self.range_coord
+        )
 
         if apply_rtc:
             if interp_method == "bilinear":
                 weights_fn = gamma_weights_bilinear
             else:  # interp_method == "nearest"
                 weights_fn = gamma_weights_nearest
-            gamma_weights = apply_gamma_weights(src_loc, weights_fn, grid_params)
+            gamma_weights = apply_gamma_weights(
+                src_loc,
+                weights_fn,
+                grid_params,
+                range_coord=self.range_coord,
+            )
             geocoded /= gamma_weights
             rename_dict = {
                 name: str(name).replace("beta0", "gamma0")
@@ -313,6 +338,7 @@ class Sen1GRD(Sen1):
         return geocoded
 
     def _cleanup(self):
+        """Remove the temporary cache directory used during processing."""
         if not self.cache_uri:
             return
 
@@ -323,6 +349,8 @@ class Sen1GRD(Sen1):
 
 class Sen1SLC(Sen1GRD):
     product_type = "SLC"
+    range_coord = "slant_range_time"
+    footprint_scale_factor = (3.0, 15.0)
     cache_fs: fsspec.AbstractFileSystem | None = None
     cache_uri: str | None = None
     _cleanup_registered: bool = False
@@ -333,13 +361,15 @@ class Sen1SLC(Sen1GRD):
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
     ) -> xr.Dataset:
+        """Load, calibrate, and merge SLC bursts into a single dataset."""
 
         children = self._get_groups(datatree)
 
+        # First combine all polarizations within each burst.
         dss_burst = np.empty(children.shape[1:], dtype=object)
         for swath_i, swath in enumerate(children.swath.values):
             for burst_idx in children.burst.values:
-                mode_ds = xr.Dataset()
+                burst_dataset = xr.Dataset()
                 for mode_i, mode in enumerate(children.mode.values):
                     child = children.sel(mode=mode, swath=swath, burst=burst_idx).item()
                     burst = datatree[child]
@@ -347,8 +377,8 @@ class Sen1SLC(Sen1GRD):
                     beta0 = self._extract_valid_region(beta0, burst)
                     beta0 = beta0.drop_vars(["line", "pixel"])
                     beta0 = beta0.rename({"slc": f"beta0_{mode.lower()}"})
-                    mode_ds.update(beta0)
-                dss_burst[swath_i, burst_idx] = mode_ds
+                    burst_dataset.update(beta0)
+                dss_burst[swath_i, burst_idx] = burst_dataset
 
         dss_swaths = np.empty(children.shape[1], dtype=object)
         for swath_i, swath in enumerate(children.swath.values):
@@ -357,75 +387,9 @@ class Sen1SLC(Sen1GRD):
         merged = self._merge_swaths(dss_swaths)
         return merged
 
-    def _terrain_correct(
-        self,
-        datatree: xr.DataTree,
-        data: xr.Dataset,
-        dem: xr.DataArray,
-        apply_rtc: bool = True,
-        interp_method: Literal["nearest", "bilinear"] = "nearest",
-        footprint_scale_factor: tuple[float, float] = (3.0, 3.0),
-    ) -> xr.Dataset:
-        group = next(iter(datatree.children))
-        orbit = datatree[f"{group}/conditions/orbit"].to_dataset()
-        sat_position = orbit["position"].compute()
-
-        grid_params = _get_grid_parameters(
-            datatree,
-            footprint_scale_factor,
-            range_coord="slant_range_time",
-        )
-
-        gm_dem = GridMapping.from_dataset(dem.to_dataset(name="dem"))
-        src_loc = get_source_location(
-            dem=dem,
-            time_slr_gcp=None,
-            sat_position=sat_position,
-            grid_params=grid_params,
-            gm_dem_grid=gm_dem,
-            apply_rtc=apply_rtc,
-            range_coord="slant_range_time",
-        )
-        store = fsspec.get_mapper(f"{self.cache_uri}/src_location.zarr")
-        src_loc.to_zarr(store)
-
-        src_loc = xr.open_zarr(store)
-        geocoded = geocode_data(
-            data,
-            src_loc,
-            grid_params,
-            interp_method,
-            range_coord="slant_range_time",
-        )
-
-        if apply_rtc:
-            if interp_method == "bilinear":
-                weights_fn = gamma_weights_bilinear
-            else:  # interp_method == "nearest"
-                weights_fn = gamma_weights_nearest
-            gamma_weights = apply_gamma_weights(
-                src_loc,
-                weights_fn,
-                grid_params,
-                range_coord="slant_range_time",
-            )
-            geocoded /= gamma_weights
-            rename_dict = {
-                name: str(name).replace("beta0", "gamma0")
-                for name in geocoded.data_vars
-            }
-            geocoded = geocoded.rename(rename_dict)
-            for var in geocoded.data_vars:
-                geocoded[var].attrs.update(
-                    long_name="gamma nought backscatter coefficient",
-                    units="1",
-                )
-
-        geocoded = assign_grid_mapping(geocoded)
-        return geocoded
-
     @staticmethod
     def _get_groups(datatree):
+        """Return child group names organized by polarization, swath, and burst."""
         swaths = ["IW1", "IW2", "IW3"]
         modes = ["VV", "VH", "HV", "HH"]
         children = []
@@ -453,6 +417,7 @@ class Sen1SLC(Sen1GRD):
 
     @staticmethod
     def _calibrate_burst(burst: xr.DataTree) -> xr.Dataset:
+        """Convert a burst measurement to beta nought."""
         slc = burst.measurements.to_dataset()
         beta_lut = burst.quality.calibration.beta_nought
         assert len(np.unique(beta_lut)) == 1
@@ -460,6 +425,7 @@ class Sen1SLC(Sen1GRD):
 
     @staticmethod
     def _extract_valid_region(dataset: xr.Dataset, burst: xr.DataTree) -> xr.Dataset:
+        """Trim invalid burst samples using the burst information mask."""
         first = burst.conditions.burst_info.first_valid_sample.values
         last = burst.conditions.burst_info.last_valid_sample.values
         first_idxs = np.unique(first)
@@ -476,6 +442,7 @@ class Sen1SLC(Sen1GRD):
 
     @staticmethod
     def _merge_bursts(dss: np.ndarray, tolerance: float = 0.01) -> xr.Dataset:
+        """Merge overlapping bursts along azimuth time."""
         idxs = np.zeros((len(dss), 2), dtype=int)
         tol = 0.01 * np.diff(dss[0].azimuth_time.values[:2])[0]
 
@@ -532,6 +499,7 @@ class Sen1SLC(Sen1GRD):
 
     @staticmethod
     def _align_azimuth(dss: np.ndarray, tolerance: float = 0.01) -> list[xr.Dataset]:
+        """Align all swaths to a shared azimuth-time axis."""
         tol = 0.1 * np.diff(dss[0].azimuth_time.values[:2])[0]
 
         start = max(ds.azimuth_time.values[0] for ds in dss)
@@ -567,6 +535,7 @@ class Sen1SLC(Sen1GRD):
 
     @staticmethod
     def _merge_swaths(dss: list[xr.Dataset], tolerance: float = 0.01) -> xr.Dataset:
+        """Merge swaths along slant range."""
         idxs = np.zeros((len(dss), 2), dtype=int)
         step_tol = tolerance * np.diff(dss[0].slant_range_time.values[:2])[0]
 
@@ -745,7 +714,6 @@ class Sen1OCN(Sen1):
 
 
 def register(registry: AnalysisModeRegistry):
-    """Register Sentinel-1 analysis modes."""
     registry.register(Sen1GRD)
     registry.register(Sen1SLC)
     registry.register(Sen1OCN)
@@ -769,6 +737,7 @@ def get_dem(
     Raises:
         ValueError: If required credentials are missing or resolution is invalid.
     """
+
     # check that environment variables are set
     missing = [
         name
@@ -846,8 +815,8 @@ def _get_grid_parameters(
         Grid parameters for terrain correction.
     """
 
-    group_vh = [x for x in datatree.children if "VH" in x][0]
-    attrs = datatree[f"{group_vh}"].attrs["other_metadata"]["image_annotation"][
+    vh_group = [x for x in datatree.children if "VH" in x][0]
+    attrs = datatree[f"{vh_group}"].attrs["other_metadata"]["image_annotation"][
         "image_information"
     ]
 
@@ -857,7 +826,7 @@ def _get_grid_parameters(
         d_range = attrs["range_pixel_spacing"]
         spacing_range = attrs["range_pixel_spacing"]
     else:
-        meas = datatree[f"{group_vh}/measurements"]
+        meas = datatree[f"{vh_group}/measurements"]
         range0 = meas[range_coord].values[0]
         d_range = meas[range_coord].values[1] - meas[range_coord].values[0]
         spacing_range = attrs["range_pixel_spacing"]
@@ -871,7 +840,7 @@ def _get_grid_parameters(
         spacing_range=spacing_range,
         d_range_scale=d_range * range_scale,
         range0_scale=(range0 - (0.5 * d_range) + (0.5 * d_range * range_scale)),
-        spacing_range_scale=d_range * range_scale,
+        spacing_range_scale=spacing_range * range_scale,
         az0=az0,
         d_az=d_az,
         spacing_az=spacing_az,
@@ -1130,6 +1099,7 @@ def backward_geocode(
         vel_coeff: Velocity polynomial coefficients.
         gr_coeff: Ground-range polynomial coefficients.
         grid_params: Grid parameters for RTC.
+        range_coord: Name of the coordinate representing the across-track axis.
         apply_rtc: Whether to compute RTC gamma area.
         gm_dem_params: DEM grid metadata for ECEF conversion.
         method: Root-finding method.
@@ -1371,6 +1341,7 @@ def apply_gamma_weights(
         src_loc: Source location dataset with geometry.
         func: Weighting function.
         params: Grid parameters for index conversion.
+        range_coord: Name of the coordinate representing the across-track axis.
 
     Returns:
         Gamma-corrected area per pixel.
@@ -1378,7 +1349,9 @@ def apply_gamma_weights(
     src_loc["az_idx"] = (
         (src_loc.azimuth_time - params.az0_scale) / _ONE_SECOND / params.d_az_scale
     )
-    src_loc["gr_idx"] = (src_loc[range_coord] - params.range0_scale) / params.d_range_scale
+    src_loc["gr_idx"] = (
+        src_loc[range_coord] - params.range0_scale
+    ) / params.d_range_scale
 
     template = src_loc.gamma_area * 0
     area = xr.map_blocks(func, src_loc, template=template)
@@ -1435,6 +1408,7 @@ def geocode_data(
         src_loc: Source location dataset with target coordinates.
         grid_params: Grid parameters for index conversion.
         interp_method: Interpolation method.
+        range_coord: Name of the coordinate representing the across-track axis.
 
     Returns:
         Geocoded dataset.
@@ -1525,7 +1499,6 @@ def assign_grid_mapping(dataset: xr.Dataset) -> xr.Dataset:
     return dataset
 
 
-# INTERPOLATION -> xcube-resampling?
 def _xy_bbox_block(x_coords: np.ndarray, y_coords: np.ndarray):
     x_edges = np.concatenate([x_coords[:, 0], x_coords[:, -1]])
     y_edges = np.concatenate([y_coords[0, :], y_coords[-1, :]])

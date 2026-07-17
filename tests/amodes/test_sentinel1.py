@@ -288,9 +288,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         sen1._register_cache_uri("file:///tmp/cache-a")
         sen1._register_cache_uri("file:///tmp/cache-b")
 
-        fs = SimpleNamespace(
-            exists=lambda path: True, rm=lambda path, recursive: None
-        )
+        fs = SimpleNamespace(exists=lambda path: True, rm=lambda path, recursive: None)
         with patch.object(
             sen1.fsspec,
             "url_to_fs",

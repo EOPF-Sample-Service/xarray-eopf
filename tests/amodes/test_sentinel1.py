@@ -61,6 +61,7 @@ class Sen1TestMixin:
 class Sen1GRDTest(Sen1TestMixin, TestCase):
 
     def setUp(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
         self.mode = Sen1GRD()
         self.dem = xr.DataArray(
             np.ones((2, 2), dtype="float32"),
@@ -90,6 +91,9 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
                 "gamma_area": (("lat", "lon"), np.ones((2, 2))),
             }
         )
+
+    def tearDown(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
 
     def test_is_valid_source_ok(self):
         self.assertTrue(self.mode.is_valid_source("data/S1A_IW_GRDH_20240201.zarr"))
@@ -162,7 +166,6 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         self.assertIs(args[2], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
         self.assertTrue(kwargs["apply_rtc"])
-        self.mode._cleanup()
 
     def test_convert_datatree_updates_footprint_scale_factor(self):
         with patch.object(self.mode, "_terrain_correct", return_value=self.expected_vv):
@@ -173,7 +176,6 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
                 footprint_scale_factor=(2.0, 4.0),
             )
         self.assertEqual((2.0, 4.0), self.mode.footprint_scale_factor)
-        self.mode._cleanup()
 
     def test_convert_datatree_with_cache_uri_uses_fs(self):
         fs = SimpleNamespace()
@@ -188,7 +190,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         url_to_fs.assert_called_once_with("file:///cache")
         self.assertEqual("file:///cache", self.mode.cache_uri)
-        self.mode._cleanup()
+        self.assertEqual(["file:///cache"], sen1._REGISTERED_CACHE_URIS)
 
     def test_convert_datatree_uses_get_dem(self):
 
@@ -201,24 +203,10 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         get_dem_mock.assert_called_once()
         args, _ = get_dem_mock.call_args
         self.assertEqual(self.dt.attrs["stac_discovery"]["bbox"], args[0])
-        self.mode._cleanup()
 
     def test_convert_datatree_fail(self):
         with pytest.raises(ValueError, match="No valid variable names"):
             self.mode.convert_datatree(self.dt, includes="bibo", dem=self.dem)
-        self.mode._cleanup()
-
-    def test_convert_datatree_cleans_up_on_failure(self):
-        with (
-            patch.object(
-                self.mode, "_terrain_correct", side_effect=RuntimeError("boom")
-            ),
-            patch.object(self.mode, "_cleanup") as cleanup,
-        ):
-            with pytest.raises(RuntimeError, match="boom"):
-                self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
-        cleanup.assert_called_once()
-        self.mode._cleanup()
 
     def test_convert_datatree_warns_when_processing_full_product(self):
         with (
@@ -228,7 +216,6 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         ):
             self.mode.convert_datatree(self.dt, includes=["vv"])
         self.assertIn("No bounding box specified", str(cm.warning))
-        self.mode._cleanup()
 
     def test_terrain_correct_with_rtc_nearest(self):
         with (
@@ -253,7 +240,6 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
-        self.mode._cleanup()
 
     def test_terrain_correct_with_rtc_bilinear(self):
         with (
@@ -278,7 +264,6 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
-        self.mode._cleanup()
 
     def test_terrain_correct_without_rtc(self):
         with (
@@ -298,26 +283,34 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         gamma_mock.assert_not_called()
         self.assertIn("beta0_vv", out.data_vars)
-        self.mode._cleanup()
 
-    def test_cleanup_removes_cache(self):
-        with patch.object(sen1.fsspec, "url_to_fs") as url_to_fs:
-            self.mode.cache_uri = "file:///tmp/fake-cache"
-            fs = SimpleNamespace(
-                exists=lambda path: True, rm=lambda path, recursive: None
-            )
-            url_to_fs.return_value = (fs, "/tmp/fake-cache")
-            self.mode._cleanup()
-            url_to_fs.assert_called_once_with("file:///tmp/fake-cache")
+    def test_cleanup_registered_cache_uris_removes_all_caches(self):
+        sen1._register_cache_uri("file:///tmp/cache-a")
+        sen1._register_cache_uri("file:///tmp/cache-b")
 
-    def test_cleanup_without_cache_uri_is_noop(self):
-        self.mode.cache_uri = None
-        self.mode._cleanup()
+        fs = SimpleNamespace(
+            exists=lambda path: True, rm=lambda path, recursive: None
+        )
+        with patch.object(
+            sen1.fsspec,
+            "url_to_fs",
+            return_value=(fs, "/tmp/fake-cache"),
+        ) as url_to_fs:
+            sen1._cleanup_registered_cache_uris()
+
+        self.assertEqual(2, url_to_fs.call_count)
+        url_to_fs.assert_any_call("file:///tmp/cache-a")
+        url_to_fs.assert_any_call("file:///tmp/cache-b")
+        self.assertEqual(
+            ["file:///tmp/cache-a", "file:///tmp/cache-b"],
+            sen1._REGISTERED_CACHE_URIS,
+        )
 
 
 class Sen1SLCTest(Sen1TestMixin, TestCase):
 
     def setUp(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
         self.mode = Sen1SLC()
         self.dt = make_s1_slc_datatree()
         self.dem = xr.DataArray(
@@ -344,6 +337,9 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
                 "gamma_area": (("lat", "lon"), np.ones((2, 2))),
             }
         )
+
+    def tearDown(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
 
     @staticmethod
     def _make_slc_dataset(
@@ -414,7 +410,9 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
         self.assertEqual(["beta0_vv"], list(out.data_vars))
 
     def test_open_data_fails_when_no_variables_match(self):
-        with pytest.raises(ValueError, match="No valid variable names found in dataset"):
+        with pytest.raises(
+            ValueError, match="No valid variable names found in dataset"
+        ):
             self.mode._open_data(self.dt, includes="does_not_exist")
 
     def test_convert_datatree(self):
@@ -428,11 +426,12 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
         self.assertEqual(["beta0_vv"], list(args[1].data_vars))
         self.assertIs(args[2], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
-        self.mode._cleanup()
 
     def test_terrain_correct_uses_slant_range_path(self):
         with (
-            patch.object(sen1, "get_source_location", return_value=self.src_loc) as src_mock,
+            patch.object(
+                sen1, "get_source_location", return_value=self.src_loc
+            ) as src_mock,
             patch.object(sen1, "geocode_data", return_value=self.expected_beta0),
             patch.object(
                 sen1,
@@ -455,7 +454,6 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
         self.assertIsNone(src_mock.call_args.kwargs["time_slr_gcp"])
         self.assertEqual("slant_range_time", src_mock.call_args.kwargs["range_coord"])
         self.assertEqual("slant_range_time", gamma_mock.call_args.kwargs["range_coord"])
-        self.mode._cleanup()
 
     def test_merge_bursts_warns_on_irregular_spacing(self):
         ds0 = self._make_slc_dataset(
@@ -560,7 +558,9 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
             ),
             np.array([0.0, 1.0]),
         )
-        with pytest.warns(UserWarning, match="Aligned swaths have different azimuth sizes"):
+        with pytest.warns(
+            UserWarning, match="Aligned swaths have different azimuth sizes"
+        ):
             out = self.mode._align_azimuth(self._as_object_array(ds0, ds1))
         self.assertEqual(3, out[0].sizes["azimuth_time"])
 

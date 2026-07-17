@@ -2,12 +2,12 @@
 #  Permissions are hereby granted under the terms of the Apache 2.0 License:
 #  https://opensource.org/license/apache-2-0.
 
-import atexit
 import functools
 import os
 import re
 import uuid
 import warnings
+import weakref
 from abc import ABC
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, fields
@@ -45,6 +45,7 @@ _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
 _CHUNKSIZE = (2048, 2048)
+_REGISTERED_CACHE_URIS = []
 
 
 @dataclass(frozen=True)
@@ -104,7 +105,6 @@ class Sen1GRD(Sen1):
     footprint_scale_factor = (3.0, 3.0)
     cache_fs: fsspec.AbstractFileSystem | None = None
     cache_uri: str | None = None
-    _cleanup_registered: bool = False
 
     def get_applicable_params(self, **kwargs) -> dict[str, Any]:
         params = {}
@@ -190,9 +190,8 @@ class Sen1GRD(Sen1):
             cache_uri = cache_uri.rstrip("/")
             self.cache_fs, _ = fsspec.url_to_fs(cache_uri)
             self.cache_uri = cache_uri
-        if not getattr(self, "_cleanup_registered", False):
-            atexit.register(self._cleanup)
-            self._cleanup_registered = True
+        _register_cache_uri(self.cache_uri)
+        weakref.finalize(self, _cleanup_registered_cache_uris)
 
         # Build the DEM if one was not supplied. When no bbox was passed,
         # fall back to the product footprint from STAC metadata.
@@ -212,18 +211,13 @@ class Sen1GRD(Sen1):
             dem = get_dem(bbox, resolution=resolution, crs=crs)
 
         grd = self._open_data(datatree, includes, excludes)
-
-        try:
-            return self._terrain_correct(
-                datatree,
-                grd,
-                dem,
-                apply_rtc=apply_rtc,
-                interp_method=interp_methods,
-            )
-        except Exception:
-            self._cleanup()
-            raise
+        return self._terrain_correct(
+            datatree,
+            grd,
+            dem,
+            apply_rtc=apply_rtc,
+            interp_method=interp_methods,
+        )
 
     @staticmethod
     def _open_data(
@@ -341,15 +335,6 @@ class Sen1GRD(Sen1):
         geocoded = assign_grid_mapping(geocoded)
         return geocoded
 
-    def _cleanup(self):
-        """Remove the temporary cache directory used during processing."""
-        if not self.cache_uri:
-            return
-
-        fs, path = fsspec.url_to_fs(self.cache_uri)
-        if fs.exists(path):
-            fs.rm(path, recursive=True)
-
 
 class Sen1SLC(Sen1GRD):
     product_type = "SLC"
@@ -357,7 +342,6 @@ class Sen1SLC(Sen1GRD):
     footprint_scale_factor = (3.0, 15.0)
     cache_fs: fsspec.AbstractFileSystem | None = None
     cache_uri: str | None = None
-    _cleanup_registered: bool = False
 
     def _open_data(
         self,
@@ -746,6 +730,17 @@ def register(registry: AnalysisModeRegistry):
     registry.register(Sen1GRD)
     registry.register(Sen1SLC)
     registry.register(Sen1OCN)
+
+
+def _register_cache_uri(cache_uri: str) -> None:
+    _REGISTERED_CACHE_URIS.append(cache_uri)
+
+
+def _cleanup_registered_cache_uris() -> None:
+    for cache_uri in _REGISTERED_CACHE_URIS:
+        fs, path = fsspec.url_to_fs(cache_uri)
+        if fs.exists(path):
+            fs.rm(path, recursive=True)
 
 
 def get_dem(

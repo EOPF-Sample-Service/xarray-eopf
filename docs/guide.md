@@ -61,8 +61,9 @@ each product family is documented in its own dedicated section.
 ##### Sentinel-1 Level-1 GRD
 
 > Note: Support for Sentinel-1 GRD products in analysis mode is 
-> currently experimental and undergoing validation. So parameters are missing 
-> in the new EOPF product, which are currently estimated.
+> currently experimental and undergoing validation. Some conversion parameters 
+> are missing in the new EOPF product, which are currently estimated. Newer EOPF
+> product verison will include these parameters. 
 
 Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (`azimuth_time`, `ground_range`). To transform this data into an

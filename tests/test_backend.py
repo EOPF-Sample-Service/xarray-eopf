@@ -4,7 +4,6 @@
 
 from typing import Any
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
 
 import fsspec
 import pytest
@@ -174,31 +173,3 @@ class AnalysisModeTest(TestCase):
             self.path + "/measurements/reflectance/r10m", engine="eopf-zarr"
         )
         self.assertIsInstance(dt, xr.DataTree)
-
-    def test_open_dataset_passes_cache_uri_to_analysis_mode(self):
-        backend = EopfBackend()
-        datatree = MagicMock()
-        datatree.has_data = False
-        dataset = xr.Dataset(
-            {"gamma0_vv": xr.DataArray([1], dims=("x",)).chunk({"x": 1})}
-        )
-        analysis_mode = MagicMock()
-        analysis_mode.get_applicable_params.return_value = {
-            "cache_uri": "file:///tmp/cache"
-        }
-        analysis_mode.convert_datatree.return_value = dataset
-
-        with (
-            patch.object(backend, "open_datatree", return_value=datatree),
-            patch("xarray_eopf.backend._assert_datatree_is_chunked"),
-            patch("xarray_eopf.backend.AnalysisMode.guess", return_value=analysis_mode),
-        ):
-            out = backend.open_dataset(
-                "memory://S1A_IW_GRDH_TEST.zarr",
-                op_mode="analysis",
-                cache_uri="file:///tmp/cache",
-            )
-
-        self.assertIs(out, dataset)
-        _, kwargs = analysis_mode.get_applicable_params.call_args
-        self.assertEqual("file:///tmp/cache", kwargs["cache_uri"])

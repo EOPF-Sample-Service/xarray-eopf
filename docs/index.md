@@ -55,7 +55,7 @@ datatree = xr.open_datatree(url_or_path, engine="eopf-zarr", op_mode="native")
 More information on the two modes are given in the [User Guide](guide.md)
 
 Data variables will always be represented as chunked Dask arrays for 
-efficient out-of core computations and visualisations.
+efficient out-of core computations and visualizations.
 
 The package has minimal core dependencies: `xarray`, `zarr`, and `dask`.
 Packages for accessing remote filesystems are optional, e.g., you will need `s3fs`
@@ -64,5 +64,5 @@ if you need to access EOPF data products in S3-compatible remote object storages
 ## License
 
 The package is open source and released under the 
-[Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0.html) license. :heart:
+[Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) license. :heart:
 

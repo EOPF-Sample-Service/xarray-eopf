@@ -17,14 +17,9 @@ show_chunking = False
 
 class Sentinel1AnalysisTest(TestCase):
     def test_open_dataset_sen1_grd(self):
-        dem_path = Path(__file__).resolve().parent / "test_data" / "dem_small.zarr.zip"
+        dem_path = Path(__file__).resolve().parent / "test_data" / "dem_grd.zarr.zip"
         store = zarr.ZipStore(str(dem_path), mode="r")
-        dem = xr.open_zarr(
-            store,
-            group="dem_small.zarr",
-            consolidated=False,  # also important
-            chunks={},
-        )
+        dem = xr.open_zarr(store, group="dem_small.zarr", consolidated=False, chunks={})
         dem = dem.dem
 
         url = (
@@ -49,6 +44,35 @@ class Sentinel1AnalysisTest(TestCase):
         assert_dataset_is_chunked(self, ds, verbose=show_chunking)
         for var_name in ds.data_vars:
             self.assertEqual((541, 1081), ds[var_name].shape, msg=var_name)
+
+    def test_open_dataset_sen1_slc(self):
+        dem_path = Path(__file__).resolve().parent / "test_data" / "dem_slc.zarr.zip"
+        store = zarr.ZipStore(str(dem_path), mode="r")
+        dem = xr.open_zarr(store, group="dem_small.zarr", consolidated=False, chunks={})
+        dem = dem.dem
+
+        url = (
+            "https://data.eodc.eu/collections/EOPF_ZARR/products/cpm_v270/"
+            "S01SIWSLC/2026/05/31/S1D_IW_SLC__1SDV_20260531T171503_"
+            "20260531T171530_003031_00539E_C573.zarr"
+        )
+        with timeit("open " + url) as result:
+            # noinspection PyTypeChecker
+            ds = xr.open_dataset(
+                url,
+                engine="eopf-zarr",
+                op_mode="analysis",
+                dem=dem,
+                chunks={},
+            )
+        self.assertTrue(result.time_delta < allowed_open_time)
+
+        self.assertIn("gamma0_vv", ds)
+        self.assertIn("gamma0_vh", ds)
+
+        assert_dataset_is_chunked(self, ds, verbose=show_chunking)
+        for var_name in ds.data_vars:
+            self.assertEqual((361, 361), ds[var_name].shape, msg=var_name)
 
     def test_open_datatree_sen1_onc(self):
         url = (

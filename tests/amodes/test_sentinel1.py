@@ -15,18 +15,23 @@ import pytest
 import xarray as xr
 from xcube_resampling.gridmapping import GridMapping
 
-from tests.helpers import make_s1_grd_datatree, make_s1_ocn_datatree
+from tests.helpers import (
+    make_s1_grd_datatree,
+    make_s1_ocn_datatree,
+    make_s1_slc_datatree,
+)
 from xarray_eopf.amode import AnalysisModeRegistry
 from xarray_eopf.amodes import sentinel1 as sen1
-from xarray_eopf.amodes.sentinel1 import Sen1GRD, Sen1OCN, register
+from xarray_eopf.amodes.sentinel1 import Sen1GRD, Sen1OCN, Sen1SLC, register
 
 
 class Sentinel1AnalysisModeTest(TestCase):
     def test_register(self):
         registry = AnalysisModeRegistry()
         register(registry)
-        self.assertEqual(2, len(list(registry.keys())))
+        self.assertEqual(3, len(list(registry.keys())))
         self.assertIn(Sen1GRD.product_type, registry.keys())
+        self.assertIn(Sen1SLC.product_type, registry.keys())
         self.assertIn(Sen1OCN.product_type, registry.keys())
 
 
@@ -56,6 +61,7 @@ class Sen1TestMixin:
 class Sen1GRDTest(Sen1TestMixin, TestCase):
 
     def setUp(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
         self.mode = Sen1GRD()
         self.dem = xr.DataArray(
             np.ones((2, 2), dtype="float32"),
@@ -86,6 +92,9 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             }
         )
 
+    def tearDown(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
+
     def test_is_valid_source_ok(self):
         self.assertTrue(self.mode.is_valid_source("data/S1A_IW_GRDH_20240201.zarr"))
         self.assertTrue(self.mode.is_valid_source("S1D_SM_GRDH_TEST"))
@@ -95,14 +104,16 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         self.assertFalse(self.mode.is_valid_source(dict()))
 
     def test_get_grid_parameters(self):
-        params = self.mode._get_grid_parameters(self.dt, (2.0, 3.0))
+        params = sen1._get_grid_parameters(self.dt, (2.0, 3.0))
 
-        self.assertEqual(0.0, params["gr0"])
+        self.assertEqual(0.0, params["range0"])
+        self.assertEqual(10.0, params["spacing_range"])
         self.assertEqual(20.0, params["spacing_az"])
-        self.assertEqual(10.0, params["d_gr"])
-        self.assertEqual(30.0, params["d_gr_scale"])
+        self.assertEqual(10.0, params["d_range"])
+        self.assertEqual(30.0, params["d_range_scale"])
         self.assertEqual(np.datetime64("2024-01-01T00:00:00"), params["az0"])
         self.assertEqual(0.5, params["d_az"])
+        self.assertEqual(30.0, params["spacing_range_scale"])
         self.assertEqual(40.0, params["spacing_az_scale"])
         self.assertEqual(
             np.datetime64("2024-01-01T00:00:00.250000000"), params["az0_scale"]
@@ -150,12 +161,21 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
 
         self.assertIs(out, self.expected_vv)
         args, kwargs = mocked.call_args
-        self.assertEqual(["beta0_vv"], list(args[0].data_vars))
-        self.assertIs(args[3], self.dem)
+        self.assertIs(args[0], self.dt)
+        self.assertEqual(["beta0_vv"], list(args[1].data_vars))
+        self.assertIs(args[2], self.dem)
         self.assertEqual("bilinear", kwargs["interp_method"])
         self.assertTrue(kwargs["apply_rtc"])
-        self.assertIn("gr0", args[4])
-        self.mode._cleanup()
+
+    def test_convert_datatree_updates_footprint_scale_factor(self):
+        with patch.object(self.mode, "_terrain_correct", return_value=self.expected_vv):
+            self.mode.convert_datatree(
+                self.dt,
+                includes=["vv"],
+                dem=self.dem,
+                footprint_scale_factor=(2.0, 4.0),
+            )
+        self.assertEqual((2.0, 4.0), self.mode.footprint_scale_factor)
 
     def test_convert_datatree_with_cache_uri_uses_fs(self):
         fs = SimpleNamespace()
@@ -170,7 +190,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
             )
         url_to_fs.assert_called_once_with("file:///cache")
         self.assertEqual("file:///cache", self.mode.cache_uri)
-        self.mode._cleanup()
+        self.assertEqual(["file:///cache"], sen1._REGISTERED_CACHE_URIS)
 
     def test_convert_datatree_uses_get_dem(self):
 
@@ -183,24 +203,59 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         get_dem_mock.assert_called_once()
         args, _ = get_dem_mock.call_args
         self.assertEqual(self.dt.attrs["stac_discovery"]["bbox"], args[0])
-        self.mode._cleanup()
 
     def test_convert_datatree_fail(self):
         with pytest.raises(ValueError, match="No valid variable names"):
             self.mode.convert_datatree(self.dt, includes="bibo", dem=self.dem)
-        self.mode._cleanup()
 
-    def test_convert_datatree_cleans_up_on_failure(self):
-        with (
-            patch.object(
-                self.mode, "_terrain_correct", side_effect=RuntimeError("boom")
-            ),
-            patch.object(self.mode, "_cleanup") as cleanup,
+    def test_open_data_fails_for_duplicate_measurement_groups(self):
+        azimuth_time = np.array(
+            ["2024-01-01T00:00:00", "2024-01-01T00:00:01"], dtype="datetime64[ns]"
+        )
+        ground_range = np.array([0.0, 10.0])
+        invalid_dt = xr.DataTree.from_dict(
+            {
+                "S1A_IW_GRDH_TEST_VV/measurements": xr.Dataset(
+                    {
+                        "grd": xr.DataArray(
+                            np.ones((2, 2), dtype="float32"),
+                            dims=("azimuth_time", "ground_range"),
+                            coords={
+                                "azimuth_time": azimuth_time,
+                                "ground_range": ground_range,
+                            },
+                        )
+                    }
+                ),
+                "S1A_IW_GRDH_TEST_VV_DUP/measurements": xr.Dataset(
+                    {
+                        "grd": xr.DataArray(
+                            np.ones((2, 2), dtype="float32"),
+                            dims=("azimuth_time", "ground_range"),
+                            coords={
+                                "azimuth_time": azimuth_time,
+                                "ground_range": ground_range,
+                            },
+                        )
+                    }
+                ),
+            }
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Expected exactly one measurement group for polarization 'VV'",
         ):
-            with pytest.raises(RuntimeError, match="boom"):
-                self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
-        cleanup.assert_called_once()
-        self.mode._cleanup()
+            self.mode._open_data(invalid_dt, includes=["vv"])
+
+    def test_convert_datatree_warns_when_processing_full_product(self):
+        with (
+            self.assertWarns(UserWarning) as cm,
+            patch.object(sen1, "get_dem", return_value=self.dem),
+            patch.object(self.mode, "_terrain_correct", return_value=self.expected_vv),
+        ):
+            self.mode.convert_datatree(self.dt, includes=["vv"])
+        self.assertIn("No bounding box specified", str(cm.warning))
 
     def test_terrain_correct_with_rtc_nearest(self):
         with (
@@ -212,20 +267,19 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
                 return_value=xr.ones_like(self.src_loc.gamma_area),
             ) as gamma_mock,
             patch.object(sen1, "assign_grid_mapping", side_effect=lambda ds: ds),
+            patch.object(xr.Dataset, "to_zarr", return_value=None),
+            patch.object(sen1.xr, "open_zarr", return_value=self.src_loc),
         ):
             self.mode.cache_uri = f"tmp_{uuid.uuid4().hex}"
             out = self.mode._terrain_correct(
+                self.dt,
                 self.expected_beta0_vv,
-                xr.DataArray(np.zeros((2, 2)), dims=("lat", "lon")),
-                xr.DataArray(np.zeros((2, 2, 3)), dims=("lat", "lon", "axis")),
                 self.dem,
-                self.mode._get_grid_parameters(self.dt, (3.0, 3.0)),
                 apply_rtc=True,
                 interp_method="nearest",
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
-        self.mode._cleanup()
 
     def test_terrain_correct_with_rtc_bilinear(self):
         with (
@@ -237,34 +291,353 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
                 return_value=xr.ones_like(self.src_loc.gamma_area),
             ) as gamma_mock,
             patch.object(sen1, "assign_grid_mapping", side_effect=lambda ds: ds),
+            patch.object(xr.Dataset, "to_zarr", return_value=None),
+            patch.object(sen1.xr, "open_zarr", return_value=self.src_loc),
         ):
             self.mode.cache_uri = f"tmp_{uuid.uuid4().hex}"
             out = self.mode._terrain_correct(
+                self.dt,
                 self.expected_beta0_vv,
-                xr.DataArray(np.zeros((2, 2)), dims=("lat", "lon")),
-                xr.DataArray(np.zeros((2, 2, 3)), dims=("lat", "lon", "axis")),
                 self.dem,
-                self.mode._get_grid_parameters(self.dt, (3.0, 3.0)),
                 apply_rtc=True,
                 interp_method="bilinear",
             )
         gamma_mock.assert_called_once()
         self.assertIn("gamma0_vv", out.data_vars)
-        self.mode._cleanup()
 
-    def test_cleanup_removes_cache(self):
-        with patch.object(sen1.fsspec, "url_to_fs") as url_to_fs:
-            self.mode.cache_uri = "file:///tmp/fake-cache"
-            fs = SimpleNamespace(
-                exists=lambda path: True, rm=lambda path, recursive: None
+    def test_terrain_correct_without_rtc(self):
+        with (
+            patch.object(sen1, "get_source_location", return_value=self.src_loc),
+            patch.object(sen1, "geocode_data", return_value=self.expected_beta0_vv),
+            patch.object(sen1, "apply_gamma_weights") as gamma_mock,
+            patch.object(sen1, "assign_grid_mapping", side_effect=lambda ds: ds),
+            patch.object(xr.Dataset, "to_zarr", return_value=None),
+            patch.object(sen1.xr, "open_zarr", return_value=self.src_loc),
+        ):
+            self.mode.cache_uri = f"tmp_{uuid.uuid4().hex}"
+            out = self.mode._terrain_correct(
+                self.dt,
+                self.expected_beta0_vv,
+                self.dem,
+                apply_rtc=False,
             )
-            url_to_fs.return_value = (fs, "/tmp/fake-cache")
-            self.mode._cleanup()
-            url_to_fs.assert_called_once_with("file:///tmp/fake-cache")
+        gamma_mock.assert_not_called()
+        self.assertIn("beta0_vv", out.data_vars)
 
-    def test_cleanup_without_cache_uri_is_noop(self):
-        self.mode.cache_uri = None
-        self.mode._cleanup()
+    def test_cleanup_registered_cache_uris_removes_all_caches(self):
+        sen1._register_cache_uri("file:///tmp/cache-a")
+        sen1._register_cache_uri("file:///tmp/cache-b")
+
+        fs = SimpleNamespace(exists=lambda path: True, rm=lambda path, recursive: None)
+        with patch.object(
+            sen1.fsspec,
+            "url_to_fs",
+            return_value=(fs, "/tmp/fake-cache"),
+        ) as url_to_fs:
+            sen1._cleanup_registered_cache_uris()
+
+        self.assertEqual(2, url_to_fs.call_count)
+        url_to_fs.assert_any_call("file:///tmp/cache-a")
+        url_to_fs.assert_any_call("file:///tmp/cache-b")
+        self.assertEqual(
+            ["file:///tmp/cache-a", "file:///tmp/cache-b"],
+            sen1._REGISTERED_CACHE_URIS,
+        )
+
+
+class Sen1SLCTest(Sen1TestMixin, TestCase):
+
+    def setUp(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
+        self.mode = Sen1SLC()
+        self.dt = make_s1_slc_datatree()
+        self.dem = xr.DataArray(
+            np.ones((2, 2), dtype="float32"),
+            dims=("lat", "lon"),
+            coords={"lat": [0.0, 1.0], "lon": [0.0, 1.0]},
+        )
+        self.expected_beta0 = xr.Dataset(
+            {
+                "beta0_vv": xr.DataArray(
+                    np.ones((2, 2)),
+                    dims=("lat", "lon"),
+                    coords={"lat": [0.0, 1.0], "lon": [0.0, 1.0]},
+                )
+            }
+        )
+        self.src_loc = xr.Dataset(
+            {
+                "azimuth_time": (
+                    ("lat", "lon"),
+                    np.zeros((2, 2), dtype="datetime64[ns]"),
+                ),
+                "slant_range_time": (("lat", "lon"), np.zeros((2, 2))),
+                "gamma_area": (("lat", "lon"), np.ones((2, 2))),
+            }
+        )
+
+    def tearDown(self):
+        sen1._REGISTERED_CACHE_URIS.clear()
+
+    @staticmethod
+    def _make_slc_dataset(
+        azimuth_time: np.ndarray, slant_range_time: np.ndarray
+    ) -> xr.Dataset:
+        return xr.Dataset(
+            {
+                "beta0_vv": xr.DataArray(
+                    np.ones((len(azimuth_time), len(slant_range_time))),
+                    dims=("azimuth_time", "slant_range_time"),
+                    coords={
+                        "azimuth_time": azimuth_time,
+                        "slant_range_time": slant_range_time,
+                    },
+                )
+            }
+        )
+
+    @staticmethod
+    def _as_object_array(*datasets: xr.Dataset) -> np.ndarray:
+        out = np.empty(len(datasets), dtype=object)
+        for idx, dataset in enumerate(datasets):
+            out[idx] = dataset
+        return out
+
+    def test_is_valid_source_ok(self):
+        self.assertTrue(self.mode.is_valid_source("data/S1A_IW_SLC_20240201.zarr"))
+        self.assertTrue(self.mode.is_valid_source("S1D_SM_SLC_TEST"))
+
+    def test_is_not_valid_source(self):
+        self.assertFalse(self.mode.is_valid_source("data/S1A_IW_GRDH_20240201.zarr"))
+        self.assertFalse(self.mode.is_valid_source(dict()))
+
+    def test_get_groups(self):
+        groups = self.mode._get_groups(self.dt)
+        self.assertEqual(("mode", "swath", "burst"), groups.dims)
+        self.assertEqual((2, 2, 1), groups.shape)
+        self.assertEqual("S1A_IW_SLC_TEST_VV_IW1_0", groups.sel(mode="VV").item(0))
+
+    def test_get_grid_parameters(self):
+        params = sen1._get_grid_parameters(
+            self.dt, (2.0, 3.0), range_coord="slant_range_time"
+        )
+        self.assertEqual(0.0, params["range0"])
+        self.assertEqual(1.0, params["d_range"])
+        self.assertEqual(10.0, params["spacing_range"])
+        self.assertEqual(3.0, params["d_range_scale"])
+        self.assertEqual(30.0, params["spacing_range_scale"])
+        self.assertEqual(1.0, params["range0_scale"])
+
+    def test_calibrate_burst_and_extract_valid_region(self):
+        burst = self.dt["S1A_IW_SLC_TEST_VV_IW1_0"]
+        beta0 = self.mode._calibrate_burst(burst)
+        trimmed = self.mode._extract_valid_region(beta0, burst)
+        self.assertEqual(("azimuth_time", "slant_range_time"), trimmed.slc.dims)
+        self.assertEqual(2, trimmed.sizes["azimuth_time"])
+        self.assertEqual(2, trimmed.sizes["slant_range_time"])
+
+    def test_open_data(self):
+        out = self.mode._open_data(self.dt, includes=["vv", "vh"])
+        self.assertCountEqual(["beta0_vv", "beta0_vh"], out.data_vars)
+        self.assertNotIn("line", out.coords)
+        self.assertNotIn("pixel", out.coords)
+        self.assertEqual({"azimuth_time": 2, "slant_range_time": 3}, out.sizes)
+
+    def test_open_data_accepts_string_include(self):
+        out = self.mode._open_data(self.dt, includes="vv")
+        self.assertEqual(["beta0_vv"], list(out.data_vars))
+
+    def test_open_data_fails_when_no_variables_match(self):
+        with pytest.raises(
+            ValueError, match="No valid variable names found in dataset"
+        ):
+            self.mode._open_data(self.dt, includes="does_not_exist")
+
+    def test_convert_datatree(self):
+        with patch.object(
+            self.mode, "_terrain_correct", return_value=self.expected_beta0
+        ) as mocked:
+            out = self.mode.convert_datatree(self.dt, includes=["vv"], dem=self.dem)
+        self.assertIs(out, self.expected_beta0)
+        args, kwargs = mocked.call_args
+        self.assertIs(args[0], self.dt)
+        self.assertEqual(["beta0_vv"], list(args[1].data_vars))
+        self.assertIs(args[2], self.dem)
+        self.assertEqual("bilinear", kwargs["interp_method"])
+
+    def test_terrain_correct_uses_slant_range_path(self):
+        with (
+            patch.object(
+                sen1, "get_source_location", return_value=self.src_loc
+            ) as src_mock,
+            patch.object(sen1, "geocode_data", return_value=self.expected_beta0),
+            patch.object(
+                sen1,
+                "apply_gamma_weights",
+                return_value=xr.ones_like(self.src_loc.gamma_area),
+            ) as gamma_mock,
+            patch.object(sen1, "assign_grid_mapping", side_effect=lambda ds: ds),
+            patch.object(xr.Dataset, "to_zarr", return_value=None),
+            patch.object(sen1.xr, "open_zarr", return_value=self.src_loc),
+        ):
+            self.mode.cache_uri = f"tmp_{uuid.uuid4().hex}"
+            out = self.mode._terrain_correct(
+                self.dt,
+                self.expected_beta0,
+                self.dem,
+                apply_rtc=True,
+                interp_method="nearest",
+            )
+        self.assertIn("gamma0_vv", out.data_vars)
+        self.assertIsNone(src_mock.call_args.kwargs["time_slr_gcp"])
+        self.assertEqual("slant_range_time", src_mock.call_args.kwargs["range_coord"])
+        self.assertEqual("slant_range_time", gamma_mock.call_args.kwargs["range_coord"])
+
+    def test_merge_bursts_warns_on_irregular_spacing(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:00",
+                    "2024-01-01T00:00:01",
+                    "2024-01-01T00:00:02",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:01.800000000",
+                    "2024-01-01T00:00:03.800000000",
+                    "2024-01-01T00:00:05.800000000",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        with pytest.warns(UserWarning, match="Azimuth time spacing is not regular"):
+            out = self.mode._merge_bursts(self._as_object_array(ds0, ds1))
+        self.assertEqual(5, out.sizes["azimuth_time"])
+
+    def test_merge_bursts_raises_without_overlap(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:10", "2024-01-01T00:00:11"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        with pytest.raises(ValueError, match="No overlap found"):
+            self.mode._merge_bursts(self._as_object_array(ds0, ds1))
+
+    def test_align_azimuth_warns_on_irregular_spacing(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:00",
+                    "2024-01-01T00:00:01",
+                    "2024-01-01T00:00:02",
+                    "2024-01-01T00:00:03",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:00",
+                    "2024-01-01T00:00:01.100000000",
+                    "2024-01-01T00:00:02.100000000",
+                    "2024-01-01T00:00:03.100000000",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        with pytest.warns(UserWarning, match="Azimuth spacing is irregular"):
+            out = self.mode._align_azimuth(self._as_object_array(ds0, ds1))
+        self.assertEqual(4, out[0].sizes["azimuth_time"])
+        self.assertTrue(
+            np.array_equal(out[0].azimuth_time.values, out[1].azimuth_time.values)
+        )
+
+    def test_align_azimuth_warns_on_size_difference(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:00",
+                    "2024-01-01T00:00:01",
+                    "2024-01-01T00:00:02",
+                    "2024-01-01T00:00:03",
+                    "2024-01-01T00:00:04",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                [
+                    "2024-01-01T00:00:01",
+                    "2024-01-01T00:00:02",
+                    "2024-01-01T00:00:03.300000000",
+                    "2024-01-01T00:00:04.300000000",
+                ],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        with pytest.warns(
+            UserWarning, match="Aligned swaths have different azimuth sizes"
+        ):
+            out = self.mode._align_azimuth(self._as_object_array(ds0, ds1))
+        self.assertEqual(3, out[0].sizes["azimuth_time"])
+
+    def test_merge_swaths_warns_on_irregular_spacing(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0, 2.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([1.8, 3.8, 5.8]),
+        )
+        with pytest.warns(UserWarning, match="Slant range spacing is irregular"):
+            out = self.mode._merge_swaths([ds0, ds1])
+        self.assertEqual(5, out.sizes["slant_range_time"])
+
+    def test_merge_swaths_raises_without_overlap(self):
+        ds0 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([0.0, 1.0]),
+        )
+        ds1 = self._make_slc_dataset(
+            np.array(
+                ["2024-01-01T00:00:00", "2024-01-01T00:00:01"],
+                dtype="datetime64[ns]",
+            ),
+            np.array([10.0, 11.0]),
+        )
+        with pytest.raises(ValueError, match="No overlap found"):
+            self.mode._merge_swaths([ds0, ds1])
 
 
 class Sen1OCNTest(Sen1TestMixin, TestCase):
@@ -364,10 +737,12 @@ class Sentinel1FunctionsTest(TestCase):
             "xy_var_names": ("lat", "lon"),
         }
         self.grid_params = sen1.GridParams(
-            gr0=0.0,
-            gr0_scale=0.0,
-            d_gr=1.0,
-            d_gr_scale=1.0,
+            range0=0.0,
+            range0_scale=0.0,
+            d_range=1.0,
+            d_range_scale=1.0,
+            spacing_range=1.0,
+            spacing_range_scale=1.0,
             az0=np.datetime64("2024-01-01T00:00:00"),
             az0_scale=np.datetime64("2024-01-01T00:00:00"),
             d_az=1.0,
@@ -423,10 +798,12 @@ class Sentinel1FunctionsTest(TestCase):
     def test_gridparams_iter(self):
         self.assertEqual(
             [
-                "gr0",
-                "gr0_scale",
-                "d_gr",
-                "d_gr_scale",
+                "range0",
+                "range0_scale",
+                "d_range",
+                "d_range_scale",
+                "spacing_range",
+                "spacing_range_scale",
                 "az0",
                 "az0_scale",
                 "d_az",
@@ -436,6 +813,10 @@ class Sentinel1FunctionsTest(TestCase):
             ],
             list(iter(self.grid_params)),
         )
+
+    def test_gridparams_contains(self):
+        self.assertIn("range0", self.grid_params)
+        self.assertNotIn("gr0", self.grid_params)
 
     def test_get_dem_requires_credentials(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -897,10 +1278,12 @@ class Sentinel1FunctionsTest(TestCase):
 
     def test_apply_gamma_weights(self):
         params = sen1.GridParams(
-            gr0=0.0,
-            gr0_scale=0.0,
-            d_gr=1.0,
-            d_gr_scale=1.0,
+            range0=0.0,
+            range0_scale=0.0,
+            d_range=1.0,
+            d_range_scale=1.0,
+            spacing_range=1.0,
+            spacing_range_scale=1.0,
             az0=np.datetime64("2024-01-01T00:00:00"),
             az0_scale=np.datetime64("2024-01-01T00:00:00"),
             d_az=1.0,
@@ -984,10 +1367,12 @@ class Sentinel1FunctionsTest(TestCase):
         )
         src_loc = xr.Dataset({"azimuth_time": time_az, "ground_range": ground_range})
         grid_params = sen1.GridParams(
-            gr0=0.0,
-            gr0_scale=0.0,
-            d_gr=3.0,
-            d_gr_scale=3.0,
+            range0=0.0,
+            range0_scale=0.0,
+            d_range=3.0,
+            d_range_scale=3.0,
+            spacing_range=3.0,
+            spacing_range_scale=3.0,
             az0=np.datetime64("2023-12-31T23:59:50"),
             az0_scale=np.datetime64("2023-12-31T23:59:50"),
             d_az=20.0,

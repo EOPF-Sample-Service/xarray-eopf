@@ -273,6 +273,7 @@ class EopfBackend(BackendEntrypoint):
                     dem=dem,
                     footprint_scale_factor=footprint_scale_factor,
                     apply_rtc=apply_rtc,
+                    cache_uri=cache_uri,
                 )
                 dataset = analysis_mode.convert_datatree(
                     datatree, includes=variables, **params

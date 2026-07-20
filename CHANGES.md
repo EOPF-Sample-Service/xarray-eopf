@@ -1,7 +1,8 @@
-## Changes in 0.2.10 (in development)
+## Changes in 0.3.0 (in development)
 
 - Sentinel-1 GRD analysis mode is now fully lazy, enabling seamless execution on 
   local and distributed Dask clusters.
+- Add support for Sentinel-1 Level-1 SLC analysis mode.
 
 
 ## Changes in 0.2.9 (from 2026-06-03)

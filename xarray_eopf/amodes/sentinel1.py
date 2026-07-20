@@ -37,6 +37,7 @@ from xcube_resampling.utils import (
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
+from xarray_eopf.constants import FloatInt
 
 _SPEED_OF_LIGHT = 299_792_458.0
 _S_TO_NS = 10**9
@@ -111,7 +112,14 @@ class Sen1GRD(Sen1):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (float, int))
+            assert_arg_is_instance(resolution, "resolution", (float, int, tuple))
+            if isinstance(resolution, tuple):
+                assert_arg_has_length(resolution, "resolution", 2)
+                if not all(isinstance(v, (float, int)) for v in resolution):
+                    raise TypeError(
+                        "resolution argument must contain exactly "
+                        "two float or int values."
+                    )
             params.update(resolution=resolution)
 
         bbox = kwargs.get("bbox")
@@ -171,7 +179,7 @@ class Sen1GRD(Sen1):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: Literal["nearest", "bilinear"] = "bilinear",
@@ -613,7 +621,14 @@ class Sen1OCN(Sen1):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (float, int))
+            assert_arg_is_instance(resolution, "resolution", (float, int, tuple))
+            if isinstance(resolution, tuple):
+                assert_arg_has_length(resolution, "resolution", 2)
+                if not all(isinstance(v, (float, int)) for v in resolution):
+                    raise TypeError(
+                        "resolution argument must contain exactly "
+                        "two float or int values."
+                    )
             params.update(resolution=resolution)
 
         bbox = kwargs.get("bbox")
@@ -648,7 +663,7 @@ class Sen1OCN(Sen1):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
@@ -708,12 +723,12 @@ class Sen1OCN(Sen1):
                 bbox = source_gm.xy_bbox
         if resolution is None:
             if crs and not crs.is_geographic:
-                center_lat = (
+                center = (
                     (source_gm.xy_bbox[0] + source_gm.xy_bbox[2]) / 2,
                     (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2,
                 )
                 resolution = transform_resolution(
-                    center_lat, source_gm.xy_res, source_gm.crs, crs
+                    center, source_gm.xy_res, source_gm.crs, crs
                 )
             else:
                 resolution = source_gm.xy_res
@@ -753,7 +768,7 @@ def _cleanup_registered_cache_uris() -> None:
 
 def get_dem(
     bbox: Sequence[float | int],
-    resolution: float | None = None,
+    resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
     crs: pyproj.CRS | None = None,
 ):
     """Fetch and prepare a DEM for the given area of interest.

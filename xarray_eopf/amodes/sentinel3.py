@@ -56,7 +56,14 @@ class Sen3(AnalysisMode, ABC):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (int, float))
+            assert_arg_is_instance(resolution, "resolution", (float, int, tuple))
+            if isinstance(resolution, tuple):
+                assert_arg_has_length(resolution, "resolution", 2)
+                if not all(isinstance(v, (float, int)) for v in resolution):
+                    raise TypeError(
+                        "resolution argument must contain exactly "
+                        "two float or int values."
+                    )
             params.update(resolution=resolution)
 
         bbox = kwargs.get("bbox")

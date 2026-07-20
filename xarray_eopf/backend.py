@@ -21,6 +21,7 @@ from .constants import (
     OP_MODES,
     OpMode,
     Sen1InterpMethods,
+    FloatInt,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict
@@ -122,7 +123,7 @@ class EopfBackend(BackendEntrypoint):
         variables: str | Iterable[str] | None = None,
         # params for op_mode=analysis
         product_type: str | None = None,
-        resolution: int | float | None = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[int | float] | None = None,
         crs: pyproj.CRS | str | None = None,
         interp_methods: SpatialInterpMethods | Sen1InterpMethods | None = None,

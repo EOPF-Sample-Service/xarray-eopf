@@ -234,7 +234,12 @@ class Sen1GRD(Sen1):
         for mode in ["VV", "VH", "HV", "HH"]:
             children = [x for x in datatree.children if mode in x]
             if children:
-                assert len(children) == 1
+                if len(children) != 1:
+                    raise ValueError(
+                        f"Expected exactly one measurement group for polarization "
+                        f"'{mode}', but found {len(children)}: {children}. "
+                        "The Sentinel-1 Level-1 GRD product appears to be invalid."
+                    )
                 measurement_group = children[0]
                 if dataset is None:
                     dataset = datatree[measurement_group].measurements.to_dataset()
@@ -250,6 +255,9 @@ class Sen1GRD(Sen1):
         if not variable_names:
             raise ValueError("No valid variable names found in dataset")
         dataset = dataset[variable_names]
+
+        # Mask invalid border pixels (zero-valued fill areas) as NaN
+        dataset = dataset.where(dataset != 0)
 
         # convert amplitudes to beta nought backscatter.
         beta_lut = datatree[measurement_group].quality.calibration.beta_nought.values

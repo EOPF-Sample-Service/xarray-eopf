@@ -208,6 +208,46 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
         with pytest.raises(ValueError, match="No valid variable names"):
             self.mode.convert_datatree(self.dt, includes="bibo", dem=self.dem)
 
+    def test_open_data_fails_for_duplicate_measurement_groups(self):
+        azimuth_time = np.array(
+            ["2024-01-01T00:00:00", "2024-01-01T00:00:01"], dtype="datetime64[ns]"
+        )
+        ground_range = np.array([0.0, 10.0])
+        invalid_dt = xr.DataTree.from_dict(
+            {
+                "S1A_IW_GRDH_TEST_VV/measurements": xr.Dataset(
+                    {
+                        "grd": xr.DataArray(
+                            np.ones((2, 2), dtype="float32"),
+                            dims=("azimuth_time", "ground_range"),
+                            coords={
+                                "azimuth_time": azimuth_time,
+                                "ground_range": ground_range,
+                            },
+                        )
+                    }
+                ),
+                "S1A_IW_GRDH_TEST_VV_DUP/measurements": xr.Dataset(
+                    {
+                        "grd": xr.DataArray(
+                            np.ones((2, 2), dtype="float32"),
+                            dims=("azimuth_time", "ground_range"),
+                            coords={
+                                "azimuth_time": azimuth_time,
+                                "ground_range": ground_range,
+                            },
+                        )
+                    }
+                ),
+            }
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Expected exactly one measurement group for polarization 'VV'",
+        ):
+            self.mode._open_data(invalid_dt, includes=["vv"])
+
     def test_convert_datatree_warns_when_processing_full_product(self):
         with (
             self.assertWarns(UserWarning) as cm,

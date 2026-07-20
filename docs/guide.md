@@ -3,8 +3,8 @@ namely _analysis mode_ (the default) and _native mode_, which are described in
 the following.
 
 An introductory example notebook is available at : 
-- [Docs - Intoduction to the xarray EOPF backend](https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/)
-- [Notebook Gallery - Intoduction to the xarray EOPF backend](https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/)
+- [Docs - Introduction to the xarray EOPF backend](https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/)
+- [Notebook Gallery - Introduction to the xarray EOPF backend](https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/)
 
 ---
 
@@ -63,7 +63,7 @@ each product family is documented in its own dedicated section.
 > Note: Support for Sentinel-1 GRD products in analysis mode is 
 > currently experimental and undergoing validation. Some conversion parameters 
 > are missing in the new EOPF product, which are currently estimated. Newer EOPF
-> product verison will include these parameters. 
+> product version will include these parameters. 
 
 Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (`azimuth_time`, `ground_range`). To transform this data into an
@@ -129,7 +129,7 @@ Sentinel-1 Level-1 SLC data is provided in radar geometry, defined by the coordi
 (`azimuth_time`, `slant_range_time`) and organized in bursts and swaths. To transform
 this data into an **analysis-ready dataset**, the following processing steps are applied:
 
-1. **Radiometric Calibration:** For each burst complex SLC measurements for are 
+1. **Radiometric Calibration:** For each burst complex SLC measurements are 
    converted into `beta0` backscatter values using the `beta_nought` calibration 
    lookup table (LUT).
 2. **Burst and Swath Merging:** Valid burst regions are extracted using burst metadata,
@@ -161,13 +161,13 @@ this data into an **analysis-ready dataset**, the following processing steps are
   [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).
   If not specified, [EPSG:4326](https://epsg.io/4326) is used.
 - `resolution`: Target resolution for all spatial variables expressed in the units
-  of the specified `crs`. If not specified, the resolution is derived (in degrees)
-  from the CopDEM (30 m).
+  of the specified `crs`. If not specified, the resolution is derived from the DEM
+  (see `dem` below).
 - `dem`: Digital Elevation Model (DEM) as a CF-compliant `xarray.DataArray` used for
   terrain correction. If provided, the parameters `crs`, `bbox`, and `resolution` are
   ignored, and the target grid is derived from the DEM. If not provided, the
-  [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog)
-  is automatically retrieved via the CDSE STAC API. This requires
+  [CopDEM COG (30 m)](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog) in geographic coordinates
+  is retrieved automatically via the CDSE STAC API. This requires
   [CDSE S3 credentials](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
 - `apply_rtc`: Enable or disable radiometric terrain correction (RTC). Default is `True`.
 - `interp_methods`: Interpolation method used during GTC and RTC. Supported methods:
@@ -250,7 +250,7 @@ Sentinel-2 provides multi-spectral imagery at different native resolutions:
 The analysis mode enables resampling between these different resolutions, bringing 
 bands from multiple resolutions onto the same grid using [affine transformation via xcube-resampling](https://xcube-dev.github.io/xcube-resampling/guide/#1-affine-transformation).
 
-**Suported Products:**
+**Supported Products:**
 
 - [Sentinel-2 Level-1C](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l1c)
 - [Sentinel-2 Level-2A](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a)
@@ -322,7 +322,7 @@ For OLCI products, no additional terrain correction is required, as it is alread
 incorporated in the Level-1 data. See the [OLCI Level-1 product description](https://sentiwiki.copernicus.eu/web/olci-products#OLCIProducts-L1BProducts-ObservationModeS3-OLCI-Products-L1B-OM)
 for details.
 
-**Suported Products:**
+**Supported Products:**
 
 - [Sentinel-3 OLCI Level-1 EFR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-efr)
 - [Sentinel-3 OLCI Level-1 ERR](https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-err)

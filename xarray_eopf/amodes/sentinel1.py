@@ -35,9 +35,9 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.constants import FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
-from xarray_eopf.constants import FloatInt
 
 _SPEED_OF_LIGHT = 299_792_458.0
 _S_TO_NS = 10**9

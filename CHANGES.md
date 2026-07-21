@@ -1,4 +1,4 @@
-## Changes in 0.3.0 (in development)
+## Changes in 0.3.0 (from 2026-07-22)
 
 - Sentinel-1 GRD analysis mode is now fully lazy, enabling seamless execution on 
   local and distributed Dask clusters.

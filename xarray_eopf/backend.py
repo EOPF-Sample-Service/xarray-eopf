@@ -19,9 +19,9 @@ from .constants import (
     OP_MODE_ANALYSIS,
     OP_MODE_NATIVE,
     OP_MODES,
+    FloatInt,
     OpMode,
     Sen1InterpMethods,
-    FloatInt,
 )
 from .filter import filter_dataset
 from .flatten import flatten_datatree, flatten_datatree_as_dict

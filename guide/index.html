@@ -417,6 +417,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sentinel-1-level-1-slc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinel-1 Level-1 SLC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sentinel-1-level-2-ocn" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -583,7 +594,7 @@
   <span class="md-ellipsis">
     
   
-    Intoduction to the xarray EOPF backend
+    Introduction to the xarray EOPF backend
   
 
     
@@ -898,6 +909,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sentinel-1-level-1-slc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinel-1 Level-1 SLC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sentinel-1-level-2-ocn" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1021,8 +1043,8 @@
 namely <em>analysis mode</em> (the default) and <em>native mode</em>, which are described in 
 the following.</p>
 <p>An introductory example notebook is available at : 
-- <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/">Docs - Intoduction to the xarray EOPF backend</a>
-- <a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/">Notebook Gallery - Intoduction to the xarray EOPF backend</a></p>
+- <a href="https://eopf-sample-service.github.io/xarray-eopf/examples/introduction/">Docs - Introduction to the xarray EOPF backend</a>
+- <a href="https://eopf-sample-service.github.io/eopf-sample-notebooks/introduction/">Notebook Gallery - Introduction to the xarray EOPF backend</a></p>
 <hr />
 <h2 id="analysis-mode">Analysis Mode</h2>
 <p>This mode aims at representing the EOPF data products in an analysis-ready and 
@@ -1063,13 +1085,12 @@ form. Common parameters are:</p>
 <h4 id="remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</h4>
 <p>Processing workflows differ significantly across Sentinel-1 product types. Therefore, 
 each product family is documented in its own dedicated section.</p>
-<blockquote>
-<p><strong>Note:</strong> Support for SLC products is planned for a future release.</p>
-</blockquote>
 <h5 id="sentinel-1-level-1-grd">Sentinel-1 Level-1 GRD</h5>
 <blockquote>
 <p>Note: Support for Sentinel-1 GRD products in analysis mode is 
-currently experimental and undergoing validation.</p>
+currently experimental and undergoing validation. Some conversion parameters 
+are missing in the new EOPF product, which are currently estimated. Newer EOPF
+product version will include these parameters. </p>
 </blockquote>
 <p>Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordinates
 (<code>azimuth_time</code>, <code>ground_range</code>). To transform this data into an
@@ -1115,9 +1136,76 @@ currently experimental and undergoing validation.</p>
   <code>nearest</code>, <code>bilinear</code>.</li>
 <li><code>footprint_scale_factor</code>: Defines how radar pixels contribute to the output grid.
   Default: <code>(3.0, 3.0)</code>, accounting for resolution differences (e.g., ~10 m GRD
-  vs. ~30 m DEM).</li>
+  vs. ~30 m DEM). </li>
+<li><code>cache_uri</code>: Temporary path used to store intermediate results from the
+  backward geocoding step in the Sentinel-1 processing workflow. The cache is 
+  automatically removed when the Python process exits. If None, a temporary 
+  directory with a unique UUID-based name is created.</li>
 </ul>
 <p>Examples:  </p>
+<ul>
+<li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
+</ul>
+<h5 id="sentinel-1-level-1-slc">Sentinel-1 Level-1 SLC</h5>
+<blockquote>
+<p>Note: Support for Sentinel-1 SLC products in analysis mode is
+currently experimental and undergoing validation.</p>
+</blockquote>
+<p>Sentinel-1 Level-1 SLC data is provided in radar geometry, defined by the coordinates
+(<code>azimuth_time</code>, <code>slant_range_time</code>) and organized in bursts and swaths. To transform
+this data into an <strong>analysis-ready dataset</strong>, the following processing steps are applied:</p>
+<ol>
+<li><strong>Radiometric Calibration:</strong> For each burst complex SLC measurements are 
+   converted into <code>beta0</code> backscatter values using the <code>beta_nought</code> calibration 
+   lookup table (LUT).</li>
+<li><strong>Burst and Swath Merging:</strong> Valid burst regions are extracted using burst metadata,
+   merged along azimuth time, aligned across swaths, and then merged along slant range
+   to produce one continuous acquisition grid per selected polarization.</li>
+<li><strong>Geometric Terrain Correction (GTC):</strong> Using a Digital Elevation Model (DEM),
+   the processor performs <strong>inverse geocoding</strong> by solving the zero-Doppler equation
+   based on satellite orbit information and terrain elevation. This step maps the
+   data from radar geometry to a georeferenced grid.</li>
+<li><strong>Radiometric Terrain Correction (RTC):</strong> (Optional) RTC compensates for
+   terrain-induced radiometric distortions such as foreshortening, layover,
+   and slope-dependent brightness variations.</li>
+</ol>
+<p>📖 <a href="https://ieeexplore.ieee.org/document/5752845">D. Small, <em>Flattening Gamma: Radiometric Terrain Correction for SAR Imagery</em></a></p>
+<p><strong>Supported Products:</strong></p>
+<ul>
+<li>Sentinel-1 Level-1 SLC</li>
+</ul>
+<p><strong>Supported Variables</strong></p>
+<ul>
+<li><strong>Polarization bands</strong>:
+  <code>vv</code>, <code>vh</code>, <code>hh</code>, <code>hv</code> <em>(each SLC product contains only a subset of these bands)</em></li>
+</ul>
+<p><strong>Specific Sentinel-1 Level-1 SLC parameters <code>**kwargs</code>:</strong></p>
+<ul>
+<li><code>crs</code>: Coordinate reference system of the output dataset. Can be provided as a
+  <code>str</code> or a <code>pyproj.CRS</code> object. If a string is given, it will be parsed using
+  <a href="https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string"><code>pyproj.crs.CRS.from_string</code></a>.
+  If not specified, <a href="https://epsg.io/4326">EPSG:4326</a> is used.</li>
+<li><code>resolution</code>: Target resolution for all spatial variables expressed in the units
+  of the specified <code>crs</code>. If not specified, the resolution is derived from the DEM
+  (see <code>dem</code> below).</li>
+<li><code>dem</code>: Digital Elevation Model (DEM) as a CF-compliant <code>xarray.DataArray</code> used for
+  terrain correction. If provided, the parameters <code>crs</code>, <code>bbox</code>, and <code>resolution</code> are
+  ignored, and the target grid is derived from the DEM. If not provided, the
+  <a href="https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog">CopDEM COG (30 m)</a> in geographic coordinates
+  is retrieved automatically via the CDSE STAC API. This requires
+  <a href="https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets">CDSE S3 credentials</a>.</li>
+<li><code>apply_rtc</code>: Enable or disable radiometric terrain correction (RTC). Default is <code>True</code>.</li>
+<li><code>interp_methods</code>: Interpolation method used during GTC and RTC. Supported methods:
+  <code>nearest</code>, <code>bilinear</code>.</li>
+<li><code>footprint_scale_factor</code>: Defines how radar pixels contribute to the output grid.
+  Default: <code>(3.0, 15.0)</code>, reflecting the different scaling used for azimuth and
+  slant-range processing of SLC data.</li>
+<li><code>cache_uri</code>: Temporary path used to store intermediate results from the
+  backward geocoding step in the Sentinel-1 processing workflow. The cache is
+  automatically removed when the Python process exits. If <code>None</code>, a temporary
+  directory with a unique UUID-based name is created.</li>
+</ul>
+<p>Examples:</p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
 </ul>
@@ -1185,7 +1273,7 @@ longitude coordinates.</p>
 </ul>
 <p>The analysis mode enables resampling between these different resolutions, bringing 
 bands from multiple resolutions onto the same grid using <a href="https://xcube-dev.github.io/xcube-resampling/guide/#1-affine-transformation">affine transformation via xcube-resampling</a>.</p>
-<p><strong>Suported Products:</strong></p>
+<p><strong>Supported Products:</strong></p>
 <ul>
 <li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l1c">Sentinel-2 Level-1C</a></li>
 <li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-2-l2a">Sentinel-2 Level-2A</a></li>
@@ -1255,7 +1343,7 @@ for details.</p>
 <p>For OLCI products, no additional terrain correction is required, as it is already
 incorporated in the Level-1 data. See the <a href="https://sentiwiki.copernicus.eu/web/olci-products#OLCIProducts-L1BProducts-ObservationModeS3-OLCI-Products-L1B-OM">OLCI Level-1 product description</a>
 for details.</p>
-<p><strong>Suported Products:</strong></p>
+<p><strong>Supported Products:</strong></p>
 <ul>
 <li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-efr">Sentinel-3 OLCI Level-1 EFR</a></li>
 <li><a href="https://stac.browser.user.eopf.eodc.eu/collections/sentinel-3-olci-l1-err">Sentinel-3 OLCI Level-1 ERR</a></li>
@@ -1423,7 +1511,7 @@ dimensions and variables is not an issue.</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 EOPF Sample Service Team
+      Copyright &copy; 2026 EOPF Sample Service Team
     </div>
   
   

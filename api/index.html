@@ -395,7 +395,7 @@
   <span class="md-ellipsis">
     
   
-    Intoduction to the xarray EOPF backend
+    Introduction to the xarray EOPF backend
   
 
     
@@ -859,8 +859,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 31</span>
-<span class="normal"> 32</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 32</span>
 <span class="normal"> 33</span>
 <span class="normal"> 34</span>
 <span class="normal"> 35</span>
@@ -1122,7 +1121,18 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">291</span>
 <span class="normal">292</span>
 <span class="normal">293</span>
-<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
@@ -1216,14 +1226,16 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="n">variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params for op_mode=analysis</span>
         <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">resolution</span><span class="p">:</span> <span class="n">FloatInt</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">FloatInt</span><span class="p">,</span> <span class="n">FloatInt</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="n">Sen1InterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="c1"># params for Sentinel-1 specifically</span>
         <span class="n">dem</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">footprint_scale_factor</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">apply_rtc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cache_uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params required by xarray backend interface</span>
         <span class="n">drop_variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params for other reasons</span>
@@ -1248,9 +1260,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">            group_sep: Separator string used to concatenate groups names</span>
 <span class="sd">                to create prefixes for unique variable and dimension names.</span>
 <span class="sd">                Defaults to the underscore character (`&quot;_&quot;`)</span>
-<span class="sd">            resolution: Target resolution for all spatial</span>
-<span class="sd">                data variables / bands. For Sentinel-2 products it be one of</span>
-<span class="sd">                `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">            resolution: Target spatial resolution for all spatial</span>
+<span class="sd">                data variables/bands. The resolution can be specified as a float, integer,</span>
+<span class="sd">                or a tuple in the form `(easting, northing)`. For Sentinel-2 products,</span>
+<span class="sd">                valid resolutions are `10`, `20`, and `60` meters. This parameter is only</span>
+<span class="sd">                used when `op_mode=&quot;analysis&quot;`.</span>
 <span class="sd">            bbox: Bounding box [west, south, east, north], used for subsetting.</span>
 <span class="sd">            crs: coordinate reference system of output dataset. Can be provided as a</span>
 <span class="sd">                `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
@@ -1301,6 +1315,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">                when not provided.</span>
 <span class="sd">            apply_rtc: Whether to apply radiometric terrain correction (RTC) for</span>
 <span class="sd">                Sentinel-1 analysis mode. Defaults to `True`.</span>
+<span class="sd">            cache_uri: Temporary path, interpreted as a fsspec `urlpath`, where</span>
+<span class="sd">                intermediate results from the backward geocoding step of the Sentinel-1</span>
+<span class="sd">                processing workflow are stored. The cache is automatically deleted</span>
+<span class="sd">                when the Python process exits. If `None`, a temporary directory with</span>
+<span class="sd">                a unique UUID-based name is created automatically.</span>
 <span class="sd">            variables: Variables to include in the dataset. Can be a name or</span>
 <span class="sd">                regex pattern or iterable of the latter.</span>
 <span class="sd">            drop_variables: Variable name or iterable of variable names</span>
@@ -1360,6 +1379,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
                     <span class="n">dem</span><span class="o">=</span><span class="n">dem</span><span class="p">,</span>
                     <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="n">footprint_scale_factor</span><span class="p">,</span>
                     <span class="n">apply_rtc</span><span class="o">=</span><span class="n">apply_rtc</span><span class="p">,</span>
+                    <span class="n">cache_uri</span><span class="o">=</span><span class="n">cache_uri</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">convert_datatree</span><span class="p">(</span>
                     <span class="n">datatree</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="n">variables</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span>
@@ -1563,8 +1583,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 40</span>
-<span class="normal"> 41</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 41</span>
 <span class="normal"> 42</span>
 <span class="normal"> 43</span>
 <span class="normal"> 44</span>
@@ -1635,7 +1654,8 @@ to drop from the underlying file. See
 <span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
-<span class="normal">112</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
+<span class="normal">112</span>
+<span class="normal">113</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1718,7 +1738,7 @@ to drop from the underlying file. See
 
 
 <h3 id="xarray_eopf.backend.EopfBackend.open_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_rtc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_rtc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache_uri</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1833,13 +1853,15 @@ Defaults to the underscore character (<code>"_"</code>)</p>
                 <code>resolution</code>
             </td>
             <td>
-                  <code><span title="int">int</span> | <span title="float">float</span> | None</code>
+                  <code><span title="xarray_eopf.constants.FloatInt">FloatInt</span> | <span title="tuple">tuple</span>[<span title="xarray_eopf.constants.FloatInt">FloatInt</span>, <span title="xarray_eopf.constants.FloatInt">FloatInt</span>] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Target resolution for all spatial
-data variables / bands. For Sentinel-2 products it be one of
-<code>10</code>, <code>20</code>, or <code>60</code>. Only used if <code>op_mode="analysis"</code>.</p>
+                <p>Target spatial resolution for all spatial
+data variables/bands. The resolution can be specified as a float, integer,
+or a tuple in the form <code>(easting, northing)</code>. For Sentinel-2 products,
+valid resolutions are <code>10</code>, <code>20</code>, and <code>60</code> meters. This parameter is only
+used when <code>op_mode="analysis"</code>.</p>
               </div>
             </td>
             <td>
@@ -2008,6 +2030,26 @@ Sentinel-1 analysis mode. Defaults to <code>True</code>.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>cache_uri</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temporary path, interpreted as a fsspec <code>urlpath</code>, where
+intermediate results from the backward geocoding step of the Sentinel-1
+processing workflow are stored. The cache is automatically deleted
+when the Python process exits. If <code>None</code>, a temporary directory with
+a unique UUID-based name is created automatically.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>variables</code>
             </td>
             <td>
@@ -2087,8 +2129,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">114</span>
-<span class="normal">115</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">115</span>
 <span class="normal">116</span>
 <span class="normal">117</span>
 <span class="normal">118</span>
@@ -2249,7 +2290,18 @@ to drop from the underlying file. See
 <span class="normal">273</span>
 <span class="normal">274</span>
 <span class="normal">275</span>
-<span class="normal">276</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2260,14 +2312,16 @@ to drop from the underlying file. See
     <span class="n">variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params for op_mode=analysis</span>
     <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">resolution</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">resolution</span><span class="p">:</span> <span class="n">FloatInt</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">FloatInt</span><span class="p">,</span> <span class="n">FloatInt</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">bbox</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">crs</span><span class="p">:</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">interp_methods</span><span class="p">:</span> <span class="n">SpatialInterpMethods</span> <span class="o">|</span> <span class="n">Sen1InterpMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">agg_methods</span><span class="p">:</span> <span class="n">SpatialAggMethods</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="c1"># params for Sentinel-1 specifically</span>
     <span class="n">dem</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">footprint_scale_factor</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">apply_rtc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">cache_uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params required by xarray backend interface</span>
     <span class="n">drop_variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params for other reasons</span>
@@ -2292,9 +2346,11 @@ to drop from the underlying file. See
 <span class="sd">        group_sep: Separator string used to concatenate groups names</span>
 <span class="sd">            to create prefixes for unique variable and dimension names.</span>
 <span class="sd">            Defaults to the underscore character (`&quot;_&quot;`)</span>
-<span class="sd">        resolution: Target resolution for all spatial</span>
-<span class="sd">            data variables / bands. For Sentinel-2 products it be one of</span>
-<span class="sd">            `10`, `20`, or `60`. Only used if `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">        resolution: Target spatial resolution for all spatial</span>
+<span class="sd">            data variables/bands. The resolution can be specified as a float, integer,</span>
+<span class="sd">            or a tuple in the form `(easting, northing)`. For Sentinel-2 products,</span>
+<span class="sd">            valid resolutions are `10`, `20`, and `60` meters. This parameter is only</span>
+<span class="sd">            used when `op_mode=&quot;analysis&quot;`.</span>
 <span class="sd">        bbox: Bounding box [west, south, east, north], used for subsetting.</span>
 <span class="sd">        crs: coordinate reference system of output dataset. Can be provided as a</span>
 <span class="sd">            `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
@@ -2345,6 +2401,11 @@ to drop from the underlying file. See
 <span class="sd">            when not provided.</span>
 <span class="sd">        apply_rtc: Whether to apply radiometric terrain correction (RTC) for</span>
 <span class="sd">            Sentinel-1 analysis mode. Defaults to `True`.</span>
+<span class="sd">        cache_uri: Temporary path, interpreted as a fsspec `urlpath`, where</span>
+<span class="sd">            intermediate results from the backward geocoding step of the Sentinel-1</span>
+<span class="sd">            processing workflow are stored. The cache is automatically deleted</span>
+<span class="sd">            when the Python process exits. If `None`, a temporary directory with</span>
+<span class="sd">            a unique UUID-based name is created automatically.</span>
 <span class="sd">        variables: Variables to include in the dataset. Can be a name or</span>
 <span class="sd">            regex pattern or iterable of the latter.</span>
 <span class="sd">        drop_variables: Variable name or iterable of variable names</span>
@@ -2404,6 +2465,7 @@ to drop from the underlying file. See
                 <span class="n">dem</span><span class="o">=</span><span class="n">dem</span><span class="p">,</span>
                 <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="n">footprint_scale_factor</span><span class="p">,</span>
                 <span class="n">apply_rtc</span><span class="o">=</span><span class="n">apply_rtc</span><span class="p">,</span>
+                <span class="n">cache_uri</span><span class="o">=</span><span class="n">cache_uri</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">convert_datatree</span><span class="p">(</span>
                 <span class="n">datatree</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="n">variables</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span>
@@ -2491,23 +2553,23 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">289</span>
 <span class="normal">290</span>
 <span class="normal">291</span>
 <span class="normal">292</span>
 <span class="normal">293</span>
-<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -2566,7 +2628,7 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 EOPF Sample Service Team
+      Copyright &copy; 2026 EOPF Sample Service Team
     </div>
   
   

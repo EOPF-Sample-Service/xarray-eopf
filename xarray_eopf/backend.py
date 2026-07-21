@@ -157,9 +157,11 @@ class EopfBackend(BackendEntrypoint):
             group_sep: Separator string used to concatenate groups names
                 to create prefixes for unique variable and dimension names.
                 Defaults to the underscore character (`"_"`)
-            resolution: Target resolution for all spatial
-                data variables / bands. For Sentinel-2 products it be one of
-                `10`, `20`, or `60`. Only used if `op_mode="analysis"`.
+            resolution: Target spatial resolution for all spatial
+                data variables/bands. The resolution can be specified as a float, integer,
+                or a tuple in the form `(easting, northing)`. For Sentinel-2 products,
+                valid resolutions are `10`, `20`, and `60` meters. This parameter is only
+                used when `op_mode="analysis"`.
             bbox: Bounding box [west, south, east, north], used for subsetting.
             crs: coordinate reference system of output dataset. Can be provided as a
                 `str` or a `pyproj.CRS` object. If a string is given, it will be parsed

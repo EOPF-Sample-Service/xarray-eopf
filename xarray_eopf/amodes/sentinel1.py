@@ -47,6 +47,7 @@ _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
 _CHUNKSIZE = (2048, 2048)
 _SLC_SWATHS = ["IW1", "IW2", "IW3"]
+_SENTINEL1_POLARZIATION_MODES = ["VV", "VH", "HV", "HH"]
 _REGISTERED_CACHE_URIS = []
 
 
@@ -240,7 +241,7 @@ class Sen1GRD(Sen1):
 
         dataset = None
         measurement_group = ""
-        for mode in ["VV", "VH", "HV", "HH"]:
+        for mode in _SENTINEL1_POLARZIATION_MODES:
             children = [x for x in datatree.children if mode in x]
             if children:
                 if len(children) != 1:
@@ -420,16 +421,15 @@ class Sen1SLC(Sen1GRD):
     @staticmethod
     def _get_groups(datatree: xr.DataTree) -> tuple[list[list[list[str]]], list[str]]:
         """Return child group names organized by polarization, swath, and burst."""
-        modes = ["VV", "VH", "HV", "HH"]
         modes_sel = []
         children = []
-        for mode in modes:
+        for mode in _SENTINEL1_POLARZIATION_MODES:
             mode_children = []
             for swath_i, swath in enumerate(_SLC_SWATHS):
                 bursts = [x for x in datatree.children if f"_{mode}_{swath}" in x]
                 if bursts:
                     mode_children.append(bursts)
-                    modes_sel.append(modes_sel)
+                    modes_sel.append(mode)
             if mode_children:
                 children.append(mode_children)
         return children, list(np.unique(modes_sel))
@@ -717,12 +717,12 @@ class Sen1OCN(Sen1):
                 bbox = source_gm.xy_bbox
         if resolution is None:
             if crs and not crs.is_geographic:
-                center = (
+                ref_point = (
                     (source_gm.xy_bbox[0] + source_gm.xy_bbox[2]) / 2,
                     (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2,
                 )
                 resolution = transform_resolution(
-                    center, source_gm.xy_res, source_gm.crs, crs
+                    ref_point, source_gm.xy_res, source_gm.crs, crs
                 )
             else:
                 resolution = source_gm.xy_res

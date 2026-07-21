@@ -144,6 +144,10 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
                 cache_uri="file:///tmp/cache",
             ),
         )
+        with pytest.raises(
+            TypeError, match="resolution argument must contain exactly two"
+        ):
+            self.mode.get_applicable_params(resolution=(1, "x"))
         with pytest.raises(TypeError, match="interp_methods"):
             self.mode.get_applicable_params(interp_methods="cubic")
         with pytest.raises(TypeError, match="footprint_scale_factor"):
@@ -413,9 +417,12 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
 
     def test_get_groups(self):
         groups = self.mode._get_groups(self.dt)
-        self.assertEqual(("mode", "swath", "burst"), groups.dims)
-        self.assertEqual((2, 2, 1), groups.shape)
-        self.assertEqual("S1A_IW_SLC_TEST_VV_IW1_0", groups.sel(mode="VV").item(0))
+        self.assertEqual(2, len(groups))
+        self.assertEqual(2, len(groups[0]))
+        self.assertEqual(3, len(groups[0][0]))
+        self.assertEqual(1, len(groups[0][0][0]))
+        self.assertEqual("S1A_IW_SLC_TEST_VV_IW1_0", groups[0][0][0][0])
+        self.assertEqual(["VH", "VV"], [str(mode) for mode in groups[1]])
 
     def test_get_grid_parameters(self):
         params = sen1._get_grid_parameters(
@@ -441,7 +448,7 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
         self.assertCountEqual(["beta0_vv", "beta0_vh"], out.data_vars)
         self.assertNotIn("line", out.coords)
         self.assertNotIn("pixel", out.coords)
-        self.assertEqual({"azimuth_time": 2, "slant_range_time": 3}, out.sizes)
+        self.assertEqual({"azimuth_time": 2, "slant_range_time": 4}, out.sizes)
 
     def test_open_data_accepts_string_include(self):
         out = self.mode._open_data(self.dt, includes="vv")
@@ -670,6 +677,10 @@ class Sen1OCNTest(Sen1TestMixin, TestCase):
                 agg_methods="nearest",
             ),
         )
+        with pytest.raises(
+            TypeError, match="resolution argument must contain exactly two"
+        ):
+            self.mode.get_applicable_params(resolution=(1, "x"))
         with pytest.raises(TypeError):
             self.mode.get_applicable_params(interp_methods="cubic")
 
@@ -823,7 +834,7 @@ class Sentinel1FunctionsTest(TestCase):
             with pytest.raises(ValueError, match="Missing AWS credentials"):
                 sen1.get_dem([0, 50, 1, 51])
 
-    def test_get_dem_resolution_required_if_crs_given(self):
+    def test_get_dem_with_projected_crs_uses_inferred_resolution(self):
         with patch.dict(
             os.environ,
             {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
@@ -832,6 +843,18 @@ class Sentinel1FunctionsTest(TestCase):
             with (
                 patch.object(sen1.pystac_client.Client, "open") as client_open,
                 patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
+                patch.object(sen1, "transform_resolution", return_value=30.0) as tr,
+                patch.object(
+                    sen1,
+                    "resample_in_space",
+                    return_value=SimpleNamespace(
+                        dem=xr.DataArray(
+                            np.ones((2, 2), dtype="float32"),
+                            dims=("lat", "lon"),
+                            coords={"lat": [1.0, 0.0], "lon": [0.0, 1.0]},
+                        )
+                    ),
+                ) as resample,
             ):
                 fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
                 search = SimpleNamespace(items=lambda: [fake_item])
@@ -842,10 +865,12 @@ class Sentinel1FunctionsTest(TestCase):
                     coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
                 )
 
-                with pytest.raises(
-                    ValueError, match="Resolution must be provided if CRS is not None"
-                ):
-                    sen1.get_dem([0, 0, 1, 1], crs=pyproj.CRS.from_epsg(32632))
+                out = sen1.get_dem([0, 0, 900, 900], crs=pyproj.CRS.from_epsg(32632))
+
+        tr.assert_called_once()
+        resample.assert_called_once()
+        self.assertIsInstance(out, xr.DataArray)
+        self.assertEqual((2, 2), out.shape)
 
     def test_get_dem_reprojects_bbox_and_resamples(self):
         with patch.dict(

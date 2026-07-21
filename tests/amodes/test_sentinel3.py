@@ -49,6 +49,12 @@ class Sen3TestMixin:
                 agg_methods={"scl": "mode"},
             ),
         )
+        with pytest.raises(
+            TypeError, match="resolution argument must contain exactly two"
+        ):
+            self.mode.get_applicable_params(resolution=(1, "x"))
+        with pytest.raises(TypeError):
+            self.mode.get_applicable_params(interp_methods=["nearest"])
 
     def test_process_metadata(self: TestCase):
         self.assertEqual({}, self.mode.process_metadata(xr.DataTree()))

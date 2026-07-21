@@ -128,14 +128,23 @@ def make_s1_slc_datatree() -> xr.DataTree:
             ],
             dtype="datetime64[ns]",
         ),
+        "IW3": np.array(
+            [
+                "2024-01-01T00:00:00",
+                "2024-01-01T00:00:01",
+                "2024-01-01T00:00:02",
+            ],
+            dtype="datetime64[ns]",
+        ),
     }
     slant_range_time_by_swath = {
         "IW1": np.array([0.0, 1.0, 2.0, 3.0], dtype="float32"),
         "IW2": np.array([1.0, 2.0, 3.0, 4.0], dtype="float32"),
+        "IW3": np.array([2.0, 3.0, 4.0, 5.0], dtype="float32"),
     }
     axis = np.array(["x", "y", "z"])
     polarizations = ("VV", "VH")
-    swaths = ("IW1", "IW2")
+    swaths = ("IW1", "IW2", "IW3")
 
     beta_nought = xr.Dataset(
         {

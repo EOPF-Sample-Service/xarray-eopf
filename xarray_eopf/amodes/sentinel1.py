@@ -35,6 +35,7 @@ from xcube_resampling.utils import (
 )
 
 from xarray_eopf.amode import AnalysisMode, AnalysisModeRegistry
+from xarray_eopf.constants import FloatInt
 from xarray_eopf.source import get_source_path
 from xarray_eopf.utils import NameFilter, assert_arg_has_length, assert_arg_is_instance
 
@@ -45,6 +46,8 @@ _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
 _CHUNKSIZE = (2048, 2048)
+_SLC_SWATHS = ["IW1", "IW2", "IW3"]
+_SENTINEL1_POLARZIATION_MODES = ["VV", "VH", "HV", "HH"]
 _REGISTERED_CACHE_URIS = []
 
 
@@ -111,7 +114,14 @@ class Sen1GRD(Sen1):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (float, int))
+            assert_arg_is_instance(resolution, "resolution", (float, int, tuple))
+            if isinstance(resolution, tuple):
+                assert_arg_has_length(resolution, "resolution", 2)
+                if not all(isinstance(v, (float, int)) for v in resolution):
+                    raise TypeError(
+                        "resolution argument must contain exactly "
+                        "two float or int values."
+                    )
             params.update(resolution=resolution)
 
         bbox = kwargs.get("bbox")
@@ -171,7 +181,7 @@ class Sen1GRD(Sen1):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: Literal["nearest", "bilinear"] = "bilinear",
@@ -231,7 +241,7 @@ class Sen1GRD(Sen1):
 
         dataset = None
         measurement_group = ""
-        for mode in ["VV", "VH", "HV", "HH"]:
+        for mode in _SENTINEL1_POLARZIATION_MODES:
             children = [x for x in datatree.children if mode in x]
             if children:
                 if len(children) != 1:
@@ -359,26 +369,28 @@ class Sen1SLC(Sen1GRD):
     ) -> xr.Dataset:
         """Load, calibrate, and merge SLC bursts into a single dataset."""
 
-        children = self._get_groups(datatree)
+        children, modes = self._get_groups(datatree)
 
         # First combine all polarizations within each burst.
-        dss_burst = np.empty(children.shape[1:], dtype=object)
-        for swath_i, swath in enumerate(children.swath.values):
-            for burst_idx in children.burst.values:
+        dss_all = []
+        for swath_i, _ in enumerate(_SLC_SWATHS):
+            dss_swath = []
+            for burst_i, _ in enumerate(children[0][swath_i]):
                 burst_dataset = xr.Dataset()
-                for mode_i, mode in enumerate(children.mode.values):
-                    child = children.sel(mode=mode, swath=swath, burst=burst_idx).item()
+                for mode_i, mode in enumerate(modes):
+                    child = children[mode_i][swath_i][burst_i]
                     burst = datatree[child]
                     beta0 = self._calibrate_burst(burst)
                     beta0 = self._extract_valid_region(beta0, burst)
                     beta0 = beta0.drop_vars(["line", "pixel"])
                     beta0 = beta0.rename({"slc": f"beta0_{mode.lower()}"})
                     burst_dataset.update(beta0)
-                dss_burst[swath_i, burst_idx] = burst_dataset
+                dss_swath.append(burst_dataset)
+            dss_all.append(dss_swath)
 
-        dss_swaths = np.empty(children.shape[1], dtype=object)
-        for swath_i, swath in enumerate(children.swath.values):
-            dss_swaths[swath_i] = self._merge_bursts(dss_burst[swath_i, :])
+        dss_swaths = []
+        for swath_i, swath in enumerate(_SLC_SWATHS):
+            dss_swaths.append(self._merge_bursts(dss_all[swath_i]))
         dss_swaths = self._align_azimuth(dss_swaths)
         merged = self._merge_swaths(dss_swaths)
 
@@ -407,32 +419,20 @@ class Sen1SLC(Sen1GRD):
         return merged
 
     @staticmethod
-    def _get_groups(datatree):
+    def _get_groups(datatree: xr.DataTree) -> tuple[list[list[list[str]]], list[str]]:
         """Return child group names organized by polarization, swath, and burst."""
-        swaths = ["IW1", "IW2", "IW3"]
-        modes = ["VV", "VH", "HV", "HH"]
+        modes_sel = []
         children = []
-        for mode in modes:
+        for mode in _SENTINEL1_POLARZIATION_MODES:
             mode_children = []
-            for swath_i, swath in enumerate(swaths):
+            for swath_i, swath in enumerate(_SLC_SWATHS):
                 bursts = [x for x in datatree.children if f"_{mode}_{swath}" in x]
                 if bursts:
                     mode_children.append(bursts)
+                    modes_sel.append(mode)
             if mode_children:
                 children.append(mode_children)
-        children = np.array(children, dtype=str)
-        return xr.DataArray(
-            children,
-            dims=("mode", "swath", "burst"),
-            coords={
-                "mode": [
-                    m for m in modes if any(f"_{m}_" in x for x in datatree.children)
-                ],
-                "swath": swaths[: children.shape[1]],
-                "burst": np.arange(children.shape[2]),
-            },
-            name="burst_groups",
-        )
+        return children, list(np.unique(modes_sel))
 
     @staticmethod
     def _calibrate_burst(burst: xr.DataTree) -> xr.Dataset:
@@ -460,7 +460,7 @@ class Sen1SLC(Sen1GRD):
         )
 
     @staticmethod
-    def _merge_bursts(dss: np.ndarray, tolerance: float = 0.01) -> xr.Dataset:
+    def _merge_bursts(dss: list[xr.Dataset], tolerance: float = 0.01) -> xr.Dataset:
         """Merge overlapping bursts along azimuth time."""
         idxs = np.zeros((len(dss), 2), dtype=int)
         tol = 0.01 * np.diff(dss[0].azimuth_time.values[:2])[0]
@@ -517,7 +517,9 @@ class Sen1SLC(Sen1GRD):
         return out
 
     @staticmethod
-    def _align_azimuth(dss: np.ndarray, tolerance: float = 0.01) -> list[xr.Dataset]:
+    def _align_azimuth(
+        dss: list[xr.Dataset], tolerance: float = 0.01
+    ) -> list[xr.Dataset]:
         """Align all swaths to a shared azimuth-time axis."""
         tol = 0.1 * np.diff(dss[0].azimuth_time.values[:2])[0]
 
@@ -613,7 +615,14 @@ class Sen1OCN(Sen1):
 
         resolution = kwargs.get("resolution")
         if resolution is not None:
-            assert_arg_is_instance(resolution, "resolution", (float, int))
+            assert_arg_is_instance(resolution, "resolution", (float, int, tuple))
+            if isinstance(resolution, tuple):
+                assert_arg_has_length(resolution, "resolution", 2)
+                if not all(isinstance(v, (float, int)) for v in resolution):
+                    raise TypeError(
+                        "resolution argument must contain exactly "
+                        "two float or int values."
+                    )
             params.update(resolution=resolution)
 
         bbox = kwargs.get("bbox")
@@ -648,7 +657,7 @@ class Sen1OCN(Sen1):
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: float = None,
+        resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
@@ -708,12 +717,12 @@ class Sen1OCN(Sen1):
                 bbox = source_gm.xy_bbox
         if resolution is None:
             if crs and not crs.is_geographic:
-                center_lat = (
+                ref_point = (
                     (source_gm.xy_bbox[0] + source_gm.xy_bbox[2]) / 2,
                     (source_gm.xy_bbox[1] + source_gm.xy_bbox[3]) / 2,
                 )
                 resolution = transform_resolution(
-                    center_lat, source_gm.xy_res, source_gm.crs, crs
+                    ref_point, source_gm.xy_res, source_gm.crs, crs
                 )
             else:
                 resolution = source_gm.xy_res
@@ -753,7 +762,7 @@ def _cleanup_registered_cache_uris() -> None:
 
 def get_dem(
     bbox: Sequence[float | int],
-    resolution: float | None = None,
+    resolution: FloatInt | tuple[FloatInt, FloatInt] | None = None,
     crs: pyproj.CRS | None = None,
 ):
     """Fetch and prepare a DEM for the given area of interest.
@@ -817,17 +826,25 @@ def get_dem(
             lon=slice(bbox_wgs84[0], bbox_wgs84[2]),
         ).chunk(_DEM_CHUNKSIZE)
     else:
-        if resolution is None:
-            raise ValueError("Resolution must be provided if CRS is not None.")
+        dem = dem.to_dataset(name="dem")
         if crs is None:
             crs = _CRS_WGS84
+        if resolution is None:
+            source_gm = GridMapping.from_dataset(dem)
+            ref_point = (
+                (bbox_wgs84[0] + bbox_wgs84[2]) / 2,
+                (bbox_wgs84[1] + bbox_wgs84[3]) / 2,
+            )
+            resolution = transform_resolution(
+                ref_point, source_gm.xy_res, source_gm.crs, crs
+            )
         target_gm = GridMapping.regular_from_bbox(
             bbox,
             resolution,
             crs,
             tile_size=(_DEM_CHUNKSIZE["lat"], _DEM_CHUNKSIZE["lon"]),
         )
-        dem = resample_in_space(dem.to_dataset(name="dem"), target_gm=target_gm).dem
+        dem = resample_in_space(dem, target_gm=target_gm).dem
 
     return dem
 

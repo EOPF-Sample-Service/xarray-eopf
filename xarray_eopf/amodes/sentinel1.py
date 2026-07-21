@@ -46,6 +46,7 @@ _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
 _DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
 _CHUNKSIZE = (2048, 2048)
+_SLC_SWATHS = ["IW1", "IW2", "IW3"]
 _REGISTERED_CACHE_URIS = []
 
 
@@ -367,26 +368,28 @@ class Sen1SLC(Sen1GRD):
     ) -> xr.Dataset:
         """Load, calibrate, and merge SLC bursts into a single dataset."""
 
-        children = self._get_groups(datatree)
+        children, modes = self._get_groups(datatree)
 
         # First combine all polarizations within each burst.
-        dss_burst = np.empty(children.shape[1:], dtype=object)
-        for swath_i, swath in enumerate(children.swath.values):
-            for burst_idx in children.burst.values:
+        dss_all = []
+        for swath_i, _ in enumerate(_SLC_SWATHS):
+            dss_swath = []
+            for burst_i, _ in enumerate(children[0][swath_i]):
                 burst_dataset = xr.Dataset()
-                for mode_i, mode in enumerate(children.mode.values):
-                    child = children.sel(mode=mode, swath=swath, burst=burst_idx).item()
+                for mode_i, mode in enumerate(modes):
+                    child = children[mode_i][swath_i][burst_i]
                     burst = datatree[child]
                     beta0 = self._calibrate_burst(burst)
                     beta0 = self._extract_valid_region(beta0, burst)
                     beta0 = beta0.drop_vars(["line", "pixel"])
                     beta0 = beta0.rename({"slc": f"beta0_{mode.lower()}"})
                     burst_dataset.update(beta0)
-                dss_burst[swath_i, burst_idx] = burst_dataset
+                dss_swath.append(burst_dataset)
+            dss_all.append(dss_swath)
 
-        dss_swaths = np.empty(children.shape[1], dtype=object)
-        for swath_i, swath in enumerate(children.swath.values):
-            dss_swaths[swath_i] = self._merge_bursts(dss_burst[swath_i, :])
+        dss_swaths = []
+        for swath_i, swath in enumerate(_SLC_SWATHS):
+            dss_swaths.append(self._merge_bursts(dss_all[swath_i]))
         dss_swaths = self._align_azimuth(dss_swaths)
         merged = self._merge_swaths(dss_swaths)
 
@@ -415,32 +418,21 @@ class Sen1SLC(Sen1GRD):
         return merged
 
     @staticmethod
-    def _get_groups(datatree):
+    def _get_groups(datatree: xr.DataTree) -> tuple[list[list[list[str]]], list[str]]:
         """Return child group names organized by polarization, swath, and burst."""
-        swaths = ["IW1", "IW2", "IW3"]
         modes = ["VV", "VH", "HV", "HH"]
+        modes_sel = []
         children = []
         for mode in modes:
             mode_children = []
-            for swath_i, swath in enumerate(swaths):
+            for swath_i, swath in enumerate(_SLC_SWATHS):
                 bursts = [x for x in datatree.children if f"_{mode}_{swath}" in x]
                 if bursts:
                     mode_children.append(bursts)
+                    modes_sel.append(modes_sel)
             if mode_children:
                 children.append(mode_children)
-        children = np.array(children, dtype=str)
-        return xr.DataArray(
-            children,
-            dims=("mode", "swath", "burst"),
-            coords={
-                "mode": [
-                    m for m in modes if any(f"_{m}_" in x for x in datatree.children)
-                ],
-                "swath": swaths[: children.shape[1]],
-                "burst": np.arange(children.shape[2]),
-            },
-            name="burst_groups",
-        )
+        return children, list(np.unique(modes_sel))
 
     @staticmethod
     def _calibrate_burst(burst: xr.DataTree) -> xr.Dataset:
@@ -468,7 +460,7 @@ class Sen1SLC(Sen1GRD):
         )
 
     @staticmethod
-    def _merge_bursts(dss: np.ndarray, tolerance: float = 0.01) -> xr.Dataset:
+    def _merge_bursts(dss: list[xr.Dataset], tolerance: float = 0.01) -> xr.Dataset:
         """Merge overlapping bursts along azimuth time."""
         idxs = np.zeros((len(dss), 2), dtype=int)
         tol = 0.01 * np.diff(dss[0].azimuth_time.values[:2])[0]
@@ -525,7 +517,9 @@ class Sen1SLC(Sen1GRD):
         return out
 
     @staticmethod
-    def _align_azimuth(dss: np.ndarray, tolerance: float = 0.01) -> list[xr.Dataset]:
+    def _align_azimuth(
+        dss: list[xr.Dataset], tolerance: float = 0.01
+    ) -> list[xr.Dataset]:
         """Align all swaths to a shared azimuth-time axis."""
         tol = 0.1 * np.diff(dss[0].azimuth_time.values[:2])[0]
 
@@ -832,17 +826,25 @@ def get_dem(
             lon=slice(bbox_wgs84[0], bbox_wgs84[2]),
         ).chunk(_DEM_CHUNKSIZE)
     else:
-        if resolution is None:
-            raise ValueError("Resolution must be provided if CRS is not None.")
+        dem = dem.to_dataset(name="dem")
         if crs is None:
             crs = _CRS_WGS84
+        if resolution is None:
+            source_gm = GridMapping.from_dataset(dem)
+            ref_point = (
+                (bbox_wgs84[0] + bbox_wgs84[2]) / 2,
+                (bbox_wgs84[1] + bbox_wgs84[3]) / 2,
+            )
+            resolution = transform_resolution(
+                ref_point, source_gm.xy_res, source_gm.crs, crs
+            )
         target_gm = GridMapping.regular_from_bbox(
             bbox,
             resolution,
             crs,
             tile_size=(_DEM_CHUNKSIZE["lat"], _DEM_CHUNKSIZE["lon"]),
         )
-        dem = resample_in_space(dem.to_dataset(name="dem"), target_gm=target_gm).dem
+        dem = resample_in_space(dem, target_gm=target_gm).dem
 
     return dem
 

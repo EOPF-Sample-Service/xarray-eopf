@@ -116,6 +116,14 @@ Sentinel-1 Level-1 GRD data is provided in radar geometry, defined by the coordi
   automatically removed when the Python process exits. If None, a temporary 
   directory with a unique UUID-based name is created.
 
+> Note: If no DEM is given, CDSE S3 credentials must be configured to 
+> enable access to the CopDEM (30 m) dataset from CDSE. Instructions for generating 
+> credentials are available [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
+> The Copernicus DEM GLO-30 is part of the Copernicus Contributing Missions (CCM) 
+> data and requires requesting access as described [here](https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/ccm-how-to-register). 
+> Note that it may take a few hours for access to CCM data to be granted.
+
+
 Examples:  
 
 - [Docs – Sentinel-1 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/)
@@ -179,6 +187,13 @@ this data into an **analysis-ready dataset**, the following processing steps are
   backward geocoding step in the Sentinel-1 processing workflow. The cache is
   automatically removed when the Python process exits. If `None`, a temporary
   directory with a unique UUID-based name is created.
+
+> Note: If no DEM is given, CDSE S3 credentials must be configured to 
+> enable access to the CopDEM (30 m) dataset from CDSE. Instructions for generating 
+> credentials are available [here](https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets).
+> The Copernicus DEM GLO-30 is part of the Copernicus Contributing Missions (CCM) 
+> data and requires requesting access as described [here](https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/ccm-how-to-register). 
+> Note that it may take a few hours for access to CCM data to be granted.
 
 Examples:
 

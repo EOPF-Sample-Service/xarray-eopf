@@ -859,8 +859,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 32</span>
-<span class="normal"> 33</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 33</span>
 <span class="normal"> 34</span>
 <span class="normal"> 35</span>
 <span class="normal"> 36</span>
@@ -1132,7 +1131,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
-<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
@@ -1199,6 +1202,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="p">)</span>
 
         <span class="n">_assert_datatree_is_chunked</span><span class="p">(</span><span class="n">datatree</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+            <span class="n">root_attrs</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">attrs</span>
+            <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">root_attrs</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">op_mode</span> <span class="o">==</span> <span class="n">OP_MODE_NATIVE</span><span class="p">:</span>
             <span class="c1"># native mode, so we return tree as-is</span>
@@ -1365,9 +1373,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
             <span class="k">if</span> <span class="n">datatree</span><span class="o">.</span><span class="n">has_data</span><span class="p">:</span>
                 <span class="c1"># subgroup level, so we transform the dataset</span>
                 <span class="n">dataset</span> <span class="o">=</span> <span class="n">datatree</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
-                <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">transform_dataset</span><span class="p">(</span>
-                    <span class="n">dataset</span><span class="p">,</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;stac_discovery&quot;</span><span class="p">)</span>
-                <span class="p">)</span>
+                <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">transform_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># product level, so we convert the tree into a dataset</span>
                 <span class="n">params</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">get_applicable_params</span><span class="p">(</span>
@@ -1524,7 +1530,7 @@ Will be passed to <a href="https://filesystem-spec.readthedocs.io/en/latest/usag
                 <code>drop_variables</code>
             </td>
             <td>
-                  <code><span title="str">str</span> | <span title="typing.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
+                  <code><span title="str">str</span> | <span title="collections.abc.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1583,8 +1589,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 41</span>
-<span class="normal"> 42</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 42</span>
 <span class="normal"> 43</span>
 <span class="normal"> 44</span>
 <span class="normal"> 45</span>
@@ -1655,7 +1660,13 @@ to drop from the underlying file. See
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
-<span class="normal">113</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1713,6 +1724,11 @@ to drop from the underlying file. See
     <span class="p">)</span>
 
     <span class="n">_assert_datatree_is_chunked</span><span class="p">(</span><span class="n">datatree</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+        <span class="n">root_attrs</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">attrs</span>
+        <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">root_attrs</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">op_mode</span> <span class="o">==</span> <span class="n">OP_MODE_NATIVE</span><span class="p">:</span>
         <span class="c1"># native mode, so we return tree as-is</span>
@@ -2053,7 +2069,7 @@ a unique UUID-based name is created automatically.</p>
                 <code>variables</code>
             </td>
             <td>
-                  <code><span title="str">str</span> | <span title="typing.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
+                  <code><span title="str">str</span> | <span title="collections.abc.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2070,7 +2086,7 @@ regex pattern or iterable of the latter.</p>
                 <code>drop_variables</code>
             </td>
             <td>
-                  <code><span title="str">str</span> | <span title="typing.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
+                  <code><span title="str">str</span> | <span title="collections.abc.Iterable">Iterable</span>[<span title="str">str</span>] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2129,13 +2145,7 @@ to drop from the underlying file. See
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
-<span class="normal">118</span>
-<span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">121</span>
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
@@ -2301,7 +2311,11 @@ to drop from the underlying file. See
 <span class="normal">284</span>
 <span class="normal">285</span>
 <span class="normal">286</span>
-<span class="normal">287</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">open_dataset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2451,9 +2465,7 @@ to drop from the underlying file. See
         <span class="k">if</span> <span class="n">datatree</span><span class="o">.</span><span class="n">has_data</span><span class="p">:</span>
             <span class="c1"># subgroup level, so we transform the dataset</span>
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">datatree</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">transform_dataset</span><span class="p">(</span>
-                <span class="n">dataset</span><span class="p">,</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;stac_discovery&quot;</span><span class="p">)</span>
-            <span class="p">)</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">transform_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># product level, so we convert the tree into a dataset</span>
             <span class="n">params</span> <span class="o">=</span> <span class="n">analysis_mode</span><span class="o">.</span><span class="n">get_applicable_params</span><span class="p">(</span>
@@ -2553,11 +2565,7 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>xarray_eopf/backend.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
 <span class="normal">296</span>
@@ -2569,7 +2577,11 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
 <span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
-<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">guess_can_open</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

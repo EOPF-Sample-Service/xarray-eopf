@@ -1142,6 +1142,14 @@ product version will include these parameters. </p>
   automatically removed when the Python process exits. If None, a temporary 
   directory with a unique UUID-based name is created.</li>
 </ul>
+<blockquote>
+<p>Note: If no DEM is given, CDSE S3 credentials must be configured to 
+enable access to the CopDEM (30 m) dataset from CDSE. Instructions for generating 
+credentials are available <a href="https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets">here</a>.
+The Copernicus DEM GLO-30 is part of the Copernicus Contributing Missions (CCM) 
+data and requires requesting access as described <a href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/ccm-how-to-register">here</a>. 
+Note that it may take a few hours for access to CCM data to be granted.</p>
+</blockquote>
 <p>Examples:  </p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>
@@ -1205,6 +1213,14 @@ this data into an <strong>analysis-ready dataset</strong>, the following process
   automatically removed when the Python process exits. If <code>None</code>, a temporary
   directory with a unique UUID-based name is created.</li>
 </ul>
+<blockquote>
+<p>Note: If no DEM is given, CDSE S3 credentials must be configured to 
+enable access to the CopDEM (30 m) dataset from CDSE. Instructions for generating 
+credentials are available <a href="https://documentation.dataspace.copernicus.eu/APIs/S3.html#generate-secrets">here</a>.
+The Copernicus DEM GLO-30 is part of the Copernicus Contributing Missions (CCM) 
+data and requires requesting access as described <a href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/ccm-how-to-register">here</a>. 
+Note that it may take a few hours for access to CCM data to be granted.</p>
+</blockquote>
 <p>Examples:</p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_1_analysis/">Docs – Sentinel-1 Analysis Mode</a></li>

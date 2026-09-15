@@ -3,12 +3,11 @@
 #  https://opensource.org/license/apache-2-0.
 import re
 import time
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Sequence
 from typing import (
     Any,
     Literal,
-    Sequence,
-    Type,
+    Self,
     TypeAlias,
     TypeVar,
     get_args,
@@ -41,7 +40,7 @@ class timeit:
         self.start_time: float | None = None
         self.time_delta: float | None = None
 
-    def __enter__(self) -> "timeit":
+    def __enter__(self) -> Self:
         self.start_time = time.process_time()
         return self
 
@@ -51,7 +50,7 @@ class timeit:
             print(f"{self.label or 'code block'} took {self.time_delta:.3f} seconds")
 
 
-def assert_arg_is_instance(value: Any, name: str, data_type: Type | tuple[Type, ...]):
+def assert_arg_is_instance(value: Any, name: str, data_type: type | tuple[type, ...]):
     """Check if the `value` of the argument `name` has the given `data_type`.
     If not, raise `TypeError`.
     """

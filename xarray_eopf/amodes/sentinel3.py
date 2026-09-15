@@ -98,9 +98,7 @@ class Sen3(AnalysisMode, ABC):
         )
         return datatree
 
-    def transform_dataset(
-        self, dataset: xr.Dataset, stac_meta: dict, **params
-    ) -> xr.Dataset:
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
         return self.assign_grid_mapping(dataset)
 
     def convert_datatree(
@@ -191,7 +189,7 @@ class Sen3(AnalysisMode, ABC):
     def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
         crs = pyproj.CRS.from_epsg(4326)
         dataset = dataset.assign_coords(
-            dict(spatial_ref=xr.DataArray(0, attrs=crs.to_cf()))
+            {"spatial_ref": xr.DataArray(0, attrs=crs.to_cf())}
         )
         for var_name in dataset.data_vars:
             dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
@@ -205,7 +203,7 @@ class Sen3(AnalysisMode, ABC):
         self,
         dataset: xr.Dataset,
         datatree: xr.DataTree,
-        bbox_idx: tuple[int, int, int, int] = None,
+        bbox_idx: tuple[int, int, int, int] | None = None,
     ) -> xr.Dataset:
         """Placeholder method to be overwritten by product-specific subclasses
         handling SLSTR datasets.
@@ -248,18 +246,18 @@ class Sen3Sl2Lst(Sen3):
         self,
         dataset: xr.Dataset,
         datatree: xr.DataTree,
-        bbox_idx: tuple[int, int, int, int] = None,
+        bbox_idx: tuple[int, int, int, int] | None = None,
     ) -> xr.Dataset:
         angles = datatree.conditions.geometry.to_dataset()
         angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
         angles = angles.rename(
-            dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
+            {"sat_zenith_tn": "sat_zenith", "sat_azimuth_tn": "sat_azimuth"}
         )
         angles = angles.assign_coords(
-            dict(
-                latitude=datatree.conditions.meteorology.latitude,
-                longitude=datatree.conditions.meteorology.longitude,
-            )
+            {
+                "latitude": datatree.conditions.meteorology.latitude,
+                "longitude": datatree.conditions.meteorology.longitude,
+            }
         )
         if bbox_idx:
             # The angles dataset has coarser sampling along the longitude axis,
@@ -298,7 +296,7 @@ class Sen3Sl1Rbt(Sen3):
         # filter dataset by variable names
         name_filter = NameFilter(includes=includes, excludes=excludes)
         dataset_map = {}
-        for sub_group in datatree.measurements.children.keys():
+        for sub_group in datatree.measurements.children:
             dataset = datatree.measurements[sub_group].to_dataset()
             variable_names = [
                 k for k in dataset.data_vars if name_filter.accept(str(k))
@@ -347,7 +345,7 @@ class Sen3Sl1Rbt(Sen3):
             bbox = self._get_outer_bbox(bboxs)
         if resolution is None:
             subgroups_res_1000 = ["fnadir", "foblique", "inadir", "ioblique"]
-            if all(key in subgroups_res_1000 for key in dataset_map.keys()):
+            if all(key in subgroups_res_1000 for key in dataset_map):
                 resolution = 1000
             else:
                 resolution = 500
@@ -398,25 +396,25 @@ class Sen3Sl1Rbt(Sen3):
         self,
         dataset: xr.Dataset,
         datatree: xr.DataTree,
-        bbox_idx: tuple[int, int, int, int] = None,
+        bbox_idx: tuple[int, int, int, int] | None = None,
     ) -> xr.Dataset:
-        if any(str(var).endswith("o") for var in dataset.data_vars.keys()):
+        if any(str(var).endswith("o") for var in dataset.data_vars):
             angles = datatree.conditions.geometry_to.to_dataset()
             angles = angles[["sat_zenith_to", "sat_azimuth_to"]]
             angles = angles.rename(
-                dict(sat_zenith_to="sat_zenith", sat_azimuth_to="sat_azimuth")
+                {"sat_zenith_to": "sat_zenith", "sat_azimuth_to": "sat_azimuth"}
             )
         else:
             angles = datatree.conditions.geometry_tn.to_dataset()
             angles = angles[["sat_zenith_tn", "sat_azimuth_tn"]]
             angles = angles.rename(
-                dict(sat_zenith_tn="sat_zenith", sat_azimuth_tn="sat_azimuth")
+                {"sat_zenith_tn": "sat_zenith", "sat_azimuth_tn": "sat_azimuth"}
             )
         angles = angles.assign_coords(
-            dict(
-                latitude=datatree.conditions.meteorology.latitude,
-                longitude=datatree.conditions.meteorology.longitude,
-            )
+            {
+                "latitude": datatree.conditions.meteorology.latitude,
+                "longitude": datatree.conditions.meteorology.longitude,
+            }
         )
         return orthorectify_geolocation(dataset, angles)
 
@@ -517,10 +515,10 @@ def orthorectify_geolocation(dataset: xr.Dataset, angles: xr.Dataset) -> xr.Data
     lon_diff = np.rad2deg(delta_lam)
 
     return dataset.assign_coords(
-        dict(
-            latitude=(dataset.latitude.dims, ds_lat - lat_diff),
-            longitude=(dataset.latitude.dims, ds_lon - lon_diff),
-        )
+        {
+            "latitude": (dataset.latitude.dims, ds_lat - lat_diff),
+            "longitude": (dataset.latitude.dims, ds_lon - lon_diff),
+        }
     )
 
 

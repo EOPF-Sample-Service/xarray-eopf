@@ -19,15 +19,15 @@ Sen1InterpMethods: TypeAlias = Literal["bilinear", "nearest"]
 
 # Keywords arguments passed to dataset.merge(other) when flattening
 # data trees.
-DS_MERGE_KWARGS: Final = dict(
+DS_MERGE_KWARGS: Final = {
     # skip comparing and pick variable from `dataset`
-    compat="override",
+    "compat": "override",
     # use indexes from `dataset` that are the same size
     # as those of `other` in that dimension
-    join="override",
+    "join": "override",
     # skip comparing and copy attrs from `dataset` to
     # the result.
-    combine_attrs="override",
-)
+    "combine_attrs": "override",
+}
 
 DEFAULT_ENDPOINT_URL = "https://objectstore.eodc.eu:2222"

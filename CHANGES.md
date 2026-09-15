@@ -1,3 +1,8 @@
+## Changes in 0.3.1 (in development)
+
+- Fixed a bug when reading the spatial reference from DataTree attributes. (#88)
+
+
 ## Changes in 0.3.0 (from 2026-07-22)
 
 - Sentinel-1 GRD analysis mode is now fully lazy, enabling seamless execution on 

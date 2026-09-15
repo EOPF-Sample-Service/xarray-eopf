@@ -3,8 +3,8 @@
 #  https://opensource.org/license/apache-2-0.
 
 from collections import defaultdict
-from collections.abc import Collection, Hashable, Mapping, Sequence
-from typing import Callable, TypeVar
+from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
+from typing import TypeVar
 
 T = TypeVar("T", bound=Hashable)
 

@@ -33,8 +33,8 @@ class CommonStringPrefixTest(TestCase):
 
 class UniqueShortSequencesTest(TestCase):
     def test_all_same(self):
-        seq1 = tuple("S01SIWGRD_20240201T164915_0025_A299_750E_065517_VH".split("_"))
-        seq2 = tuple("S01SIWGRD_20240201T164915_0025_A299_750E_065517_VH".split("_"))
+        seq1 = ("S01SIWGRD", "20240201T164915", "0025", "A299", "750E", "065517", "VH")
+        seq2 = ("S01SIWGRD", "20240201T164915", "0025", "A299", "750E", "065517", "VH")
         self.assertEqual(
             {
                 (
@@ -59,8 +59,8 @@ class UniqueShortSequencesTest(TestCase):
         )
 
     def test_all_different(self):
-        seq1 = "S01SIWGRD_20240201T164915_0025_A299_750E_065517_VH".split("_")
-        seq2 = "S01SIWGRD_20240201T164915_0025_A299_750E_065517_VV".split("_")
+        seq1 = ["S01SIWGRD", "20240201T164915", "0025", "A299", "750E", "065517", "VH"]
+        seq2 = ["S01SIWGRD", "20240201T164915", "0025", "A299", "750E", "065517", "VV"]
         self.assertEqual(
             {
                 (

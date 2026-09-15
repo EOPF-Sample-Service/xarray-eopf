@@ -3,15 +3,16 @@
 #  https://opensource.org/license/apache-2-0.
 
 import functools
+import itertools
 import os
 import re
 import uuid
 import warnings
 import weakref
 from abc import ABC
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, fields
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import dask.array as da
 import flox.xarray
@@ -44,7 +45,7 @@ _S_TO_NS = 10**9
 _ONE_SECOND = np.timedelta64(_S_TO_NS, "ns")
 _CRS_ECEF = pyproj.CRS.from_string("EPSG:4978")
 _CRS_WGS84 = pyproj.CRS.from_string("EPSG:4326")
-_DEM_CHUNKSIZE = dict(lat=1800, lon=1800)
+_DEM_CHUNKSIZE = {"lat": 1800, "lon": 1800}
 _CHUNKSIZE = (2048, 2048)
 _SLC_SWATHS = ["IW1", "IW2", "IW3"]
 _SENTINEL1_POLARZIATION_MODES = ["VV", "VH", "HV", "HH"]
@@ -92,9 +93,7 @@ class Sen1(AnalysisMode, ABC):
         )
         return datatree
 
-    def transform_dataset(
-        self, dataset: xr.Dataset, stac_meta: dict, **params
-    ) -> xr.Dataset:
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
         # ToDo: what should be added when opening a subgroup in analysis mode?
         return dataset
 
@@ -465,7 +464,7 @@ class Sen1SLC(Sen1GRD):
         idxs = np.zeros((len(dss), 2), dtype=int)
         tol = 0.01 * np.diff(dss[0].azimuth_time.values[:2])[0]
 
-        for i, (ds0, ds1) in enumerate(zip(dss[:-1], dss[1:])):
+        for i, (ds0, ds1) in enumerate(itertools.pairwise(dss)):
 
             t0 = ds0.azimuth_time.values
             t1 = ds1.azimuth_time.values
@@ -562,7 +561,7 @@ class Sen1SLC(Sen1GRD):
         idxs = np.zeros((len(dss), 2), dtype=int)
         step_tol = tolerance * np.diff(dss[0].slant_range_time.values[:2])[0]
 
-        for i, (ds0, ds1) in enumerate(zip(dss[:-1], dss[1:])):
+        for i, (ds0, ds1) in enumerate(itertools.pairwise(dss)):
 
             r0 = ds0.slant_range_time.values
             r1 = ds1.slant_range_time.values
@@ -864,7 +863,7 @@ def _get_grid_parameters(
         Grid parameters for terrain correction.
     """
 
-    vh_group = [x for x in datatree.children if "VH" in x][0]
+    vh_group = next(x for x in datatree.children if "VH" in x)
     attrs = datatree[f"{vh_group}"].attrs["other_metadata"]["image_annotation"][
         "image_information"
     ]
@@ -1133,7 +1132,7 @@ def backward_geocode(
     grid_params: GridParams = None,
     range_coord: str = "ground_range",
     apply_rtc: bool = True,
-    gm_dem_params: dict = None,
+    gm_dem_params: dict | None = None,
     method="newton",
     tol=1.0,
     speed=7500.0,
@@ -1429,9 +1428,9 @@ def fit_ground_range(time_slr_gcp: xr.DataArray, deg: int = 8) -> xr.DataArray:
         coeff.append(np.polyfit(x_gcp[i, :], x_gcp["ground_range"], deg=deg))
     return xr.DataArray(
         coeff,
-        coords=dict(azimuth_time=x_gcp["azimuth_time"], degree=np.arange(deg, -1, -1)),
+        coords={"azimuth_time": x_gcp["azimuth_time"], "degree": np.arange(deg, -1, -1)},
         dims=("azimuth_time", "degree"),
-        attrs=dict(mean=mean, std=std),
+        attrs={"mean": mean, "std": std},
     )
 
 
@@ -1543,7 +1542,7 @@ def get_source_location(
 
 
 def assign_grid_mapping(dataset: xr.Dataset) -> xr.Dataset:
-    for var_name, data_var in dataset.data_vars.items():
+    for var_name in dataset.data_vars:
         dataset[var_name].attrs["grid_mapping"] = "spatial_ref"
     return dataset
 

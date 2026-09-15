@@ -3,11 +3,12 @@
 #  https://opensource.org/license/apache-2-0.
 
 import os
-from collections.abc import Mapping, Sequence
-from typing import Any, Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 import pyproj
 import xarray as xr
+import zarr
 from xarray.backends import AbstractDataStore, BackendEntrypoint
 from xarray.coding.times import CFTimedeltaCoder
 from xarray.core.types import ReadBuffer
@@ -96,6 +97,11 @@ class EopfBackend(BackendEntrypoint):
         )
 
         _assert_datatree_is_chunked(datatree)
+
+        if not datatree.attrs:
+            root = zarr.open_group(source, mode="r")
+            root_attrs = root.attrs
+            datatree.attrs.update(root_attrs)
 
         if op_mode == OP_MODE_NATIVE:
             # native mode, so we return tree as-is
@@ -262,9 +268,7 @@ class EopfBackend(BackendEntrypoint):
             if datatree.has_data:
                 # subgroup level, so we transform the dataset
                 dataset = datatree.to_dataset()
-                dataset = analysis_mode.transform_dataset(
-                    dataset, datatree.attrs.get("stac_discovery")
-                )
+                dataset = analysis_mode.transform_dataset(dataset)
             else:
                 # product level, so we convert the tree into a dataset
                 params = analysis_mode.get_applicable_params(
@@ -317,15 +321,15 @@ def _assert_dataset_is_chunked(dataset: xr.Dataset, name: str | None = None):
 
 
 def add_chunking_encoding(dataset: xr.Dataset) -> xr.Dataset:
-    for var in dataset.data_vars.keys():
+    for var in dataset.data_vars:
         chunksizes = (chunks[0] for chunks in dataset[var].chunks)
-        dataset[var].encoding = dict(
-            chunks=chunksizes,
-            preferred_chunks={
+        dataset[var].encoding = {
+            "chunks": chunksizes,
+            "preferred_chunks": {
                 dim: chunksize
                 for (dim, chunksize) in zip(dataset[var].dims, chunksizes)
             },
-        )
+        }
     return dataset
 
 

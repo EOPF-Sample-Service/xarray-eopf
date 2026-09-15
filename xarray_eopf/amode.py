@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 import xarray as xr
 
@@ -95,9 +95,7 @@ class AnalysisMode(ABC):
         """
 
     @abstractmethod
-    def transform_dataset(
-        self, dataset: xr.Dataset, stac_meta: dict, **params
-    ) -> xr.Dataset:
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
         """Transform `dataset` into an analysis-ready form.
         Called from the backend's `open_dataset()` implementation to transform
         the given `xr.Dataset` object.
@@ -107,7 +105,6 @@ class AnalysisMode(ABC):
 
         Args:
             dataset: The dataset to be transformed.
-            stac_meta: The STAC metadata.
             params: Product type specific parameters.
                 See `get_applicable_params()`.
 
@@ -171,13 +168,13 @@ class AnalysisModeRegistry:
         """Get a specific analysis modes for given `product_type`."""
         return self._analysis_modes.get(product_type)
 
-    def register(self, cls: Type[AnalysisMode]):
+    def register(self, cls: type[AnalysisMode]):
         """Register the analysis mode given as its class `cls`."""
         assert issubclass(cls, AnalysisMode)
         assert isinstance(cls.product_type, str)
         self._analysis_modes[cls.product_type] = cls()
 
-    def unregister(self, cls: Type[AnalysisMode]):
+    def unregister(self, cls: type[AnalysisMode]):
         """Unregister the analysis mode given as its class `cls`."""
         assert issubclass(cls, AnalysisMode)
         assert isinstance(cls.product_type, str)

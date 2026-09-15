@@ -101,7 +101,7 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
 
     def test_is_not_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S1A_IW_SLC_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_get_grid_parameters(self):
         params = sen1._get_grid_parameters(self.dt, (2.0, 3.0))
@@ -198,11 +198,13 @@ class Sen1GRDTest(Sen1TestMixin, TestCase):
 
     def test_convert_datatree_uses_get_dem(self):
 
-        with patch.object(sen1, "get_dem", return_value=self.dem) as get_dem_mock:
-            with patch.object(
+        with (
+            patch.object(sen1, "get_dem", return_value=self.dem) as get_dem_mock,
+            patch.object(
                 self.mode, "_terrain_correct", return_value=self.expected_beta0_vv
-            ):
-                _ = self.mode.convert_datatree(self.dt, includes=["vv"])
+            ),
+        ):
+            _ = self.mode.convert_datatree(self.dt, includes=["vv"])
 
         get_dem_mock.assert_called_once()
         args, _ = get_dem_mock.call_args
@@ -413,7 +415,7 @@ class Sen1SLCTest(Sen1TestMixin, TestCase):
 
     def test_is_not_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S1A_IW_GRDH_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_get_groups(self):
         groups = self.mode._get_groups(self.dt)
@@ -657,7 +659,7 @@ class Sen1OCNTest(Sen1TestMixin, TestCase):
 
     def test_is_not_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S1A_IW_SLC_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_get_applicable_params(self: TestCase):
         self.assertEqual({}, self.mode.get_applicable_params())
@@ -793,7 +795,7 @@ class Sentinel1FunctionsTest(TestCase):
                     dtype="datetime64[ns]",
                 ),
             },
-            attrs=dict(mean=1, std=1),
+            attrs={"mean": 1, "std": 1},
         )
         self.time_slr = xr.DataArray(
             np.ones((2, 2), dtype="float64"),
@@ -830,42 +832,44 @@ class Sentinel1FunctionsTest(TestCase):
         self.assertNotIn("gr0", self.grid_params)
 
     def test_get_dem_requires_credentials(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="Missing AWS credentials"):
-                sen1.get_dem([0, 50, 1, 51])
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(ValueError, match="Missing AWS credentials"),
+        ):
+            sen1.get_dem([0, 50, 1, 51])
 
     def test_get_dem_with_projected_crs_uses_inferred_resolution(self):
-        with patch.dict(
-            os.environ,
-            {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
-            clear=True,
+        with (
+            patch.dict(
+                os.environ,
+                {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
+                clear=True,
+            ),
+            patch.object(sen1.pystac_client.Client, "open") as client_open,
+            patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
+            patch.object(sen1, "transform_resolution", return_value=30.0) as tr,
+            patch.object(
+                sen1,
+                "resample_in_space",
+                return_value=SimpleNamespace(
+                    dem=xr.DataArray(
+                        np.ones((2, 2), dtype="float32"),
+                        dims=("lat", "lon"),
+                        coords={"lat": [1.0, 0.0], "lon": [0.0, 1.0]},
+                    )
+                ),
+            ) as resample,
         ):
-            with (
-                patch.object(sen1.pystac_client.Client, "open") as client_open,
-                patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
-                patch.object(sen1, "transform_resolution", return_value=30.0) as tr,
-                patch.object(
-                    sen1,
-                    "resample_in_space",
-                    return_value=SimpleNamespace(
-                        dem=xr.DataArray(
-                            np.ones((2, 2), dtype="float32"),
-                            dims=("lat", "lon"),
-                            coords={"lat": [1.0, 0.0], "lon": [0.0, 1.0]},
-                        )
-                    ),
-                ) as resample,
-            ):
-                fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
-                search = SimpleNamespace(items=lambda: [fake_item])
-                client_open.return_value = SimpleNamespace(search=lambda **_: search)
-                open_rasterio.return_value = xr.DataArray(
-                    np.ones((1, 4, 4), dtype="float32"),
-                    dims=("band", "y", "x"),
-                    coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
-                )
+            fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
+            search = SimpleNamespace(items=lambda: [fake_item])
+            client_open.return_value = SimpleNamespace(search=lambda **_: search)
+            open_rasterio.return_value = xr.DataArray(
+                np.ones((1, 4, 4), dtype="float32"),
+                dims=("band", "y", "x"),
+                coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
+            )
 
-                out = sen1.get_dem([0, 0, 900, 900], crs=pyproj.CRS.from_epsg(32632))
+            out = sen1.get_dem([0, 0, 900, 900], crs=pyproj.CRS.from_epsg(32632))
 
         tr.assert_called_once()
         resample.assert_called_once()
@@ -873,85 +877,85 @@ class Sentinel1FunctionsTest(TestCase):
         self.assertEqual((2, 2), out.shape)
 
     def test_get_dem_reprojects_bbox_and_resamples(self):
-        with patch.dict(
-            os.environ,
-            {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
-            clear=True,
+        with (
+            patch.dict(
+                os.environ,
+                {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
+                clear=True,
+            ),
+            patch.object(sen1.pystac_client.Client, "open") as client_open,
+            patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
         ):
-            with (
-                patch.object(sen1.pystac_client.Client, "open") as client_open,
-                patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
-            ):
-                fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
-                search = SimpleNamespace(items=lambda: [fake_item])
-                client_open.return_value = SimpleNamespace(search=lambda **_: search)
-                open_rasterio.return_value = xr.DataArray(
-                    np.ones((1, 4, 4), dtype="float32"),
-                    dims=("band", "y", "x"),
-                    coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
-                )
+            fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
+            search = SimpleNamespace(items=lambda: [fake_item])
+            client_open.return_value = SimpleNamespace(search=lambda **_: search)
+            open_rasterio.return_value = xr.DataArray(
+                np.ones((1, 4, 4), dtype="float32"),
+                dims=("band", "y", "x"),
+                coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
+            )
 
-                out = sen1.get_dem(
-                    [0, 0, 900, 900], resolution=30.0, crs=pyproj.CRS.from_epsg(32632)
-                )
-                self.assertIsInstance(out, xr.DataArray)
-                self.assertEqual((30, 30), out.values.shape)
+            out = sen1.get_dem(
+                [0, 0, 900, 900], resolution=30.0, crs=pyproj.CRS.from_epsg(32632)
+            )
+            self.assertIsInstance(out, xr.DataArray)
+            self.assertEqual((30, 30), out.values.shape)
 
     def test_get_dem_bbox_passthrough_and_crop_branch(self):
-        with patch.dict(
-            os.environ,
-            {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
-            clear=True,
+        with (
+            patch.dict(
+                os.environ,
+                {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
+                clear=True,
+            ),
+            patch.object(sen1.pystac_client.Client, "open") as client_open,
+            patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
         ):
-            with (
-                patch.object(sen1.pystac_client.Client, "open") as client_open,
-                patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
-            ):
-                fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
-                search = SimpleNamespace(items=lambda: [fake_item])
-                client_open.return_value = SimpleNamespace(search=lambda **_: search)
-                open_rasterio.return_value = xr.DataArray(
-                    np.ones((1, 4, 4), dtype="float32"),
-                    dims=("band", "y", "x"),
-                    coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
-                ).chunk(dict(y=2, x=2))
+            fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
+            search = SimpleNamespace(items=lambda: [fake_item])
+            client_open.return_value = SimpleNamespace(search=lambda **_: search)
+            open_rasterio.return_value = xr.DataArray(
+                np.ones((1, 4, 4), dtype="float32"),
+                dims=("band", "y", "x"),
+                coords={"band": [1], "y": [3, 2, 1, 0], "x": [0, 1, 2, 3]},
+            ).chunk({"y": 2, "x": 2})
 
-                out = sen1.get_dem([0, 0, 2, 2])
-                self.assertIn("lat", out.dims)
-                self.assertIn("lon", out.dims)
-                self.assertEqual(3, out.sizes["lat"])
-                self.assertEqual(3, out.sizes["lon"])
+            out = sen1.get_dem([0, 0, 2, 2])
+            self.assertIn("lat", out.dims)
+            self.assertIn("lon", out.dims)
+            self.assertEqual(3, out.sizes["lat"])
+            self.assertEqual(3, out.sizes["lon"])
 
     def test_get_dem_resolution_with_no_crs_sets_wgs84(self):
         crs = pyproj.CRS.from_epsg(4326)
-        with patch.dict(
-            os.environ,
-            {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
-            clear=True,
+        with (
+            patch.dict(
+                os.environ,
+                {"AWS_ACCESS_KEY_ID": "k", "AWS_SECRET_ACCESS_KEY": "s"},
+                clear=True,
+            ),
+            patch.object(sen1.pystac_client.Client, "open") as client_open,
+            patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
         ):
-            with (
-                patch.object(sen1.pystac_client.Client, "open") as client_open,
-                patch.object(sen1.rioxarray, "open_rasterio") as open_rasterio,
-            ):
-                fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
-                search = SimpleNamespace(items=lambda: [fake_item])
-                client_open.return_value = SimpleNamespace(search=lambda **_: search)
+            fake_item = SimpleNamespace(assets={"data": SimpleNamespace(href="x")})
+            search = SimpleNamespace(items=lambda: [fake_item])
+            client_open.return_value = SimpleNamespace(search=lambda **_: search)
 
-                open_rasterio.return_value = xr.DataArray(
-                    np.ones((1, 4, 4), dtype="float32"),
-                    dims=("band", "y", "x"),
-                    coords={
-                        "band": [1],
-                        "y": [3, 2, 1, 0],
-                        "x": [0, 1, 2, 3],
-                        "spatial_ref": xr.DataArray(0, attrs=crs.to_cf()),
-                    },
-                )
+            open_rasterio.return_value = xr.DataArray(
+                np.ones((1, 4, 4), dtype="float32"),
+                dims=("band", "y", "x"),
+                coords={
+                    "band": [1],
+                    "y": [3, 2, 1, 0],
+                    "x": [0, 1, 2, 3],
+                    "spatial_ref": xr.DataArray(0, attrs=crs.to_cf()),
+                },
+            )
 
-                out = sen1.get_dem([0, 0, 1, 1], resolution=0.5, crs=None)
-                self.assertIsInstance(out, xr.DataArray)
-                self.assertEqual((2, 2), out.values.shape)
-                self.assertDictEqual(crs.to_cf(), out.spatial_ref.attrs)
+            out = sen1.get_dem([0, 0, 1, 1], resolution=0.5, crs=None)
+            self.assertIsInstance(out, xr.DataArray)
+            self.assertEqual((2, 2), out.values.shape)
+            self.assertDictEqual(crs.to_cf(), out.spatial_ref.attrs)
 
     def test_az_orbit_roundtrip(self):
         epoch = np.datetime64("2024-01-01T00:00:00")

@@ -63,14 +63,16 @@ class MsiTestMixin:
         # in dataset attrs with key "horizontal_CRS_code"
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
-                dict(
-                    b01=make_band(),
-                    b02=make_band(),
-                    b03=make_band(),
-                ),
-                attrs={"horizontal_CRS_code": "ESPG:32632"},
+                {
+                    "b01": make_band(),
+                    "b02": make_band(),
+                    "b03": make_band(),
+                },
+                attrs={
+                    "other_metadata": {"horizontal_CRS_code": "ESPG:32632"},
+                    "stac_discovery": {"test": "dict"},
+                },
             ),
-            {"test": "dict"},
         )
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(
@@ -82,14 +84,18 @@ class MsiTestMixin:
 
         # in band attrs with key "proj:epsg"
         ds = xr.Dataset(
-            dict(
-                b01=make_band(),
-                b02=make_band(),
-                b03=make_band(),
-            ),
+            {
+                "b01": make_band(),
+                "b02": make_band(),
+                "b03": make_band(),
+            },
+            attrs={
+                "other_metadata": {},
+                "stac_discovery": {"test": "dict"},
+            },
         )
         ds["b01"].attrs = {"proj:epsg": 32632}
-        dataset = self.mode.assign_grid_mapping(ds, {"test": "dict"})
+        dataset = self.mode.assign_grid_mapping(ds)
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(
             "transverse_mercator", dataset.spatial_ref.attrs.get("grid_mapping_name")
@@ -101,13 +107,16 @@ class MsiTestMixin:
         # in band attrs with key "proj:epsg"
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
-                dict(
-                    b01=make_band(),
-                    b02=make_band(),
-                    b03=make_band(),
-                ),
+                {
+                    "b01": make_band(),
+                    "b02": make_band(),
+                    "b03": make_band(),
+                },
+                attrs={
+                    "other_metadata": {},
+                    "stac_discovery": {"properties": {"proj:code": "EPSG:32632"}},
+                },
             ),
-            {"properties": {"proj:code": "EPSG:32632"}},
         )
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(
@@ -123,14 +132,16 @@ class MsiTestMixin:
 
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
-                dict(
-                    b01=make_band(),
-                    b02=make_band(),
-                    b03=make_band(),
-                ),
-                attrs={"horizontal_CRS_code": "ESPG:-1"},
+                {
+                    "b01": make_band(),
+                    "b02": make_band(),
+                    "b03": make_band(),
+                },
+                attrs={
+                    "other_metadata": {"horizontal_CRS_code": "ESPG:-1"},
+                    "stac_discovery": {},
+                },
             ),
-            {},
         )
         self.assertNotIn("spatial_ref", dataset)
         self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
@@ -147,13 +158,16 @@ class MsiTestMixin:
 
         dataset = self.mode.assign_grid_mapping(
             xr.Dataset(
-                dict(
-                    b01=make_band(),
-                    b02=make_band(),
-                    b03=make_band(),
-                )
+                {
+                    "b01": make_band(),
+                    "b02": make_band(),
+                    "b03": make_band(),
+                },
+                attrs={
+                    "other_metadata": {},
+                    "stac_discovery": {},
+                },
             ),
-            {},
         )
         self.assertNotIn("spatial_ref", dataset)
         self.assertEqual(None, dataset.b01.attrs.get("grid_mapping"))
@@ -171,7 +185,7 @@ class MsiTestMixin:
         expected_size: int | tuple[int, int],
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | str | None = None,
-        resolution: int | float | None = None,
+        resolution: float | None = None,
     ):
         ds = self.mode.convert_datatree(
             original_dt,
@@ -225,7 +239,7 @@ class MsiL1CTest(MsiTestMixin, TestCase):
 
     def test_is_no_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S2A_MSIL2A_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s2_msi_l1c())
@@ -325,7 +339,7 @@ class MsiL2aTest(MsiTestMixin, TestCase):
     def test_is_valid_source(self):
         self.assertTrue(self.mode.is_valid_source("S2A_MSIL2A_20240201.zarr"))
         self.assertFalse(self.mode.is_valid_source("S2A_MSIL1C_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s2_msi_l2a())

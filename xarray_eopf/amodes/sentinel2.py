@@ -4,8 +4,8 @@
 
 import warnings
 from abc import ABC
-from collections.abc import Iterable, Sequence
-from typing import Any, Hashable
+from collections.abc import Hashable, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import pyproj.crs
@@ -148,17 +148,15 @@ class Msi(AnalysisMode, ABC):
         )
         return datatree
 
-    def transform_dataset(
-        self, dataset: xr.Dataset, stac_meta: dict, **params
-    ) -> xr.Dataset:
-        return self.assign_grid_mapping(dataset, stac_meta)
+    def transform_dataset(self, dataset: xr.Dataset, **params) -> xr.Dataset:
+        return self.assign_grid_mapping(dataset)
 
     def convert_datatree(
         self,
         datatree: xr.DataTree,
         includes: str | Iterable[str] | None = None,
         excludes: str | Iterable[str] | None = None,
-        resolution: int = None,
+        resolution: int | None = None,
         bbox: Sequence[float | int] | None = None,
         crs: pyproj.CRS | None = None,
         interp_methods: SpatialInterpMethods | None = None,
@@ -177,10 +175,10 @@ class Msi(AnalysisMode, ABC):
             if isinstance(includes, str) and includes in COMMON_BAND_NAMES:
                 use_common_bands = True
                 includes = COMMON_BAND_NAMES[includes]
-            elif any(name in COMMON_BAND_NAMES.keys() for name in includes):
+            elif any(name in COMMON_BAND_NAMES for name in includes):
                 use_common_bands = True
                 includes = [
-                    COMMON_BAND_NAMES[name] if name in COMMON_BAND_NAMES else name
+                    COMMON_BAND_NAMES.get(name, name)
                     for name in includes
                 ]
 
@@ -209,9 +207,7 @@ class Msi(AnalysisMode, ABC):
                     ):
                         if use_common_bands:
                             k_mod = (
-                                COMMON_BAND_NAMES_REVERSE[k]
-                                if k in COMMON_BAND_NAMES_REVERSE
-                                else k
+                                COMMON_BAND_NAMES_REVERSE.get(k, k)
                             )
                             variables[res][k_mod] = v
                         else:
@@ -219,14 +215,12 @@ class Msi(AnalysisMode, ABC):
 
         if all(len(v) == 0 for v in variables.values()):
             raise ValueError("No variables selected")
-        datasets = dict()
+        datasets = {}
         for res, da_mapping in variables.items():
             if da_mapping:
                 ds = xr.Dataset(da_mapping)
                 ds.attrs.update(self.process_metadata(datatree))
-                datasets[res] = self.assign_grid_mapping(
-                    ds, datatree.attrs.get("stac_discovery")
-                )
+                datasets[res] = self.assign_grid_mapping(ds)
 
         # resample dataset
         if resolution in datasets and crs is None and bbox is None:
@@ -276,18 +270,20 @@ class Msi(AnalysisMode, ABC):
             attrs = EXTRA_VAR_ATTRS.get(var_name)
             if attrs:
                 rescaled_ds[var_name].attrs.update(attrs)
-            if var_name in LONG_NAME_TRANSLATION.keys():
+            if var_name in LONG_NAME_TRANSLATION:
                 rescaled_ds[var_name].attrs["long_name"] = LONG_NAME_TRANSLATION[
-                    var_name
+                    str(var_name)
                 ]
 
         return rescaled_ds
 
     # noinspection PyMethodMayBeStatic
-    def assign_grid_mapping(self, dataset: xr.Dataset, stac_meta: dict) -> xr.Dataset:
+    def assign_grid_mapping(self, dataset: xr.Dataset) -> xr.Dataset:
         crs = None
         try:
-            crs_code = dataset.attrs.get("horizontal_CRS_code", "EPSG:-1")
+            crs_code = dataset.attrs["other_metadata"].get(
+                "horizontal_CRS_code", "EPSG:-1"
+            )
             epsg_int = int(crs_code.split(":")[1])
             crs = pyproj.CRS.from_epsg(epsg_int)
         except pyproj.exceptions.CRSError:
@@ -303,6 +299,7 @@ class Msi(AnalysisMode, ABC):
                 pass
         if crs is None:
             try:
+                stac_meta = dataset.attrs["stac_discovery"]
                 crs_code = stac_meta.get("properties", {}).get("proj:code", "EPSG:-1")
                 epsg_int = int(crs_code.split(":")[1])
                 crs = pyproj.CRS.from_epsg(epsg_int)
@@ -336,7 +333,7 @@ def register(registry: AnalysisModeRegistry):
     registry.register(MsiL2a)
 
 
-def get_native_res(resolution: int | float, crs: pyproj.CRS | None = None) -> int:
+def get_native_res(resolution: float, crs: pyproj.CRS | None = None) -> int:
     """Return the nearest equal or coarser Sentinel-2 spatial resolution.
 
     Args:

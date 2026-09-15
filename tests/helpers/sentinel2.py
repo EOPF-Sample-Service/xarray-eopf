@@ -49,6 +49,7 @@ def make_s2_msi_l2a(r10m_size: int = 48) -> xr.DataTree:
         },
     )
     dt.attrs["other_metadata"] = {"horizontal_CRS_code": "EPSG:32632"}
+    dt.attrs["stac_discovery"] = {"properties": {"a": "b"}}
     return dt
 
 

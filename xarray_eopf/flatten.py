@@ -40,7 +40,7 @@ def flatten_datatree(
             dataset = dataset.rename(name_mapping)
             # in-place replacement of "preferred_chunks" encoding
             # in dataset variables
-            for var_name, var in dataset.variables.items():
+            for var in dataset.variables.values():
                 preferred_chunks = var.encoding.get("preferred_chunks")
                 if isinstance(preferred_chunks, dict) and preferred_chunks:
                     renamed_chunks = {

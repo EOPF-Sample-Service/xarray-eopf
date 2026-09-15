@@ -14,6 +14,6 @@ __all__ = [
     "make_s2_msi_l1c",
     "make_s2_msi_l2a",
     "make_s3_olci_efr",
-    "make_s3_slstr_rbt",
     "make_s3_slstr_lst",
+    "make_s3_slstr_rbt",
 ]

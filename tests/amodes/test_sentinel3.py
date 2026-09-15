@@ -69,14 +69,14 @@ class Sen3TestMixin:
         def make_band():
             return xr.DataArray(
                 np.zeros((10, 10)),
-                coords=dict(
-                    lat=(("y", "x"), np.arange(100).reshape((10, 10))),
-                    lon=(("y", "x"), np.arange(100).reshape((10, 10))),
-                ),
+                coords={
+                    "lat": (("y", "x"), np.arange(100).reshape((10, 10))),
+                    "lon": (("y", "x"), np.arange(100).reshape((10, 10))),
+                },
                 dims=("y", "x"),
             )
 
-        return xr.Dataset(dict(data=make_band()))
+        return xr.Dataset({"data": make_band()})
 
     def test_assign_grid_mapping(self: TestCase):
         dataset = self.mode.assign_grid_mapping(self.create_simple_dataset())
@@ -88,7 +88,7 @@ class Sen3TestMixin:
 
     def test_transform_dataset(self: TestCase):
         dataset = self.mode.transform_dataset(
-            self.create_simple_dataset(), {"stac_meta": "test"}, interp_method=0
+            self.create_simple_dataset(), interp_method=0
         )
         self.assertIn("spatial_ref", dataset)
         self.assertEqual(
@@ -157,7 +157,7 @@ class OlciEfrTest(Sen3TestMixin, TestCase):
 
     def test_is_no_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S3C_OL_1_EFR_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s3_olci_efr(size=100))
@@ -235,7 +235,7 @@ class SlstrRbtTest(Sen3TestMixin, TestCase):
 
     def test_is_no_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S3C_SL_1_RBT_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s3_slstr_rbt(size=100))
@@ -322,7 +322,7 @@ class SlstrLstTest(Sen3TestMixin, TestCase):
 
     def test_is_no_valid_source(self):
         self.assertFalse(self.mode.is_valid_source("data/S3C_SL_2_LST_20240201.zarr"))
-        self.assertFalse(self.mode.is_valid_source(dict()))
+        self.assertFalse(self.mode.is_valid_source({}))
 
     def test_transform_datatree(self):
         self.assert_transform_datatree_ok(make_s3_slstr_lst(size=100))

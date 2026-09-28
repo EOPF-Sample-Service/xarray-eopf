@@ -21,8 +21,6 @@ nav:
 
 theme:
   name: material
-  logo: https://zarr.eopf.copernicus.eu/wp-content/uploads/2026/02/EOPF-on-bright-baseline-scaled.png
-  favicon: https://avatars.githubusercontent.com/u/191987188?s=200&v=4
   font: false
   custom_dir: docs/overrides
 

@@ -21,8 +21,8 @@ nav:
 
 theme:
   name: material
-  # logo: assets/logo.png
-  # favicon: assets/logo-small.png
+  font: false
+  custom_dir: docs/overrides
   palette:
     # Palette toggle for light mode
     - scheme: default
@@ -36,6 +36,9 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+hooks:
+  - docs/hooks/download_fonts.py
 
 markdown_extensions:
   - attr_list
@@ -52,9 +55,15 @@ extra:
       link: https://github.com/EOPF-Sample-Service/xarray-eopf
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/xarray-eopf/
+  footer_links:
+    - text: Imprint
+      href: https://www.brockmann-consult.de/imprint/
+    - text: Privacy Policy
+      href: https://www.brockmann-consult.de/privacy-policy-documentation-pages/
 
 extra_css:
   - stylesheets/xarray_dataset.css
+  - stylesheet/extra.css
 
 plugins:
   - search

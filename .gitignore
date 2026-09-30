@@ -173,6 +173,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Downloaded font assets
+docs/assets/fonts/*.ttf
+
 # Zarr stores (directories)
 *.zarr/
 
@@ -184,4 +187,6 @@ cython_debug/
 # TIFF files
 *.tif
 *.tiff
+
+
 

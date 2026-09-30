@@ -308,10 +308,6 @@ bands from multiple resolutions onto the same grid using [affine transformation 
   Defaults to `"center"` for integer arrays (e.g. Sentinel-2 L2A SCL), else `"mean"`.
   For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
 
-The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in [Remarks on Specific Sentinel Missions](#remarks-on-specific-sentinel-missions).
-
 Examples:  
 
 - [Docs - Sentinel-2 Analysis Mode](https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_analysis/)
@@ -401,10 +397,6 @@ for details.
     `"mode"`, `"min"`, `"prod"`, `"std"`, `"sum"`, and `"var"`.
   Defaults to `"center"` for integer arrays, else `"mean"`.
   For more information view [xcube-resampling Documentation](https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms).
-
-The spatial resampling of datasets is performed using [xcube-resampling](https://xcube-dev.github.io/xcube-resampling/).
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in [Remarks on Specific Sentinel Missions](#remarks-on-specific-sentinel-missions).
 
 Example:  
 

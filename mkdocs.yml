@@ -62,7 +62,7 @@ extra:
       href: https://www.brockmann-consult.de/privacy-policy-documentation-pages/
 
 extra_css:
-  - stylesheets/xarray_dataset.css
+  - stylesheet/xarray_dataset.css
   - stylesheet/extra.css
 
 plugins:

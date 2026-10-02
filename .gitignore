@@ -170,11 +170,22 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Downloaded assets
+docs/assets/downloaded/
+
 # PyPI configuration file
 .pypirc
-
-# Downloaded font assets
-docs/assets/fonts/*.ttf
 
 # Zarr stores (directories)
 *.zarr/

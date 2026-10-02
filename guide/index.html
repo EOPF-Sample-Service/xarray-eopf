@@ -41,17 +41,13 @@
     
     
       
-        
-        
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-      
     
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
       <link rel="stylesheet" href="../stylesheets/xarray_dataset.css">
+    
+      <link rel="stylesheet" href="../stylesheet/extra.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1059,8 +1055,8 @@ single shared pair of 1d <code>x</code> and <code>y</code> coordinates in the re
 <p>Synopsis:  </p>
 <div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span>
     <span class="n">filename_or_obj</span><span class="p">,</span> 
-    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
-    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">,</span> 
+    <span class="n">engine</span><span class="o">=</span><span class="s2">"eopf-zarr"</span><span class="p">,</span> 
+    <span class="n">op_mode</span><span class="o">=</span><span class="s2">"analysis"</span><span class="p">,</span> 
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1336,9 +1332,6 @@ bands from multiple resolutions onto the same grid using <a href="https://xcube-
   For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
 </li>
 </ul>
-<p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>
 <p>Examples:  </p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_2_analysis/">Docs - Sentinel-2 Analysis Mode</a></li>
@@ -1428,9 +1421,6 @@ for details.</p>
   For more information view <a href="https://xcube-dev.github.io/xcube-resampling/guide/#spatial-resampling-algorithms">xcube-resampling Documentation</a>.</p>
 </li>
 </ul>
-<p>The spatial resampling of datasets is performed using <a href="https://xcube-dev.github.io/xcube-resampling/">xcube-resampling</a>.
-Further explanation of the meaning and usage of these parameters for each Sentinel 
-mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks on Specific Sentinel Missions</a>.</p>
 <p>Example:  </p>
 <ul>
 <li><a href="https://eopf-sample-service.github.io/xarray-eopf/examples/sentinel_3_analysis/">Docs - Sentinel-3 Analysis Mode</a></li>
@@ -1440,8 +1430,8 @@ mission is provided in <a href="#remarks-on-specific-sentinel-missions">Remarks 
 <p>Synopsis: </p>
 <div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
     <span class="n">filename_or_obj</span><span class="p">,</span> 
-    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
-    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span><span class="p">,</span> 
+    <span class="n">engine</span><span class="o">=</span><span class="s2">"eopf-zarr"</span><span class="p">,</span> 
+    <span class="n">op_mode</span><span class="o">=</span><span class="s2">"analysis"</span><span class="p">,</span> 
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1456,8 +1446,8 @@ of the original data products are preserved to a maximum extend.</p>
 <p>Synopsis:  </p>
 <div class="highlight"><pre><span></span><code><span class="n">dataset</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span>
     <span class="n">filename_or_obj</span><span class="p">,</span> 
-    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
-    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span> 
+    <span class="n">engine</span><span class="o">=</span><span class="s2">"eopf-zarr"</span><span class="p">,</span> 
+    <span class="n">op_mode</span><span class="o">=</span><span class="s2">"native"</span><span class="p">,</span> 
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1481,8 +1471,8 @@ dimensions and variables is not an issue.</p>
 <p>Synopsis:  </p>
 <div class="highlight"><pre><span></span><code><span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
     <span class="n">filename_or_obj</span><span class="p">,</span> 
-    <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;eopf-zarr&quot;</span><span class="p">,</span> 
-    <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span> 
+    <span class="n">engine</span><span class="o">=</span><span class="s2">"eopf-zarr"</span><span class="p">,</span> 
+    <span class="n">op_mode</span><span class="o">=</span><span class="s2">"native"</span><span class="p">,</span> 
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1528,13 +1518,14 @@ dimensions and variables is not an issue.</p>
   
     <div class="md-copyright__highlight">
       Copyright &copy; 2026 EOPF Sample Service Team
+      
+        &nbsp;&nbsp;&nbsp;
+        <a href="https://www.brockmann-consult.de/imprint/" rel="noopener">Imprint</a>
+      
+        &nbsp;&nbsp;&nbsp;
+        <a href="https://www.brockmann-consult.de/privacy-policy-documentation-pages/" rel="noopener">Privacy Policy</a>
+      
     </div>
-  
-  
-    Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
-    </a>
   
 </div>
       

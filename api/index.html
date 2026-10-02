@@ -41,17 +41,13 @@
     
     
       
-        
-        
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-      
     
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
       <link rel="stylesheet" href="../stylesheets/xarray_dataset.css">
+    
+      <link rel="stylesheet" href="../stylesheet/extra.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1136,13 +1132,13 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EopfBackend</span><span class="p">(</span><span class="n">BackendEntrypoint</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend for EOPF Data Products using the Zarr format.</span>
+<span class="w">    </span><span class="sd">"""Backend for EOPF Data Products using the Zarr format.</span>
 
 <span class="sd">    Note, that the `chunks` parameter passed to xarray top level functions</span>
 <span class="sd">    `xr.open_datatree()` and `xr.open_dataset()` is _not_ passed to</span>
 <span class="sd">    backend. Instead, xarray uses them to (re)chunk the results</span>
 <span class="sd">    from calling the backend equivalents, hence, _after_ backend code.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">open_datatree</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1156,16 +1152,16 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
             <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
         <span class="p">)</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataTree</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Backend implementation delegated to by</span>
+<span class="w">        </span><span class="sd">"""Backend implementation delegated to by</span>
 <span class="sd">        [`xarray.open_datatree()`](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename_or_obj: File path, or URL, a path-like string, or</span>
 <span class="sd">                a Zarr store, or other key to object mapping.</span>
-<span class="sd">            op_mode: Mode of operation, either &quot;analysis&quot; or &quot;native&quot;.</span>
-<span class="sd">                Defaults to &quot;analysis&quot;.</span>
-<span class="sd">            product_type: Optional product type name, such as `&quot;MSIL1C&quot;`.</span>
-<span class="sd">                Only used if `op_mode=&quot;analysis&quot;`; typically not required</span>
+<span class="sd">            op_mode: Mode of operation, either "analysis" or "native".</span>
+<span class="sd">                Defaults to "analysis".</span>
+<span class="sd">            product_type: Optional product type name, such as `"MSIL1C"`.</span>
+<span class="sd">                Only used if `op_mode="analysis"`; typically not required</span>
 <span class="sd">                if the filename inherent to `filename_or_obj`</span>
 <span class="sd">                adheres to EOPF naming conventions.</span>
 <span class="sd">            storage_options: If `filename_or_obj` is a file path or URL,</span>
@@ -1179,11 +1175,11 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A new data-tree instance.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Disable attribute expansion for cleaner, more concise rendering in notebooks</span>
         <span class="n">xr</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">display_expand_attrs</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-        <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">&quot;op_mode&quot;</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
+        <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">"op_mode"</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
 
         <span class="n">filename_or_obj</span><span class="p">,</span> <span class="n">subgroup_path</span> <span class="o">=</span> <span class="n">normalize_source_path</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">)</span>
         <span class="n">source</span> <span class="o">=</span> <span class="n">normalize_source</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="n">storage_options</span><span class="p">)</span>
@@ -1191,7 +1187,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="c1"># noinspection PyTypeChecker</span>
         <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
             <span class="n">source</span><span class="p">,</span>
-            <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;zarr&quot;</span><span class="p">,</span>
+            <span class="n">engine</span><span class="o">=</span><span class="s2">"zarr"</span><span class="p">,</span>
             <span class="n">group</span><span class="o">=</span><span class="n">subgroup_path</span><span class="p">,</span>
             <span class="c1"># prefer the chunking from the Zarr metadata</span>
             <span class="n">chunks</span><span class="o">=</span><span class="p">{},</span>
@@ -1204,7 +1200,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="n">_assert_datatree_is_chunked</span><span class="p">(</span><span class="n">datatree</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
-            <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
             <span class="n">root_attrs</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">attrs</span>
             <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">root_attrs</span><span class="p">)</span>
 
@@ -1230,7 +1226,7 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="n">op_mode</span><span class="p">:</span> <span class="n">OpMode</span> <span class="o">=</span> <span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span>
         <span class="c1"># params for op_mode=native/analysis</span>
         <span class="n">storage_options</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">group_sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="p">,</span>
+        <span class="n">group_sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"_"</span><span class="p">,</span>
         <span class="n">variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="c1"># params for op_mode=analysis</span>
         <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1251,15 +1247,15 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
             <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
         <span class="p">)</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Backend implementation delegated to by</span>
+<span class="w">        </span><span class="sd">"""Backend implementation delegated to by</span>
 <span class="sd">        [`xarray.open_dataset()`](https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename_or_obj: File path, or URL, or path-like string.</span>
-<span class="sd">            op_mode: Mode of operation, either &quot;analysis&quot; or &quot;native&quot;.</span>
-<span class="sd">                Defaults to &quot;analysis&quot;.</span>
-<span class="sd">            product_type: Optional product type name, such as `&quot;MSIL1C&quot;`.</span>
-<span class="sd">                Only used if `op_mode=&quot;analysis&quot;`; typically not required</span>
+<span class="sd">            op_mode: Mode of operation, either "analysis" or "native".</span>
+<span class="sd">                Defaults to "analysis".</span>
+<span class="sd">            product_type: Optional product type name, such as `"MSIL1C"`.</span>
+<span class="sd">                Only used if `op_mode="analysis"`; typically not required</span>
 <span class="sd">                if the filename inherent to `filename_or_obj`</span>
 <span class="sd">                adheres to EOPF naming conventions.</span>
 <span class="sd">            storage_options: If `filename_or_obj` is a file path or URL,</span>
@@ -1267,25 +1263,25 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 <span class="sd">                Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).</span>
 <span class="sd">            group_sep: Separator string used to concatenate groups names</span>
 <span class="sd">                to create prefixes for unique variable and dimension names.</span>
-<span class="sd">                Defaults to the underscore character (`&quot;_&quot;`)</span>
+<span class="sd">                Defaults to the underscore character (`"_"`)</span>
 <span class="sd">            resolution: Target spatial resolution for all spatial</span>
 <span class="sd">                data variables/bands. The resolution can be specified as a float, integer,</span>
 <span class="sd">                or a tuple in the form `(easting, northing)`. For Sentinel-2 products,</span>
 <span class="sd">                valid resolutions are `10`, `20`, and `60` meters. This parameter is only</span>
-<span class="sd">                used when `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">                used when `op_mode="analysis"`.</span>
 <span class="sd">            bbox: Bounding box [west, south, east, north], used for subsetting.</span>
 <span class="sd">            crs: coordinate reference system of output dataset. Can be provided as a</span>
 <span class="sd">                `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
 <span class="sd">                using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">            interp_methods: Optional interpolation method to be used if</span>
-<span class="sd">                `op_mode=&quot;analysis&quot;`,</span>
+<span class="sd">                `op_mode="analysis"`,</span>
 
 <span class="sd">                - for Sentinel-1 GRD:</span>
 <span class="sd">                    method used during geometric and radiometric terrain correction</span>
 <span class="sd">                    (GTC and RTC).</span>
 
-<span class="sd">                    - `&quot;nearest&quot;`</span>
-<span class="sd">                    - `&quot;bilinear&quot;`</span>
+<span class="sd">                    - `"nearest"`</span>
+<span class="sd">                    - `"bilinear"`</span>
 
 <span class="sd">                - for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:</span>
 <span class="sd">                    for upsampling / interpolating spatial data variables. Can be a</span>
@@ -1295,20 +1291,20 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
 <span class="sd">                    - `0` (nearest neighbor)</span>
 <span class="sd">                    - `1` (linear / bilinear)</span>
-<span class="sd">                    - `&quot;nearest&quot;`</span>
-<span class="sd">                    - `&quot;triangular&quot;`</span>
-<span class="sd">                    - `&quot;bilinear&quot;`</span>
+<span class="sd">                    - `"nearest"`</span>
+<span class="sd">                    - `"triangular"`</span>
+<span class="sd">                    - `"bilinear"`</span>
 
 <span class="sd">                The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">                else `1`.</span>
 <span class="sd">            agg_methods: Optional aggregation methods to be used if</span>
-<span class="sd">                `op_mode=&quot;analysis&quot;`, for downsampling spatial variables.</span>
+<span class="sd">                `op_mode="analysis"`, for downsampling spatial variables.</span>
 <span class="sd">                Can be a single method for all variables or a dictionary mapping</span>
 <span class="sd">                variable names or dtypes to methods. Supported methods include:</span>
-<span class="sd">                    &quot;center&quot;, &quot;count&quot;, &quot;first&quot;, &quot;last&quot;, &quot;max&quot;, &quot;mean&quot;, &quot;median&quot;,</span>
-<span class="sd">                    &quot;mode&quot;, &quot;min&quot;, &quot;prod&quot;, &quot;std&quot;, &quot;sum&quot;, and &quot;var&quot;.</span>
-<span class="sd">                Defaults to &quot;center&quot; for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
-<span class="sd">                else &quot;mean&quot;.</span>
+<span class="sd">                    "center", "count", "first", "last", "max", "mean", "median",</span>
+<span class="sd">                    "mode", "min", "prod", "std", "sum", and "var".</span>
+<span class="sd">                Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
+<span class="sd">                else "mean".</span>
 <span class="sd">            dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with</span>
 <span class="sd">                Sentinel-1 products for geometric and radiometric terrain correction</span>
 <span class="sd">                (foreshooting und overlay) using zero doppler geometry. If None, data</span>
@@ -1338,15 +1334,15 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A new dataset instance.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Disable attribute expansion for cleaner, more concise rendering in notebooks</span>
         <span class="n">xr</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">display_expand_attrs</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-        <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">&quot;op_mode&quot;</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
+        <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">"op_mode"</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
 
         <span class="n">datatree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
             <span class="n">filename_or_obj</span><span class="p">,</span>
-            <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span>
+            <span class="n">op_mode</span><span class="o">=</span><span class="s2">"native"</span><span class="p">,</span>
             <span class="n">storage_options</span><span class="o">=</span><span class="n">storage_options</span><span class="p">,</span>
             <span class="c1"># here as it is required for all backends</span>
             <span class="n">drop_variables</span><span class="o">=</span><span class="n">drop_variables</span><span class="p">,</span>
@@ -1399,18 +1395,18 @@ from calling the backend equivalents, hence, <em>after</em> backend code.</p>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the given `filename_or_obj` refers to an object that</span>
+<span class="w">        </span><span class="sd">"""Check if the given `filename_or_obj` refers to an object that</span>
 <span class="sd">        can be opened by this backend.</span>
 
 <span class="sd">        The function returns `False` to indicate that this backend should</span>
-<span class="sd">        only be used when specified by passing `engine=&quot;eopf-zarr&quot;`.</span>
+<span class="sd">        only be used when specified by passing `engine="eopf-zarr"`.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename_or_obj: File path, or URL, or path-like string.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Always `False`.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="kc">False</span>
 </code></pre></div></td></tr></table></div>
               </details>
@@ -1678,16 +1674,16 @@ to drop from the underlying file. See
         <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataTree</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend implementation delegated to by</span>
+<span class="w">    </span><span class="sd">"""Backend implementation delegated to by</span>
 <span class="sd">    [`xarray.open_datatree()`](https://docs.xarray.dev/en/stable/generated/xarray.open_datatree.html).</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        filename_or_obj: File path, or URL, a path-like string, or</span>
 <span class="sd">            a Zarr store, or other key to object mapping.</span>
-<span class="sd">        op_mode: Mode of operation, either &quot;analysis&quot; or &quot;native&quot;.</span>
-<span class="sd">            Defaults to &quot;analysis&quot;.</span>
-<span class="sd">        product_type: Optional product type name, such as `&quot;MSIL1C&quot;`.</span>
-<span class="sd">            Only used if `op_mode=&quot;analysis&quot;`; typically not required</span>
+<span class="sd">        op_mode: Mode of operation, either "analysis" or "native".</span>
+<span class="sd">            Defaults to "analysis".</span>
+<span class="sd">        product_type: Optional product type name, such as `"MSIL1C"`.</span>
+<span class="sd">            Only used if `op_mode="analysis"`; typically not required</span>
 <span class="sd">            if the filename inherent to `filename_or_obj`</span>
 <span class="sd">            adheres to EOPF naming conventions.</span>
 <span class="sd">        storage_options: If `filename_or_obj` is a file path or URL,</span>
@@ -1701,11 +1697,11 @@ to drop from the underlying file. See
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A new data-tree instance.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Disable attribute expansion for cleaner, more concise rendering in notebooks</span>
     <span class="n">xr</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">display_expand_attrs</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">&quot;op_mode&quot;</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
+    <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">"op_mode"</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
 
     <span class="n">filename_or_obj</span><span class="p">,</span> <span class="n">subgroup_path</span> <span class="o">=</span> <span class="n">normalize_source_path</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">)</span>
     <span class="n">source</span> <span class="o">=</span> <span class="n">normalize_source</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="n">storage_options</span><span class="p">)</span>
@@ -1713,7 +1709,7 @@ to drop from the underlying file. See
     <span class="c1"># noinspection PyTypeChecker</span>
     <span class="n">datatree</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
         <span class="n">source</span><span class="p">,</span>
-        <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;zarr&quot;</span><span class="p">,</span>
+        <span class="n">engine</span><span class="o">=</span><span class="s2">"zarr"</span><span class="p">,</span>
         <span class="n">group</span><span class="o">=</span><span class="n">subgroup_path</span><span class="p">,</span>
         <span class="c1"># prefer the chunking from the Zarr metadata</span>
         <span class="n">chunks</span><span class="o">=</span><span class="p">{},</span>
@@ -1726,7 +1722,7 @@ to drop from the underlying file. See
     <span class="n">_assert_datatree_is_chunked</span><span class="p">(</span><span class="n">datatree</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
-        <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open_group</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
         <span class="n">root_attrs</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">attrs</span>
         <span class="n">datatree</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">root_attrs</span><span class="p">)</span>
 
@@ -1754,7 +1750,7 @@ to drop from the underlying file. See
 
 
 <h3 id="xarray_eopf.backend.EopfBackend.open_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_rtc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache_uri</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_dataset</span><span class="p">(</span><span class="n">filename_or_obj</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">op_mode</span><span class="o">=</span><span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span> <span class="n">storage_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_sep</span><span class="o">=</span><span class="s1">'_'</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">product_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agg_methods</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">footprint_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_rtc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache_uri</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode_timedelta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2322,7 +2318,7 @@ to drop from the underlying file. See
     <span class="n">op_mode</span><span class="p">:</span> <span class="n">OpMode</span> <span class="o">=</span> <span class="n">OP_MODE_ANALYSIS</span><span class="p">,</span>
     <span class="c1"># params for op_mode=native/analysis</span>
     <span class="n">storage_options</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">group_sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="p">,</span>
+    <span class="n">group_sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"_"</span><span class="p">,</span>
     <span class="n">variables</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="c1"># params for op_mode=analysis</span>
     <span class="n">product_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2343,15 +2339,15 @@ to drop from the underlying file. See
         <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">CFTimedeltaCoder</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Backend implementation delegated to by</span>
+<span class="w">    </span><span class="sd">"""Backend implementation delegated to by</span>
 <span class="sd">    [`xarray.open_dataset()`](https://docs.xarray.dev/en/stable/generated/xarray.open_dataset.html).</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        filename_or_obj: File path, or URL, or path-like string.</span>
-<span class="sd">        op_mode: Mode of operation, either &quot;analysis&quot; or &quot;native&quot;.</span>
-<span class="sd">            Defaults to &quot;analysis&quot;.</span>
-<span class="sd">        product_type: Optional product type name, such as `&quot;MSIL1C&quot;`.</span>
-<span class="sd">            Only used if `op_mode=&quot;analysis&quot;`; typically not required</span>
+<span class="sd">        op_mode: Mode of operation, either "analysis" or "native".</span>
+<span class="sd">            Defaults to "analysis".</span>
+<span class="sd">        product_type: Optional product type name, such as `"MSIL1C"`.</span>
+<span class="sd">            Only used if `op_mode="analysis"`; typically not required</span>
 <span class="sd">            if the filename inherent to `filename_or_obj`</span>
 <span class="sd">            adheres to EOPF naming conventions.</span>
 <span class="sd">        storage_options: If `filename_or_obj` is a file path or URL,</span>
@@ -2359,25 +2355,25 @@ to drop from the underlying file. See
 <span class="sd">            Will be passed to [`fsspec.filesystem()`](https://filesystem-spec.readthedocs.io/en/latest/usage.html).</span>
 <span class="sd">        group_sep: Separator string used to concatenate groups names</span>
 <span class="sd">            to create prefixes for unique variable and dimension names.</span>
-<span class="sd">            Defaults to the underscore character (`&quot;_&quot;`)</span>
+<span class="sd">            Defaults to the underscore character (`"_"`)</span>
 <span class="sd">        resolution: Target spatial resolution for all spatial</span>
 <span class="sd">            data variables/bands. The resolution can be specified as a float, integer,</span>
 <span class="sd">            or a tuple in the form `(easting, northing)`. For Sentinel-2 products,</span>
 <span class="sd">            valid resolutions are `10`, `20`, and `60` meters. This parameter is only</span>
-<span class="sd">            used when `op_mode=&quot;analysis&quot;`.</span>
+<span class="sd">            used when `op_mode="analysis"`.</span>
 <span class="sd">        bbox: Bounding box [west, south, east, north], used for subsetting.</span>
 <span class="sd">        crs: coordinate reference system of output dataset. Can be provided as a</span>
 <span class="sd">            `str` or a `pyproj.CRS` object. If a string is given, it will be parsed</span>
 <span class="sd">            using [`pyproj.crs.CRS.from_string`](https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_string).</span>
 <span class="sd">        interp_methods: Optional interpolation method to be used if</span>
-<span class="sd">            `op_mode=&quot;analysis&quot;`,</span>
+<span class="sd">            `op_mode="analysis"`,</span>
 
 <span class="sd">            - for Sentinel-1 GRD:</span>
 <span class="sd">                method used during geometric and radiometric terrain correction</span>
 <span class="sd">                (GTC and RTC).</span>
 
-<span class="sd">                - `&quot;nearest&quot;`</span>
-<span class="sd">                - `&quot;bilinear&quot;`</span>
+<span class="sd">                - `"nearest"`</span>
+<span class="sd">                - `"bilinear"`</span>
 
 <span class="sd">            - for Sentinel-1 OCN, Sentinel-2, and Sentinel-3:</span>
 <span class="sd">                for upsampling / interpolating spatial data variables. Can be a</span>
@@ -2387,20 +2383,20 @@ to drop from the underlying file. See
 
 <span class="sd">                - `0` (nearest neighbor)</span>
 <span class="sd">                - `1` (linear / bilinear)</span>
-<span class="sd">                - `&quot;nearest&quot;`</span>
-<span class="sd">                - `&quot;triangular&quot;`</span>
-<span class="sd">                - `&quot;bilinear&quot;`</span>
+<span class="sd">                - `"nearest"`</span>
+<span class="sd">                - `"triangular"`</span>
+<span class="sd">                - `"bilinear"`</span>
 
 <span class="sd">            The default is `0` for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
 <span class="sd">            else `1`.</span>
 <span class="sd">        agg_methods: Optional aggregation methods to be used if</span>
-<span class="sd">            `op_mode=&quot;analysis&quot;`, for downsampling spatial variables.</span>
+<span class="sd">            `op_mode="analysis"`, for downsampling spatial variables.</span>
 <span class="sd">            Can be a single method for all variables or a dictionary mapping</span>
 <span class="sd">            variable names or dtypes to methods. Supported methods include:</span>
-<span class="sd">                &quot;center&quot;, &quot;count&quot;, &quot;first&quot;, &quot;last&quot;, &quot;max&quot;, &quot;mean&quot;, &quot;median&quot;,</span>
-<span class="sd">                &quot;mode&quot;, &quot;min&quot;, &quot;prod&quot;, &quot;std&quot;, &quot;sum&quot;, and &quot;var&quot;.</span>
-<span class="sd">            Defaults to &quot;center&quot; for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
-<span class="sd">            else &quot;mean&quot;.</span>
+<span class="sd">                "center", "count", "first", "last", "max", "mean", "median",</span>
+<span class="sd">                "mode", "min", "prod", "std", "sum", and "var".</span>
+<span class="sd">            Defaults to "center" for integer arrays (e.g. Sentinel-2 L2A SCL),</span>
+<span class="sd">            else "mean".</span>
 <span class="sd">        dem: Optional DEM as a CF-compliant `xarray.DataArray` to use with</span>
 <span class="sd">            Sentinel-1 products for geometric and radiometric terrain correction</span>
 <span class="sd">            (foreshooting und overlay) using zero doppler geometry. If None, data</span>
@@ -2430,15 +2426,15 @@ to drop from the underlying file. See
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A new dataset instance.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Disable attribute expansion for cleaner, more concise rendering in notebooks</span>
     <span class="n">xr</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">display_expand_attrs</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">&quot;op_mode&quot;</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
+    <span class="n">assert_arg_is_one_of</span><span class="p">(</span><span class="n">op_mode</span><span class="p">,</span> <span class="s2">"op_mode"</span><span class="p">,</span> <span class="n">OP_MODES</span><span class="p">)</span>
 
     <span class="n">datatree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_datatree</span><span class="p">(</span>
         <span class="n">filename_or_obj</span><span class="p">,</span>
-        <span class="n">op_mode</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">,</span>
+        <span class="n">op_mode</span><span class="o">=</span><span class="s2">"native"</span><span class="p">,</span>
         <span class="n">storage_options</span><span class="o">=</span><span class="n">storage_options</span><span class="p">,</span>
         <span class="c1"># here as it is required for all backends</span>
         <span class="n">drop_variables</span><span class="o">=</span><span class="n">drop_variables</span><span class="p">,</span>
@@ -2585,18 +2581,18 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filename_or_obj</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">ReadBuffer</span> <span class="o">|</span> <span class="n">AbstractDataStore</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the given `filename_or_obj` refers to an object that</span>
+<span class="w">    </span><span class="sd">"""Check if the given `filename_or_obj` refers to an object that</span>
 <span class="sd">    can be opened by this backend.</span>
 
 <span class="sd">    The function returns `False` to indicate that this backend should</span>
-<span class="sd">    only be used when specified by passing `engine=&quot;eopf-zarr&quot;`.</span>
+<span class="sd">    only be used when specified by passing `engine="eopf-zarr"`.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        filename_or_obj: File path, or URL, or path-like string.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Always `False`.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="kc">False</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2641,13 +2637,14 @@ only be used when specified by passing <code>engine="eopf-zarr"</code>.</p>
   
     <div class="md-copyright__highlight">
       Copyright &copy; 2026 EOPF Sample Service Team
+      
+        &nbsp;&nbsp;&nbsp;
+        <a href="https://www.brockmann-consult.de/imprint/" rel="noopener">Imprint</a>
+      
+        &nbsp;&nbsp;&nbsp;
+        <a href="https://www.brockmann-consult.de/privacy-policy-documentation-pages/" rel="noopener">Privacy Policy</a>
+      
     </div>
-  
-  
-    Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
-    </a>
   
 </div>
       

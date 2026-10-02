@@ -1,4 +1,4 @@
-## Changes in 0.3.1 (in development)
+## Changes in 0.3.1
 
 - Fixed a bug when reading the spatial reference from DataTree attributes. (#88)
 
